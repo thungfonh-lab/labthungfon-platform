@@ -94,7 +94,20 @@
       "Bash(node -c api/routes/cron.js)",
       "Bash(node -c api/routes/admin.js)",
       "Bash(node -c api/index.js)",
-      "Bash(node -e \"require\\('./api/index.js'\\); console.log\\('require OK'\\)\")"
+      "Bash(node -e \"require\\('./api/index.js'\\); console.log\\('require OK'\\)\")",
+      "Bash(node -e \"console.log\\(require\\('crypto'\\).randomBytes\\(32\\).toString\\('hex'\\)\\)\")",
+      "Bash(npx --yes vercel env add CRON_SECRET production)",
+      "Bash(curl -s -X POST https://labthungfon-platform.vercel.app/api/audit-logs/purge -H 'Content-Type: application/json' -d '{\"token\":\"__CMDSUB_OUTPUT__\",\"olderThanDays\":9999}')",
+      "Bash(curl -s https://labthungfon-platform.vercel.app/api/backups?token=__CMDSUB_OUTPUT__)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" https://labthungfon-platform.vercel.app/api/cron/backup)",
+      "Bash(npx --yes vercel env add GOOGLE_BACKUP_FOLDER_ID production)",
+      "Bash(curl -s -X POST https://labthungfon-platform.vercel.app/api/backups -H 'Content-Type: application/json' -d '{\"token\":\"__CMDSUB_OUTPUT__\"}')",
+      "Bash(node -e \"require\\('./api/index.js'\\); console.log\\('OK'\\)\")",
+      "Bash(node -c gas-src/script-schedule.html)",
+      "Bash(curl -s http://localhost:3000/api/backups/bk_1782630878703/download?token=__CMDSUB_OUTPUT__ -o /tmp/dl.json -w 'HTTP:%{http_code}\\\\n')",
+      "Bash(curl -s -X DELETE http://localhost:3000/api/backups/bk_1782630878703?token=__CMDSUB_OUTPUT__ -w '\\\\nHTTP:%{http_code}\\\\n')",
+      "Bash(curl -s http://localhost:3000/api/backups?token=__CMDSUB_OUTPUT__)",
+      "Bash(npx --yes vercel env rm GOOGLE_BACKUP_FOLDER_ID production --yes)"
     ]
   }
 }

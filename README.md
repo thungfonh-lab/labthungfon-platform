@@ -155,26 +155,33 @@ it, and `AuditLogs` grew forever with no cleanup. Both are now implemented:
 
 ### Backups
 
-`lib/backupService.js` copies the **entire live spreadsheet** (every sheet,
-full fidelity) into a Google Drive folder via the Drive API.
+`lib/backupService.js` snapshots **every data sheet** (Users, Roles,
+Permissions, MasterData, Transactions, Schedules, ReportsCache, AuditLogs,
+Settings) as one JSON blob and stores it inside the same spreadsheet, in a
+dedicated **"Backups"** sheet (auto-created on first use, chunked across rows
+since a single cell caps at ~50,000 characters).
 
-**One-time setup required** (service accounts have no usable Drive storage
-quota of their own, so the destination folder must belong to a real account):
-1. In your own Google Drive, create a folder (e.g. "labthungfon Backups").
-2. Share it with the service account's `client_email` (Editor access) — the
-   same email already shared on the spreadsheet.
-3. Copy the folder ID from its URL (`drive.google.com/drive/folders/<ID>`)
-   and set it as `GOOGLE_BACKUP_FOLDER_ID`.
+**Why not Drive?** The first version of this feature copied the whole
+spreadsheet *file* via the Drive API into a folder shared by the user — that
+failed in production with "The user's Drive storage quota has been
+exceeded." Drive API file copies are always owned by whoever performs the
+copy, and a bare service account (no Google Workspace, no domain-wide
+delegation, no Shared Drives — none of which a personal `@gmail.com` account
+has access to) has **zero Drive storage quota of its own**, regardless of
+which folder the copy is placed in. Storing the snapshot as data inside the
+spreadsheet itself sidesteps the problem entirely — no Drive API, no extra
+sharing/permissions, just the same Sheets read/write path every other
+feature already uses.
 
-Without that env var, `GET/POST /api/backups` return a clear Thai setup error
-instead of a confusing Drive permission error.
-
-- `GET /api/backups` — list backups (newest first)
+- `GET /api/backups` — list backup metadata (newest first; `id`, `createdAt`, `sizeBytes`)
 - `POST /api/backups` — create one now, then prune to the last `keep` (default 14)
-- `DELETE /api/backups/:fileId` — remove a single backup
+- `GET /api/backups/:backupId/download` — reassemble + download as a `.json` file
+- `DELETE /api/backups/:backupId` — remove a single backup
 - A Vercel Cron job (`/api/cron/backup`, daily 19:00 UTC = 02:00 Thai time)
   runs this automatically — see `vercel.json`'s `crons` array.
 - UI: ตั้งค่า → "สำรองข้อมูล & Audit Log" accordion section.
+- **Restoring** from a downloaded backup is manual (paste the JSON back into
+  the relevant sheets) — no one-click restore endpoint exists yet.
 
 ### Audit log purge
 

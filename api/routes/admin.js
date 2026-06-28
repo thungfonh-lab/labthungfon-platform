@@ -111,9 +111,9 @@ router.post('/audit-logs/purge', wrap(async (req, res) => {
   ok(res, result);
 }));
 
-// ---------------- Backups (new — copies the live spreadsheet into a Drive folder) ----------------
+// ---------------- Backups (new — JSON snapshot of every data sheet, stored in-sheet) ----------------
 
-// GET /api/backups — list backup files in the configured Drive folder
+// GET /api/backups — list backup metadata (newest first)
 router.get('/backups', wrap(async (req, res) => {
   const session = authService.requireSession(getToken(req));
   await authService.requirePermission(session.user, 'manageSettings', false);
@@ -124,18 +124,32 @@ router.get('/backups', wrap(async (req, res) => {
 router.post('/backups', wrap(async (req, res) => {
   const session = authService.requireSession(getToken(req));
   await authService.requirePermission(session.user, 'manageSettings', false);
-  const file = await backupService.createBackup();
+  const backup = await backupService.createBackup();
   await backupService.pruneBackups(req.body.keep);
-  await auditService.logAction(session.user.userId, 'CREATE', 'Backups', file.id, null, { name: file.name });
-  ok(res, file);
+  await auditService.logAction(session.user.userId, 'CREATE', 'Backups', backup.id, null, backup);
+  ok(res, backup);
 }));
 
-// DELETE /api/backups/:fileId — remove a single backup file
-router.delete('/backups/:fileId', wrap(async (req, res) => {
+// GET /api/backups/:backupId/download — reassemble one backup, base64-encoded (same
+// {filename, mimeType, base64} envelope reportService.exportExcel uses, so the
+// frontend's existing downloadBase64() helper handles this without a new code path).
+router.get('/backups/:backupId/download', wrap(async (req, res) => {
   const session = authService.requireSession(getToken(req));
   await authService.requirePermission(session.user, 'manageSettings', false);
-  await backupService.deleteBackup(req.params.fileId);
-  await auditService.logAction(session.user.userId, 'DELETE', 'Backups', req.params.fileId, null, null);
+  const json = await backupService.downloadBackup(req.params.backupId);
+  ok(res, {
+    filename: req.params.backupId + '.json',
+    mimeType: 'application/json',
+    base64: Buffer.from(json, 'utf8').toString('base64')
+  });
+}));
+
+// DELETE /api/backups/:backupId — remove a single backup
+router.delete('/backups/:backupId', wrap(async (req, res) => {
+  const session = authService.requireSession(getToken(req));
+  await authService.requirePermission(session.user, 'manageSettings', false);
+  await backupService.deleteBackup(req.params.backupId);
+  await auditService.logAction(session.user.userId, 'DELETE', 'Backups', req.params.backupId, null, null);
   ok(res, { ok: true });
 }));
 
