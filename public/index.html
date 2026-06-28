@@ -736,7 +736,7 @@ function doLogin() {
   var email = document.getElementById('loginEmail').value.trim();
   var password = document.getElementById('loginPassword').value;
   if (!email || !password) return;
-  gsRun('api_login', email, password).then(function (res) {
+  gsRun('api_login', null, email, password).then(function (res) {
     Session.token = res.token;
     Session.user = res.user;
     sessionStorage.setItem('lo_token', res.token);
