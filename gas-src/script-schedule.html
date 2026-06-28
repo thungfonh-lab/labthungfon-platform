@@ -1174,6 +1174,11 @@ var Schedule = (function () {
   function renderRatesSection(rates, rateOvr, people) {
     var body = document.getElementById('accRates');
     var SH = ['ch', 'b', 'd0', 'd1', 'n', 'b1'];
+    var SH_FULL_LABEL = {
+      ch: 'เวรเช้า 08-16', b: 'เวรบ่าย 16-24',
+      d0: 'เวรดึก On call 00.00-04.00', d1: 'เวรดึก On call 04.00-08.00',
+      n: 'เวรคลินิกนอกเวลา 07-08', b1: 'บ1 เวรเสริมบ่าย 16-20'
+    };
     var rateRow = function (role, label) {
       return '<tr><td class="l">' + label + '</td>' + SH.map(function (sh) {
         var applicable = (role === 'MT' && sh !== 'b1') || (role === 'LA' && (sh === 'ch' || sh === 'b1' || sh === 'n'));
@@ -1203,7 +1208,7 @@ var Schedule = (function () {
     function paintOvr() {
       document.getElementById('rateOvrTbl').innerHTML = '<tr><th>เวร</th><th>บุคคล</th><th>ช่วงวันที่</th><th>จำนวน</th><th></th></tr>' +
         rateOvr.map(function (o) {
-          return '<tr><td>' + o.shift + '</td><td class="l">' + (o.pid ? (byId[o.pid] ? fullN(byId[o.pid]) : o.pid) : 'ทุกคน') + '</td><td>' + (o.from ? (o.from + '-' + (o.to || '')) : 'ทั้งเดือน') + '</td><td>' + o.amount + '</td>' +
+          return '<tr><td>' + (SH_FULL_LABEL[o.shift] || o.shift) + '</td><td class="l">' + (o.pid ? (byId[o.pid] ? fullN(byId[o.pid]) : o.pid) : 'ทุกคน') + '</td><td>' + (o.from ? (o.from + '-' + (o.to || '')) : 'ทั้งเดือน') + '</td><td>' + o.amount + '</td>' +
             '<td><button class="btn btn-sm btn-danger" data-del="' + o.id + '"><i class="ti ti-trash"></i></button></td></tr>';
         }).join('') || '<tr><td colspan="5" style="color:var(--mut)">ไม่มีอัตราพิเศษ</td></tr>';
       document.querySelectorAll('#rateOvrTbl [data-del]').forEach(function (b) {
@@ -1213,7 +1218,7 @@ var Schedule = (function () {
     document.getElementById('addRateOvrBtn').onclick = function () {
       var f = document.createElement('div');
       f.innerHTML = '<div class="frm-grid">' +
-        '<label>เวร<select data-f="shift">' + SH.map(function (s) { return '<option value="' + s + '">' + s + '</option>'; }).join('') + '</select></label>' +
+        '<label>เวร<select data-f="shift">' + SH.map(function (s) { return '<option value="' + s + '">' + SH_FULL_LABEL[s] + '</option>'; }).join('') + '</select></label>' +
         '<label>บุคคล (เว้นว่าง=ทุกคน)<select data-f="pid"><option value="">ทุกคน</option>' + people.map(function (p) { return '<option value="' + p.id + '">' + fullN(p) + '</option>'; }).join('') + '</select></label>' +
         '<label>วันที่เริ่ม<input data-f="from" type="number"></label><label>ถึงวันที่<input data-f="to" type="number"></label>' +
         '<label>จำนวน (บาท)<input data-f="amount" type="number" step="0.01" min="0" inputmode="decimal"></label></div>';
