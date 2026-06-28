@@ -1,0 +1,2795 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<base target="_top">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<!-- Production deploys: set this to the deployed Vercel API URL (used by API_URL in script-core.html
+     when not running on localhost). Leave empty for same-origin / reverse-proxied setups. -->
+<meta name="api-url" content="">
+<title>labthungfon Platform</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* ══ Ported 1:1 from labthungfon-platform-v4_43.html <style> block (lines ~12-564). ══
+   Only the data-binding (DOM ids/JS) changed for the Apps Script web app — all
+   tokens, classes, and the .sched/.tok grid styling are unchanged from the original. */
+:root {
+  --tl:#0E6158; --tl-d:#094940; --tl-m:#138577; --tl-l:#C8E6E2; --tl-vl:#EBF5F3;
+  --gold:#B8862E; --gold-l:#F5EDD6;
+  --coral:#C0432B; --coral-l:#F8E8E5;
+  --sky:#2059A8; --sky-l:#E4ECF7;
+  --jade:#1E7D4F; --jade-l:#DDF0E7;
+  --amber:#9B6410; --amber-l:#FDF0D5;
+  --pur:#6845AA; --pur-l:#EEE7FA;
+  --ink:#111E1B; --ink2:#2E423D; --mut:#637069;
+  --bg:#F0EDE7; --surface:#FFFFFF; --surface2:#F5F3EE;
+  --border:#DDD9D1; --border2:#CAC6BE;
+  --shadow:0 1px 3px rgba(14,97,88,.06),0 4px 18px rgba(14,97,88,.08);
+  --shadow-lg:0 8px 32px rgba(14,97,88,.14);
+  --sb:72px; --sb-open:240px;
+  --hdr:56px; --r:10px; --r2:14px;
+  --tr:.18s ease;
+}
+[data-theme=dark]{
+  --tl:#3BBDAA; --tl-d:#2EA897; --tl-m:#50CDB9; --tl-l:#0D3630; --tl-vl:#0A2A26;
+  --gold:#D4A84C; --gold-l:#2A1F08;
+  --coral:#E8735A; --coral-l:#2A100B;
+  --sky:#5A8FDC; --sky-l:#0C1E3C;
+  --jade:#4DB87A; --jade-l:#0C2418;
+  --amber:#D4924A; --amber-l:#261807;
+  --pur:#9E7FD4; --pur-l:#1C1035;
+  --ink:#E4E0D8; --ink2:#B8B4AC; --mut:#7A827D;
+  --bg:#0E1512; --surface:#161F1C; --surface2:#1C2823;
+  --border:#273530; --border2:#374740;
+  --shadow:0 1px 3px rgba(0,0,0,.3),0 4px 18px rgba(0,0,0,.35);
+  --shadow-lg:0 8px 32px rgba(0,0,0,.5);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;font-family:'Sarabun',sans-serif;font-size:14px;background:var(--bg);color:var(--ink);overflow:hidden}
+h1,h2,h3,h4,h5{font-family:'IBM Plex Sans Thai','Sarabun',sans-serif;font-weight:600;line-height:1.25}
+button,input,select,textarea{font-family:inherit;font-size:inherit}
+button{cursor:pointer}
+a{color:var(--tl);text-decoration:none}
+#app{display:flex;height:100vh;overflow:hidden}
+/* ── sidebar ── */
+#sb{width:var(--sb);flex-shrink:0;background:var(--ink);color:#fff;display:flex;flex-direction:column;overflow:hidden;transition:width var(--tr);z-index:50;position:relative}
+#sb.open{width:var(--sb-open)}
+.sb-logo{height:var(--hdr);display:flex;align-items:center;padding:0 18px;gap:12px;border-bottom:1px solid rgba(255,255,255,.08);flex-shrink:0;cursor:pointer}
+.sb-logo .mark{width:36px;height:36px;border-radius:9px;background:linear-gradient(135deg,var(--tl-m),var(--tl-d));display:flex;align-items:center;justify-content:center;font-size:18px;color:#fff;font-family:'IBM Plex Sans Thai';font-weight:700;flex-shrink:0;transition:transform var(--tr)}
+#sb.open .sb-logo .mark{transform:scale(1.04)}
+.sb-logo .brand{opacity:0;width:0;overflow:hidden;white-space:nowrap;transition:opacity var(--tr),width var(--tr)}
+#sb.open .sb-logo .brand{opacity:1;width:auto}
+.brand-name{font-size:13px;font-weight:700;letter-spacing:.3px;color:#fff;font-family:'IBM Plex Sans Thai'}
+.brand-sub{font-size:10px;color:rgba(255,255,255,.5);margin-top:1px}
+.sb-nav{flex:1;overflow-y:auto;overflow-x:hidden;padding:10px 0;scrollbar-width:none}
+.sb-nav::-webkit-scrollbar{display:none}
+.sb-section{padding:0 8px;margin-bottom:4px}
+.sb-sect-label{font-size:9.5px;font-weight:700;letter-spacing:.9px;text-transform:uppercase;color:rgba(255,255,255,.3);padding:10px 10px 4px;white-space:nowrap;opacity:0;height:0;overflow:hidden;transition:opacity var(--tr),height var(--tr)}
+#sb.open .sb-sect-label{opacity:1;height:26px}
+.sb-item{display:flex;align-items:center;gap:11px;padding:9px 10px;border-radius:8px;cursor:pointer;color:rgba(255,255,255,.6);font-size:12.5px;font-weight:500;white-space:nowrap;transition:background var(--tr),color var(--tr);position:relative;margin-bottom:1px;overflow:hidden}
+.sb-item i{font-size:18px;flex-shrink:0;transition:color var(--tr)}
+.sb-item .lbl{opacity:0;width:0;overflow:hidden;transition:opacity var(--tr),width var(--tr);white-space:nowrap}
+#sb.open .sb-item .lbl{opacity:1;width:auto}
+.sb-item:hover{background:rgba(255,255,255,.07);color:rgba(255,255,255,.9)}
+.sb-item.active{background:var(--tl);color:#fff;font-weight:600}
+.sb-item.active i{color:#fff}
+.sb-badge{margin-left:auto;background:var(--coral);color:#fff;font-size:9px;font-weight:700;padding:1px 5px;border-radius:10px;flex-shrink:0}
+#sb:not(.open) .sb-badge{display:none}
+.sb-sub{display:none;padding-left:0}
+#sb.open .sb-sub{display:block}
+.sb-sub .sb-item{padding-left:20px;font-size:12px;color:rgba(255,255,255,.5)}
+.sb-sub .sb-item.active{background:rgba(255,255,255,.12);color:#fff}
+.sb-bottom{padding:10px 8px;border-top:1px solid rgba(255,255,255,.08)}
+/* ── topbar ── */
+#topbar{height:var(--hdr);background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;padding:0 16px;flex-shrink:0}
+.topbar-title{font-size:14px;font-weight:600;color:var(--ink);white-space:nowrap}
+.topbar-sub{font-size:11px;color:var(--mut);margin-top:1px}
+.topbar-search{margin-left:12px;display:flex;align-items:center;gap:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:0 10px;height:34px;flex:0 1 260px;min-width:0}
+.topbar-search i{color:var(--mut);font-size:15px;flex-shrink:0}
+.topbar-search input{border:none;background:none;outline:none;font-size:12.5px;color:var(--ink);width:100%}
+.topbar-search input::placeholder{color:var(--mut)}
+.tb-spacer{flex:1}
+.icon-btn{width:34px;height:34px;border:1px solid var(--border);background:var(--surface);border-radius:8px;display:flex;align-items:center;justify-content:center;color:var(--mut);font-size:17px;cursor:pointer;transition:background var(--tr),color var(--tr);flex-shrink:0}
+.icon-btn:hover{background:var(--surface2);color:var(--ink)}
+/* ── main / frames ── */
+#main{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
+#content{flex:1;overflow:auto;position:relative}
+.frame{display:none;height:100%;overflow:auto;padding:18px}
+.frame.active{display:block}
+/* ── cards / kpi ── */
+.kpi-row{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;margin-bottom:14px}
+.kpi{background:var(--surface);border:1px solid var(--border);border-radius:var(--r2);padding:13px 14px}
+.kpi-lbl{font-size:11px;color:var(--mut);margin-bottom:5px}
+.kpi-val{font-size:22px;font-weight:700;line-height:1;font-family:'IBM Plex Sans Thai'}
+.kpi-sub{font-size:11px;color:var(--mut);margin-top:3px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r2);padding:16px;margin-bottom:12px}
+.card-title{font-size:13px;font-weight:600;display:flex;align-items:center;gap:7px;margin-bottom:12px;color:var(--ink)}
+.card-title i{color:var(--mut);font-size:16px}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+/* ── balance panel (สมดุลเวร), ported from original .bp-* rules ── */
+.bp-kpi-row{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:9px;margin-bottom:12px}
+.bp-alert{display:flex;align-items:flex-start;gap:9px;padding:9px 13px;border-radius:9px;border-left:3px solid;font-size:12.5px;margin-bottom:12px}
+.bp-alert.ok{background:var(--jade-l);border-color:var(--jade);color:var(--jade)}
+.bp-alert.warn{background:var(--amber-l);border-color:var(--amber);color:var(--amber)}
+.bp-alert i{flex-shrink:0;margin-top:1px}
+.bp-bar-track{flex:1;height:7px;background:var(--surface2);border-radius:4px;overflow:hidden;position:relative}
+.bp-bar-fill{height:100%;border-radius:4px;transition:width .6s}
+.bp-avg-line{position:absolute;top:-2px;bottom:-2px;width:2px;background:var(--tl);border-radius:1px;opacity:.65}
+.bp-diff{display:inline-flex;align-items:center;gap:3px;padding:2px 7px;border-radius:20px;font-size:11px;font-weight:600}
+.bp-diff.over{background:var(--coral-l);color:var(--coral)}
+.bp-diff.under{background:var(--amber-l);color:var(--amber)}
+.bp-diff.ok{background:var(--jade-l);color:var(--jade)}
+.swap-card-bp{border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:9px;transition:border-color .15s}
+.swap-card-bp:hover{border-color:var(--tl)}
+.swap-head-bp{display:flex;align-items:center;gap:8px;padding:9px 12px;background:var(--surface2);flex-wrap:wrap}
+.swap-body-bp{padding:10px 12px}
+.swap-person-bp{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:20px;font-size:12px;font-weight:600;background:var(--surface);border:1px solid var(--border)}
+.swap-person-bp.over{border-color:var(--coral);color:var(--coral)}
+.swap-person-bp.under{border-color:var(--amber);color:var(--amber)}
+.ctag-bp{display:inline-flex;align-items:center;gap:3px;padding:1px 7px;border-radius:4px;font-size:10.5px;font-weight:500;background:var(--surface2);color:var(--mut);border:1px solid var(--border)}
+.ctag-bp.bad{background:var(--coral-l);color:var(--coral);border-color:transparent}
+.ctag-bp.good{background:var(--jade-l);color:var(--jade);border-color:transparent}
+.bp-log-item{display:flex;align-items:center;gap:8px;padding:6px 10px;border-radius:7px;background:var(--jade-l);margin-bottom:4px;font-size:12px;color:var(--jade)}
+/* ── table ── */
+.tbl-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:12.5px;white-space:nowrap}
+thead th{text-align:left;font-weight:600;font-size:11.5px;color:var(--mut);padding:7px 10px;border-bottom:1px solid var(--border);background:var(--surface2)}
+tbody tr:hover{background:var(--surface2)}
+tbody td{padding:8px 10px;border-bottom:1px solid var(--border);color:var(--ink);vertical-align:middle}
+tbody tr:last-child td{border-bottom:none}
+.tbl{border-collapse:collapse;font-size:11.5px;width:100%}
+.tbl th,.tbl td{border:1px solid var(--border);padding:5px 6px;text-align:center}
+.tbl th{background:var(--surface2);font-weight:600;color:var(--mut);font-size:11px}
+.tbl td.name,.tbl td.l{text-align:left}
+/* ── badge ── */
+.badge{display:inline-flex;align-items:center;gap:4px;font-size:11px;padding:2px 8px;border-radius:20px;font-weight:600;white-space:nowrap}
+.badge.draft{background:var(--gold-l);color:var(--gold)}
+.badge.pub,.badge.ok{background:var(--jade-l);color:var(--jade)}
+.badge.none{background:var(--surface2);color:var(--mut)}
+.badge.warn{background:var(--gold-l);color:var(--gold)}
+.badge.crit,.badge.danger{background:var(--coral-l);color:var(--coral)}
+/* ── btn ── */
+.btn{display:inline-flex;align-items:center;gap:5px;padding:6px 13px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--ink);font-size:12.5px;font-weight:500;cursor:pointer;transition:all var(--tr);white-space:nowrap}
+.btn:hover{background:var(--surface2)}
+.btn-primary{background:var(--tl);color:#fff;border-color:var(--tl)}
+.btn-primary:hover{background:var(--tl-d);border-color:var(--tl-d)}
+.btn-sm{padding:4px 10px;font-size:11.5px}
+.btn-danger{background:var(--coral-l);color:var(--coral);border-color:var(--coral-l)}
+.btn[disabled]{opacity:.45;cursor:not-allowed}
+/* ── schedule grid (ported from .sched/.tok in original) ── */
+.sched-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:var(--r);background:var(--surface);-webkit-overflow-scrolling:touch}
+.sched{border-collapse:collapse;font-size:11px;min-width:900px}
+.sched th,.sched td{border:1px solid var(--border);text-align:center;padding:0;min-width:30px}
+.sched thead th{background:var(--tl-vl);color:var(--tl-d);font-weight:600;position:sticky;top:0;z-index:4}
+.sched th.dnum{height:20px;font-size:11px;font-weight:700}
+.sched th.dow{height:16px;font-size:10px;color:var(--ink2)}
+.sched td.wknd,.sched th.wknd{background:var(--coral-l)}
+.sched td.holi,.sched th.holi{background:var(--coral-l)}
+.sched .nm{text-align:left;white-space:nowrap;padding:4px 8px;font-weight:600;font-size:12px;position:sticky;left:0;background:var(--surface);z-index:3;border-right:2px solid var(--border);min-width:120px;max-width:160px}
+.sched .sumcol{font-weight:700;background:var(--tl-vl);color:var(--tl-d);font-size:11px;min-width:26px;white-space:nowrap}
+.sched .cell{cursor:pointer;height:30px;display:flex;align-items:center;justify-content:center;gap:1px;flex-wrap:wrap;padding:1px;position:relative}
+.sched .cell:hover{outline:2px solid var(--tl);outline-offset:-2px;z-index:2}
+.sched .cell.ovrd{box-shadow:inset 0 0 0 1.5px var(--coral)}
+.sched tr.sum-row td{background:var(--surface2);font-weight:700;font-size:11px;border-top:2px solid var(--tl-l)}
+.tok{font-size:9.5px;font-weight:700;padding:1px 3px;border-radius:3px;line-height:1.4;white-space:nowrap}
+.legend{display:flex;gap:12px;flex-wrap:wrap;margin:9px 2px;font-size:12px;color:var(--ink2);align-items:center}
+.legend span{display:inline-flex;align-items:center;gap:5px}
+/* ── contact cards ── */
+.contact-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px}
+.contact{border:1px solid var(--border);border-radius:var(--r);padding:11px 13px;background:var(--tl-vl)}
+.contact .cn{font-weight:600;font-size:13px}
+.contact .cp{font-size:12px;color:var(--ink2);margin-top:2px}
+.contact .cc{font-size:12px;margin-top:4px;color:var(--tl-d);font-weight:500}
+/* ── reports tabs/doc ── */
+.rtabs{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:12px}
+.rtab{padding:5px 12px;border:1px solid var(--border);background:var(--surface);border-radius:8px;font-size:12px;font-weight:500;color:var(--mut);cursor:pointer;white-space:nowrap;transition:all var(--tr)}
+.rtab.active{background:var(--tl-d);color:#fff;border-color:var(--tl-d)}
+.doc{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:22px;overflow-x:auto;font-size:12.5px}
+.dtitle{text-align:center;font-weight:700;font-size:15px;margin-bottom:4px}
+.dline{text-align:center;font-size:12.5px;color:var(--mut);margin-bottom:2px}
+.rep-tbl{border-collapse:collapse;width:100%;font-size:12px}
+.rep-tbl th,.rep-tbl td{border:1px solid var(--border);padding:6px 9px}
+.rep-tbl th{background:var(--surface2);font-weight:600;text-align:center}
+.rep-tbl td.l{text-align:left}.rep-tbl td.c{text-align:center}.rep-tbl td.r{text-align:right}
+.rep-tbl tr.tot td{background:var(--tl-vl);font-weight:700}
+/* บัญชีลงเวลา OT/เวรคลินิก(น) — กำหนดสัดส่วนทุกคอลัมน์ (ไม่ใช่แค่ลายมือชื่อ) ป้องกันคอลัมน์
+   ชื่อ-สกุล/ตำแหน่ง ถูกบีบจนข้อความทับคอลัมน์ข้างเคียงเมื่อ table-layout:fixed คำนวณความกว้าง
+   จากหัวตารางอย่างเดียว */
+.rep-tbl-sig{table-layout:fixed}
+.rep-tbl-sig th:nth-child(1),.rep-tbl-sig td:nth-child(1){width:10%}
+.rep-tbl-sig th:nth-child(2),.rep-tbl-sig td:nth-child(2){width:18%}
+.rep-tbl-sig th:nth-child(3),.rep-tbl-sig td:nth-child(3){width:13%}
+.rep-tbl-sig th:nth-child(4),.rep-tbl-sig td:nth-child(4){width:9%}
+.rep-tbl-sig th:nth-child(5),.rep-tbl-sig td:nth-child(5){width:7%}
+.rep-tbl-sig th:nth-child(7),.rep-tbl-sig td:nth-child(7){width:7%}
+.rep-tbl-sig th:nth-child(9),.rep-tbl-sig td:nth-child(9){width:10%}
+.rep-tbl-sig .sig-col{width:13%}
+.sig-row{display:flex;justify-content:space-between;margin-top:18px;gap:20px;flex-wrap:wrap}
+.sig{text-align:center;font-size:12px;flex:1;border-top:1px solid var(--border);padding-top:8px;min-width:180px;line-height:1.7}
+/* ── stat grid (schedule dashboard) ── */
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px;margin-bottom:14px}
+.stat{background:var(--surface2);border-radius:var(--r);padding:12px;text-align:center}
+.stat .val{font-size:26px;font-weight:700;color:var(--tl-d);font-family:'IBM Plex Sans Thai'}
+.stat .lbl{font-size:11px;color:var(--mut);margin-top:2px}
+.progress-row{display:flex;align-items:center;gap:10px;margin-bottom:7px}
+.progress-lbl{font-size:12px;color:var(--ink2);width:160px;text-align:right;flex-shrink:0;font-weight:600;white-space:nowrap;overflow:visible;text-overflow:initial}
+.progress-track{flex:1;height:8px;background:var(--surface2);border-radius:4px;overflow:hidden}
+.progress-fill{height:100%;border-radius:4px;background:var(--tl);transition:width .6s ease}
+.progress-val{font-size:12px;font-weight:600;width:64px;text-align:right;flex-shrink:0}
+/* ── oncall / collect form ── */
+.oc-form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;background:var(--tl-vl);border:1px solid var(--border);border-radius:var(--r);padding:14px;margin-bottom:12px}
+.oc-form-grid label{font-size:12px;color:var(--mut);display:flex;flex-direction:column;gap:4px}
+.oc-form-grid input,.oc-form-grid select{padding:6px 9px;border:1px solid var(--border);border-radius:7px;background:var(--surface);color:var(--ink);font-size:12.5px;outline:none}
+.oc-lab-chip{display:flex;align-items:center;gap:5px;font-size:12px;border:1px solid var(--border);border-radius:7px;padding:5px 10px;cursor:pointer;background:var(--surface);transition:background .12s,border-color .12s}
+.oc-lab-chip:hover{border-color:var(--tl)}
+.oc-lab-chip:has(input:checked){background:var(--tl-vl);border-color:var(--tl);color:var(--tl-d);font-weight:600}
+/* ── home hero / module grid ── */
+.home-hero{background:linear-gradient(135deg,var(--tl-d) 0%,var(--tl) 60%,var(--tl-m) 100%);border-radius:var(--r2);padding:24px 28px;color:#fff;margin-bottom:16px;display:flex;align-items:center;gap:20px;flex-wrap:wrap}
+.hero-icon{width:56px;height:56px;border-radius:14px;background:rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;font-size:28px;flex-shrink:0}
+.hero-text h1{font-size:20px;font-weight:700;font-family:'IBM Plex Sans Thai';margin-bottom:3px}
+.hero-text p{font-size:12.5px;opacity:.8}
+/* ── modal ── */
+.modal-overlay{position:fixed;inset:0;background:rgba(9,28,24,.55);display:none;align-items:center;justify-content:center;z-index:200}
+.modal-overlay.open{display:flex}
+.modal{background:var(--surface);border-radius:var(--r2);max-width:640px;width:92%;max-height:86vh;overflow:auto;box-shadow:var(--shadow-lg)}
+.modal-head{display:flex;justify-content:space-between;align-items:center;padding:16px 18px;border-bottom:1px solid var(--border)}
+.modal-body{padding:18px}
+.modal-foot{display:flex;justify-content:flex-end;gap:8px;padding:14px 18px;border-top:1px solid var(--border)}
+/* ── toast ── */
+#toastWrap{position:fixed;bottom:20px;right:20px;z-index:500;display:flex;flex-direction:column;gap:6px;pointer-events:none}
+.toast{background:var(--ink);color:#fff;padding:10px 15px;border-radius:10px;font-size:12.5px;display:flex;align-items:center;gap:8px;box-shadow:var(--shadow-lg);max-width:320px;pointer-events:auto}
+.toast.err{background:var(--coral)}
+/* ── loading overlay ── */
+.loading-overlay{position:fixed;inset:0;background:rgba(0,0,0,.15);display:none;align-items:center;justify-content:center;z-index:400}
+.loading-overlay.open{display:flex}
+.spinner{width:32px;height:32px;border:3px solid var(--border);border-top-color:var(--tl);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+@media (max-width:768px){
+  #sb{position:fixed;left:0;top:0;height:100vh;z-index:150;transform:translateX(-100%)}
+  #sb.mob-open{transform:translateX(0);width:var(--sb-open)}
+  /* ฉากหลังคลุมจอเมื่อเปิดเมนูบนมือถือ — แตะเพื่อปิด (จัดการใน toggleSidebar) */
+  #sb.mob-open::after{content:'';position:fixed;top:0;left:var(--sb-open);right:0;bottom:0;background:rgba(0,0,0,.4)}
+  .frame{padding:12px}
+}
+/* ── accordion (ตั้งค่า sections, ported visual style from original bindCFG() cfg-section) ── */
+.acc{margin-bottom:10px;border:1px solid var(--border);border-radius:var(--r2);overflow:hidden;background:var(--surface)}
+.acc>summary{cursor:pointer;background:var(--tl-vl);color:var(--tl-d);padding:11px 16px;font-weight:600;font-size:13px;list-style:none;display:flex;align-items:center;gap:8px}
+.acc>summary::-webkit-details-marker{display:none}
+.acc[open]>summary{border-bottom:1px solid var(--border)}
+.acc-body{padding:16px}
+.frm-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px}
+.frm-grid label{font-size:11.5px;color:var(--mut);display:flex;flex-direction:column;gap:4px}
+.frm-grid input,.frm-grid select,.frm-grid textarea{padding:6px 9px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--ink);font-size:12.5px;outline:none}
+.mo-chip{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:6px;font-size:10.5px;font-weight:600;cursor:pointer;margin:2px;border:1px solid var(--border)}
+.mo-chip.off{background:var(--surface2);color:var(--mut)}
+.mo-chip.on{background:var(--tl-l);color:var(--tl-d);border-color:var(--tl)}
+/* ── print: hide chrome, keep only report/sched content (fixes "ไม่ต้องพิมพ์เมนู") ── */
+.print-sign{display:none}
+@media print{
+  /* ตารางเวร = แนวนอน (กว้าง 31 วัน) · รายงาน (.doc) = แนวตั้ง (แถวเยอะ)
+     หมายเหตุ: เคยใช้ named page (@page repPage + .doc{page:repPage}) แต่ Chrome จะแทรกหน้าเปล่าหน้าแรก
+     เมื่อสลับ named page กลางเอกสาร — เปลี่ยนมาตั้งขนาดกระดาษแบบไดนามิกด้วย #printPageSize (ดู printWithPageSize() ใน script-schedule.html) */
+  @page{size:A4 landscape;margin:6mm}
+  /* ค่าเริ่มต้น = พิมพ์ขาวดำ (กดปุ่ม "พิมพ์") — กดปุ่ม "พิมพ์สี" จะเติม class print-color ที่ <html> ก่อนสั่งพิมพ์
+     เพื่อข้ามฟิลเตอร์ grayscale และคืนสีจริงของโทเค็นเวร/หัวตาราง (ดู printColorBtn ใน script-schedule.html) */
+  html:not(.print-color){filter:grayscale(1)}
+  #sb,#topbar,.btn,.legend,.rtabs,#violationsPanel,#ovrLogCard,.modal-overlay,#toastWrap,.loading-overlay,#repPersonSel{display:none!important}
+  .contact i{display:none!important}
+  .print-only{display:block!important}
+  #content{overflow:visible}
+  .frame{padding:0}
+  .sched-wrap{overflow:visible;border:none;width:100%;page-break-inside:avoid}
+  /* ตารางเวรคือตัวหลักของรายงาน — ให้ฟอนต์/ระยะใหญ่กว่าส่วนอื่น ส่วนข้อมูลรองบีบให้เล็กลงแทน */
+  .sched{font-size:7.8px;width:100%;min-width:0;table-layout:fixed}
+  .sched th,.sched td{padding:1.5px 2px;min-width:0;width:auto}
+  .sched .nm{min-width:0;max-width:none;width:11%;font-size:8.8px;position:static}
+  .sched .sumcol{min-width:0;width:3%}
+  .sched .cell{height:auto;min-height:20px;gap:2px}
+  .sched .cell.ovrd{box-shadow:none}
+  /* โทเค็นเวรเป็นตัวอักษรล้วน ไม่มีกรอบครอบ (ตัดกรอบออกตามฟีดแบ็ก — มีกรอบอ่านยาก)
+     ขนาดตัวอักษรเท่ากับตัวเลขสรุปท้ายแถว (.sumcol = 11px) ตามฟีดแบ็ก (เดิม 7px เล็กกว่ามาก)
+     โหมดพิมพ์สี (html.print-color) ข้ามการบังคับขาวดำนี้ ให้ใช้สีจริงตาม inline style ของแต่ละโทเค็นแทน */
+  .tok{font-size:11px;padding:0 1px;font-weight:700;border:none!important;line-height:1.3}
+  html:not(.print-color) .tok{background:none!important;color:#000!important}
+  html:not(.print-color) .sched th,html:not(.print-color) .sched td{color:#000!important}
+  html:not(.print-color) .sched .sumcol{background:#fff!important;color:#000!important}
+  html.print-color .tok,html.print-color .sched .sumcol{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;color-adjust:exact!important}
+  /* วันหยุด/นักขัตฤกษ์ — สีเดิม (--coral-l) จางมากจนแทบขาวล้วนหลังผ่าน grayscale filter ตอนพิมพ์
+     ใส่สีเทาอ่อนชัดเจนแทน ให้แยกจากวันราชการได้ตอนพิมพ์ขาวดำ
+     -webkit-print-color-adjust/print-color-adjust:exact บังคับให้พิมพ์พื้นหลังจริง แม้ผู้ใช้ไม่ติ๊ก "Background graphics" ใน Chrome print dialog */
+  .sched td.wknd,.sched th.wknd,.sched td.holi,.sched th.holi{
+    background:#d4d4d4!important;
+    -webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;color-adjust:exact!important;
+  }
+  /* วันราชการ/วันหยุด/นักขัตฤกษ์ ใต้หัวตารางเวร — เดิมสีเทาอ่อนตาม --mut อ่านยากเมื่อพิมพ์ ปรับเป็นสีดำ */
+  #gridSub{color:#000!important;font-weight:600}
+  .doc{border:none;padding:0;overflow:visible!important}
+  .tbl-wrap{overflow:visible!important}
+  /* รายงาน (.rep-tbl) ใช้ฟอนต์ TH Saraban (Sarabun) ขนาด 10px — ลด line-height ลงจาก 1.7 เพื่อให้พอดี A4 */
+  .rep-tbl,.doc{font-family:'Sarabun','TH Sarabun New',sans-serif}
+  .rep-tbl{font-size:10px;width:100%;table-layout:auto;line-height:1.35}
+  .rep-tbl th,.rep-tbl td{padding:3px 6px}
+  .rep-tbl tr.grp td{font-size:10px;padding-top:5px}
+  .rep-tbl-sig .sig-col{height:22px}
+  .dtitle{font-size:13px;margin-bottom:3px}.dline{font-size:10px;line-height:1.4}
+  /* ใบเบิกเงินรวม (แนวตั้ง) — เพิ่ม line-height เฉพาะรายงานนี้ตามฟีดแบ็ก (ยังชิดกันอยู่ที่ 1.35) */
+  .pay-portrait .rep-tbl{line-height:1.5}
+  body,html{overflow:visible!important;height:auto!important}
+  #app{display:block!important;height:auto!important}
+  #main{overflow:visible!important}
+  /* ข้อมูลติดต่อ + เวลาปฏิบัติงาน = ส่วนรอง วางคู่กันแบบ 2 คอลัมน์บีบให้ใช้พื้นที่กระดาษน้อยที่สุด
+     เพื่อให้ตารางเวรเป็นจุดสนใจหลักของหน้าและกินพื้นที่ส่วนใหญ่ */
+  #contactCard,#workHoursPrint{float:left;width:48.5%;margin-top:5px!important;box-sizing:border-box;page-break-inside:avoid}
+  #contactCard{margin-right:3%}
+  #contactGrid,.contact-grid{grid-template-columns:repeat(2,1fr)!important;gap:3px!important}
+  .contact{font-size:7.5px;padding:3px 5px;line-height:1.3}
+  .contact b{font-size:7.8px}
+  #workHoursPrint .tbl td,#workHoursPrint .tbl th{padding:3px 5px;font-size:9.5px;line-height:1.5}
+  .card-title{margin-bottom:2px!important;font-size:9.5px!important}
+  /* เลื่อนลงนามลงไปด้านล่างของหน้า — ใช้ position:fixed ยึดกับขอบล่างกระดาษจริง
+     ไม่พึ่ง margin-top (ซึ่งระยะที่เห็นผลขึ้นกับความสูงเนื้อหาก่อนหน้า ไม่แน่นอน) */
+  .print-sign{position:fixed;bottom:10mm;left:6mm;right:6mm;clear:both;display:flex!important;justify-content:space-around;gap:24px;font-size:10px;text-align:center}
+  .print-sign .ln{margin-top:14px;border-top:1px dotted #000;padding-top:3px;min-width:150px}
+  /* รายงาน .doc (เช่น หลักฐานการจ่ายเงิน) ใช้ .sig-row แยกจาก .print-sign ของตารางเวร — เลื่อนลงนามลงด้านล่างหน้าเช่นกัน */
+  .sig-row{margin-top:140px!important}
+  /* ตัดเส้นคั่นเหนือช่องลงนามออกตามฟีดแบ็ก (ใบเบิกเงินรวม/รายบุคคล) */
+  .sig{border-top:none!important}
+  /* ตารางเวร: ตัดไอคอนหัวกล่อง + กรอบนอกของกล่องข้อมูลติดต่อ/เวลาปฏิบัติงาน ออกตามฟีดแบ็ก */
+  #contactCard .card-title i,#workHoursPrint .card-title i{display:none!important}
+  #contactCard,#workHoursPrint{border:none!important}
+  /* ใบเบิกเงินรวม (แนวนอน A4) — ตามฟีดแบ็กล่าสุดให้ใช้ฟอนต์/ระยะเท่ารายงานอื่น (16px, line-height สูง)
+     แม้จะไม่พอ 1 หน้าเสมอไป อ่านง่ายสำคัญกว่า */
+  .pay-landscape .sig-row{margin-top:20px!important}
+  /* Chrome เวลาพิมพ์ตาราง border-collapse:collapse ที่กว้าง/สูงพอดีขอบกระดาษ มักตัดเส้นขอบขวา-ล่างหายไป
+     เปลี่ยนเป็น separate + border-spacing:0 ให้ทุกเซลล์มีกรอบของตัวเอง ไม่หายแม้ชิดขอบกระดาษ */
+  .sched,.tbl,.rep-tbl{border-collapse:separate!important;border-spacing:0!important;border:1px solid #000!important}
+  .sched th,.sched td,.tbl th,.tbl td,.rep-tbl th,.rep-tbl td{border:1px solid #000!important}
+  /* บันทึก on-call (รายละเอียด) — ตัดหัวรายงานย่อยออก เพิ่มระยะห่างระหว่างบรรทัดให้อ่านง่าย */
+  .oc-claim-blk{line-height:2;padding:10px 0!important}
+  .oc-claim-blk>div{margin-bottom:3px}
+}
+</style>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+</head>
+<body>
+
+<!-- ── LOGIN (ported layout from #loginScr in original; real email/password auth) ── -->
+<div id="loginScr" style="position:fixed;inset:0;background:linear-gradient(135deg,var(--tl-d),var(--tl) 55%,var(--tl-m));display:grid;place-items:center;z-index:900;padding:20px;">
+  <div style="background:var(--surface);border-radius:18px;box-shadow:var(--shadow-lg);width:100%;max-width:380px;padding:32px;">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:6px;">
+      <div style="width:48px;height:48px;border-radius:12px;background:linear-gradient(135deg,var(--tl),var(--tl-d));color:#fff;display:grid;place-items:center;font-weight:700;font-size:15px;font-family:'IBM Plex Sans Thai';">L</div>
+      <div>
+        <div style="font-size:18px;font-weight:700;font-family:'IBM Plex Sans Thai';">labthungfon</div>
+        <div style="font-size:11px;color:var(--mut);">Platform · กลุ่มงานเทคนิคการแพทย์</div>
+      </div>
+    </div>
+    <p style="font-size:12px;color:var(--mut);margin-bottom:20px;padding-top:10px;border-top:1px solid var(--border);">เข้าสู่ระบบด้วยบัญชีหน่วยงาน</p>
+    <div style="display:flex;flex-direction:column;gap:10px;">
+      <input id="loginEmail" type="email" placeholder="อีเมล" style="padding:9px 10px;border:1px solid var(--border);border-radius:9px;background:var(--surface2);color:var(--ink);outline:none;">
+      <input id="loginPassword" type="password" placeholder="รหัสผ่าน" style="padding:9px 10px;border:1px solid var(--border);border-radius:9px;background:var(--surface2);color:var(--ink);outline:none;">
+      <button class="btn btn-primary" id="loginBtn" style="width:100%;justify-content:center;padding:11px;">เข้าสู่ระบบ</button>
+      <div id="loginError" style="color:var(--coral);font-size:12px;display:none;"></div>
+    </div>
+    <p style="font-size:10.5px;color:var(--mut);text-align:center;margin-top:14px;">labthungfon Platform · Google Workspace</p>
+  </div>
+</div>
+
+<div id="app" style="display:none;">
+
+  <!-- ── SIDEBAR ── -->
+  <nav id="sb">
+    <div class="sb-logo" id="sbLogo" title="ย่อ/ขยาย">
+      <div class="mark" id="sbMark">L</div>
+      <div class="brand">
+        <div class="brand-name" id="sbBrandName">labthungfon</div>
+        <div class="brand-sub" id="sbBrandSub">Platform · เทคนิคการแพทย์</div>
+      </div>
+    </div>
+    <div class="sb-nav" id="sbNav"></div>
+    <div class="sb-bottom">
+      <div class="sb-item" id="logoutBtn"><i class="ti ti-logout" aria-hidden="true"></i><span class="lbl">ออกจากระบบ</span></div>
+    </div>
+  </nav>
+
+  <!-- ── MAIN ── -->
+  <div id="main">
+    <div id="topbar">
+      <button class="icon-btn" id="sbToggle" aria-label="Toggle sidebar"><i class="ti ti-menu-2"></i></button>
+      <div>
+        <div class="topbar-title" id="tbTitle">แดชบอร์ด</div>
+        <div class="topbar-sub" id="tbSub">labthungfon Platform</div>
+      </div>
+      <div class="topbar-search">
+        <i class="ti ti-search" aria-hidden="true"></i>
+        <input type="text" id="gSearch" placeholder="ค้นหา… (Ctrl+K)">
+      </div>
+      <div class="tb-spacer"></div>
+      <div id="tbSchedMY" style="display:none;align-items:center;gap:6px;margin-right:8px;">
+        <select id="selM" style="border:1px solid var(--border);border-radius:7px;padding:5px 8px;font-size:12.5px;background:var(--surface);color:var(--ink);"></select>
+        <select id="selY" style="border:1px solid var(--border);border-radius:7px;padding:5px 8px;font-size:12.5px;background:var(--surface);color:var(--ink);"></select>
+      </div>
+      <div style="display:flex;gap:6px;align-items:center;">
+        <button class="icon-btn" id="refreshBtn" title="Refresh" aria-label="Refresh"><i class="ti ti-refresh"></i></button>
+        <button class="icon-btn" id="darkBtn" title="Dark mode" aria-label="Dark mode"><i class="ti ti-moon"></i></button>
+        <div style="display:flex;align-items:center;gap:6px;padding:4px 10px;background:var(--tl-vl);border:1px solid var(--tl-l);border-radius:8px;cursor:pointer;" id="avatarBtn">
+          <div style="width:26px;height:26px;border-radius:50%;background:var(--tl);color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;" id="avatarInitial">A</div>
+          <span id="avatarName" style="font-size:12px;font-weight:600;color:var(--tl-d);max-width:120px;overflow:hidden;white-space:nowrap;"></span>
+        </div>
+      </div>
+    </div>
+
+    <div id="content">
+      <div class="frame active" id="frame-dashboard"></div>
+      <div class="frame" id="frame-schedule"><div id="schedInner"></div></div>
+      <div class="frame" id="frame-admin"></div>
+      <div class="frame" id="frame-guide"></div>
+      <div class="frame" id="frame-ext">
+        <div class="card" style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:0;">
+          <div style="font-size:12px;color:var(--mut);"><i class="ti ti-link"></i> โมดูลภายนอก: <span id="extUrlLabel" style="color:var(--ink);font-weight:600;"></span></div>
+          <a id="extOpenNewTab" href="#" target="_blank" rel="noopener" class="btn btn-sm"><i class="ti ti-external-link"></i> เปิดแท็บใหม่</a>
+        </div>
+        <iframe id="extFrame" src="about:blank" style="width:100%;height:calc(100vh - 140px);border:1px solid var(--border);border-radius:var(--r2);margin-top:10px;background:var(--surface);"></iframe>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Generic modal shell, ported from #modalOverlay/.modal in the original (showModal()/closeModal()). -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <div class="modal-head">
+      <h3 id="modalTitle">แจ้งเตือน</h3>
+      <button class="icon-btn" onclick="closeModal()"><i class="ti ti-x"></i></button>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+    <div class="modal-foot">
+      <button class="btn" onclick="closeModal()">ยกเลิก</button>
+      <button class="btn btn-primary" id="modalConfirm">ตกลง</button>
+    </div>
+  </div>
+</div>
+
+
+<div id="toastWrap"></div>
+<div class="loading-overlay" id="loadingOverlay"><div class="spinner"></div></div>
+
+<script>
+/* script-core.html — session handling, router, RBAC sidebar, toast/loading,
+   google.script.run wrappers. Ported entry points (same names/behaviour as the
+   original labthungfon-platform-v4_43.html): toggleSidebar()/toggleDark()/navTo()/
+   toast()/showModal()/closeModal()/handleGSearch()/pRefresh()/fillMY()/openMyPerms(). */
+
+var Session = { token: null, user: null, permissions: {}, settings: {} };
+
+var TH_M = ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน', 'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'];
+
+var BUILTIN_MODULES = [
+  { id: 'dashboard', label: 'แดชบอร์ด', icon: 'ti-layout-dashboard', removable: false },
+  { id: 'schedule', label: 'ตารางเวร', icon: 'ti-calendar-event', removable: false, subnav: [
+    { id: 'setup', label: 'ตั้งค่า', icon: 'ti-settings' },
+    { id: 'dash', label: 'แดชบอร์ด', icon: 'ti-chart-bar' },
+    { id: 'collect', label: 'เก็บวันลา', icon: 'ti-calendar-off' },
+    { id: 'grid', label: 'ตารางเวร', icon: 'ti-table' },
+    { id: 'reports', label: 'รายงาน', icon: 'ti-report' },
+    { id: 'oncall', label: 'On Call', icon: 'ti-phone' },
+    { id: 'balance', label: 'สมดุลเวร', icon: 'ti-scale' }
+  ] },
+  { id: 'admin', label: 'ผู้ดูแลระบบ', icon: 'ti-shield-lock', permission: 'manageSettings', removable: false, essential: true },
+  { id: 'guide', label: 'คู่มือการใช้งาน', icon: 'ti-book', removable: false }
+];
+/* MODULE_REGISTRY = builtins + any user-added URL modules (kind:'url'), persisted in
+   Settings.moduleRegistry (ported from MODULE_REGISTRY/loadRegistry() in the original —
+   see Admin > โมดูล for the management UI that restores "จัดการโมดูล"). */
+var MODULE_REGISTRY = BUILTIN_MODULES.slice();
+
+/* getSettings() ฝั่งเซิร์ฟเวอร์แปลง JSON string เป็น array/object ให้แล้ว ค่าที่ได้จึงอาจเป็น
+   array อยู่แล้ว — ต้องรองรับทั้ง array และ string กัน JSON.parse ซ้ำแล้ว throw (เคยทำให้
+   การเปิด/ปิดโมดูลและโมดูล URL ไม่ถูกโหลด) */
+function asArray_(v) {
+  if (Array.isArray(v)) return v;
+  if (typeof v === 'string') { try { var p = JSON.parse(v); return Array.isArray(p) ? p : []; } catch (e) { return []; } }
+  return [];
+}
+/* moduleLabels = ชื่อเมนู/โมดูลที่ผู้ดูแลระบบแก้ไขเอง — เก็บแบบ {moduleId: label} สำหรับเมนูหลัก
+   และ {parentId+'.'+subId: label} สำหรับเมนูย่อย (เช่น subnav ของตารางเวร) */
+var ModuleLabels = {};
+function asObj_(v) {
+  if (v && typeof v === 'object' && !Array.isArray(v)) return v;
+  if (typeof v === 'string') { try { var p = JSON.parse(v); return (p && typeof p === 'object') ? p : {}; } catch (e) { return {}; } }
+  return {};
+}
+function loadModuleRegistry(settings) {
+  var saved = asArray_(settings.moduleRegistry);
+  var urlMods = saved.filter(function (m) { return m.kind === 'url'; });
+  var disabled = asArray_(settings.moduleDisabled);
+  ModuleLabels = asObj_(settings.moduleLabels);
+  /* clone builtins so toggling enabled doesn't mutate the shared BUILTIN_MODULES defs,
+     and apply the persisted disabled-state from Settings (fixes toggle ไม่ถูกบันทึก) */
+  MODULE_REGISTRY = BUILTIN_MODULES.map(function (m) {
+    var copy = Object.assign({}, m, { enabled: disabled.indexOf(m.id) === -1 });
+    if (ModuleLabels[m.id]) copy.label = ModuleLabels[m.id];
+    if (copy.subnav) {
+      copy.subnav = copy.subnav.map(function (s) {
+        var key = m.id + '.' + s.id;
+        return ModuleLabels[key] ? Object.assign({}, s, { label: ModuleLabels[key] }) : s;
+      });
+    }
+    return copy;
+  }).concat(urlMods.map(function (m) { return ModuleLabels[m.id] ? Object.assign({}, m, { label: ModuleLabels[m.id] }) : m; }));
+}
+function saveModuleRegistry() {
+  var urlMods = MODULE_REGISTRY.filter(function (m) { return m.kind === 'url'; });
+  var disabled = MODULE_REGISTRY.filter(function (m) { return m.kind !== 'url' && m.enabled === false; }).map(function (m) { return m.id; });
+  return gsRun('api_saveSettings', Session.token, { moduleRegistry: JSON.stringify(urlMods), moduleDisabled: JSON.stringify(disabled) });
+}
+/** บันทึกชื่อเมนูที่แก้ไข — key คือ moduleId เฉยๆ (เมนูหลัก/โมดูล URL) หรือ "moduleId.subId" (เมนูย่อย) */
+function saveModuleLabel(key, label) {
+  if (label && label.trim()) ModuleLabels[key] = label.trim(); else delete ModuleLabels[key];
+  return gsRun('api_saveSettings', Session.token, { moduleLabels: JSON.stringify(ModuleLabels) }).then(function () {
+    return gsRun('api_bootstrap', Session.token);
+  }).then(function (boot) {
+    loadModuleRegistry(boot.settings || {});
+  });
+}
+function moduleLabel(id, fallback) {
+  var m = MODULE_REGISTRY.filter(function (x) { return x.id === id; })[0];
+  return m ? m.label : (fallback || id);
+}
+
+var _activeMod = 'dashboard', _schedActiveTab = 'grid';
+
+/* ---------------- loading overlay / toast (ported from toast()) ---------------- */
+
+function showLoading(on) {
+  document.getElementById('loadingOverlay').classList.toggle('open', on !== false);
+}
+
+function toast(title, body, isError) {
+  var host = document.getElementById('toastWrap');
+  var el = document.createElement('div');
+  el.className = 'toast' + (isError ? ' err' : '');
+  el.innerHTML = '<i class="ti ' + (isError ? 'ti-alert-circle' : 'ti-check') + '"></i><div><div>' + title + '</div>' +
+    (body ? '<div style="opacity:.75;font-size:11px;margin-top:1px;">' + body + '</div>' : '') + '</div>';
+  host.appendChild(el);
+  setTimeout(function () { el.remove(); }, 4500);
+}
+
+/* ---------------- generic modal (ported from showModal()/closeModal()) ---------------- */
+
+var _modalConfirmHandler = null;
+
+function showModal(title, bodyHtml, confirmTxt, onConfirm) {
+  document.getElementById('modalTitle').textContent = title;
+  var body = document.getElementById('modalBody');
+  body.innerHTML = '';
+  if (typeof bodyHtml === 'string') body.innerHTML = bodyHtml;
+  else body.appendChild(bodyHtml);
+  var btn = document.getElementById('modalConfirm');
+  btn.textContent = confirmTxt || 'ตกลง';
+  _modalConfirmHandler = onConfirm || null;
+  btn.onclick = function () { if (_modalConfirmHandler) _modalConfirmHandler(); };
+  document.getElementById('modalOverlay').classList.add('open');
+}
+function closeModal() {
+  document.getElementById('modalOverlay').classList.remove('open');
+}
+
+/* ---------------- google.script.run wrapper with loading + error toast ---------------- */
+
+/* Short-lived client cache to avoid re-fetching the same month's data on every tab
+   switch (grid/dash/balance/setup all read loadCalendar/calculateWorkload/bootstrap).
+   Each Apps Script round trip has ~1-2s fixed cold-start overhead regardless of
+   server-side caching, so cutting the NUMBER of round trips is what actually
+   speeds up "clicking into a menu". Call invalidateCache(prefix) after any mutation. */
+var _gsCache = {};
+function cachedGsRun(cacheKey, ttlMs, fnName) {
+  var args = Array.prototype.slice.call(arguments, 3);
+  var hit = _gsCache[cacheKey];
+  if (hit && (Date.now() - hit.t) < ttlMs) return Promise.resolve(hit.v);
+  return gsRun.apply(null, [fnName].concat(args)).then(function (v) { _gsCache[cacheKey] = { v: v, t: Date.now() }; return v; });
+}
+function invalidateCache(prefix) {
+  Object.keys(_gsCache).forEach(function (k) { if (k.indexOf(prefix) === 0) delete _gsCache[k]; });
+}
+
+/* page-load performance tracking: navTo() marks _pageLoadStart/_pageLoadMod, every
+   gsRun() bumps _pendingGs while in flight; when it drains back to 0 we know all the
+   round trips a page's render() kicked off have settled, so log how long the page
+   actually took to load (round trips dominate cost, not client rendering). */
+var _pendingGs = 0, _pageLoadStart = null, _pageLoadMod = null;
+function _gsSettled() {
+  _pendingGs--;
+  if (_pendingGs <= 0 && _pageLoadStart) {
+    _pendingGs = 0;
+    var ms = Math.round(performance.now() - _pageLoadStart);
+    console.log('[perf] หน้า "' + _pageLoadMod + '" โหลดเสร็จใน ' + ms + ' ms');
+    _pageLoadStart = null;
+  }
+}
+
+/* ---------------- REST API base URL + fetch-based apiCall() ----------------
+   Migrated from google.script.run to a Node/Express REST backend. API_URL points
+   at localhost during local dev, or the deployed Vercel URL otherwise — set via
+   a <meta name="api-url" content="https://..."> tag in index.html for production
+   builds (falls back to same-origin '' if no meta tag is present, e.g. when the
+   API is reverse-proxied under the same host as the static frontend). */
+var API_URL = (function () {
+  if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') return 'http://localhost:3000';
+  var meta = document.querySelector('meta[name="api-url"]');
+  return meta ? meta.content : '';
+})();
+
+async function apiCall(path, method, body) {
+  var opts = { method: method, headers: { 'Content-Type': 'application/json' } };
+  if (body !== undefined && method !== 'GET') opts.body = JSON.stringify(body);
+  var res = await fetch(API_URL + path, opts);
+  var json;
+  try { json = await res.json(); } catch (e) { throw new Error('เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์'); }
+  if (!json.success) {
+    var err = new Error(json.error || 'เกิดข้อผิดพลาด');
+    err.statusCode = json.statusCode;
+    throw err;
+  }
+  return json.data;
+}
+
+function qs(params) {
+  var parts = [];
+  Object.keys(params).forEach(function (k) {
+    if (params[k] !== undefined && params[k] !== null) parts.push(encodeURIComponent(k) + '=' + encodeURIComponent(params[k]));
+  });
+  return parts.length ? '?' + parts.join('&') : '';
+}
+
+/* ---------------- gsRun() — REST dispatch table, ported names ----------------
+   Every call site across script-*.html still calls gsRun('api_xxx', Session.token, ...args)
+   exactly as before (google.script.run style) — only this function's internals changed
+   to route to the REST API instead. Keeps every other file's call sites untouched. */
+function gsRun(fnName) {
+  var args = Array.prototype.slice.call(arguments, 1);
+  var token = args[0];
+  var rest = args.slice(1);
+  _pendingGs++;
+  showLoading(true);
+  var p;
+  try {
+    p = Promise.resolve(_dispatchApi(fnName, token, rest));
+  } catch (e) {
+    p = Promise.reject(e);
+  }
+  return p.then(function (res) {
+    showLoading(false); _gsSettled(); return res;
+  }).catch(function (err) {
+    showLoading(false); _gsSettled();
+    toast('เกิดข้อผิดพลาด', err.message || String(err), true);
+    throw err;
+  });
+}
+
+function _dispatchApi(fnName, token, args) {
+  switch (fnName) {
+    case 'api_login': return apiCall('/api/auth/login', 'POST', { email: args[0], password: args[1] });
+    case 'api_logout': return apiCall('/api/auth/logout', 'POST', { token: token });
+    case 'api_bootstrap': return apiCall('/api/bootstrap' + qs({ token: token }), 'GET');
+
+    case 'api_generateSchedule': return apiCall('/api/schedule/generate', 'POST', { token: token, year: args[0], month: args[1] });
+    case 'api_saveSchedule': return apiCall('/api/schedule/save', 'POST', { token: token, year: args[0], month: args[1], assignments: args[2], status: args[3] });
+    case 'api_publishSchedule': return apiCall('/api/schedule/publish', 'POST', { token: token, year: args[0], month: args[1] });
+    case 'api_getDutyRoster': return apiCall('/api/schedule/duty-roster' + qs({ token: token, year: args[0], month: args[1] }), 'GET');
+    case 'api_setDutyRoster': return apiCall('/api/schedule/duty-roster', 'POST', { token: token, year: args[0], month: args[1], type: args[2], includedIds: args[3] });
+    case 'api_loadCalendar': return apiCall('/api/schedule/calendar' + qs({ token: token, year: args[0], month: args[1] }), 'GET');
+    case 'api_calculateWorkload': return apiCall('/api/schedule/workload' + qs({ token: token, year: args[0], month: args[1] }), 'GET');
+    case 'api_getBalance': return apiCall('/api/schedule/balance' + qs({ token: token, year: args[0], month: args[1], tolerance: args[2] }), 'GET');
+    case 'api_approveBalanceSwap': return apiCall('/api/schedule/balance/approve-swap', 'POST', { token: token, year: args[0], month: args[1], ovId: args[2], unId: args[3], shift: args[4] });
+    case 'api_getStationsForMonth': return apiCall('/api/stations' + qs({ token: token, year: args[0], month: args[1] }), 'GET');
+
+    case 'api_getReport': return apiCall('/api/reports/' + encodeURIComponent(args[0]) + qs({ token: token, year: args[1], month: args[2], pid: args[3] }), 'GET');
+    case 'api_exportExcel': return apiCall('/api/reports/' + encodeURIComponent(args[0]) + '/export' + qs({ token: token, year: args[1], month: args[2], pid: args[3] }), 'GET');
+
+    case 'api_addOnCall': return apiCall('/api/oncall', 'POST', { token: token, year: args[0], month: args[1], entry: args[2] });
+    case 'api_updateOnCall': return apiCall('/api/oncall/' + encodeURIComponent(args[2]), 'PUT', { token: token, year: args[0], month: args[1], entry: args[3] });
+    case 'api_deleteOnCall': return apiCall('/api/oncall/' + encodeURIComponent(args[2]) + qs({ token: token, year: args[0], month: args[1] }), 'DELETE');
+    case 'api_getOnCallList': return apiCall('/api/oncall' + qs({ token: token, year: args[0], month: args[1] }), 'GET');
+
+    case 'api_addAvailability': return apiCall('/api/availability', 'POST', { token: token, year: args[0], month: args[1], entry: args[2] });
+    case 'api_listAvailability': return apiCall('/api/availability' + qs({ token: token, year: args[0], month: args[1] }), 'GET');
+    case 'api_deleteAvailability': return apiCall('/api/availability/' + encodeURIComponent(args[2]) + qs({ token: token, year: args[0], month: args[1] }), 'DELETE');
+
+    case 'api_listHolidays': return apiCall('/api/holidays' + qs({ token: token, year: args[0], month: args[1] }), 'GET');
+    case 'api_addHoliday': return apiCall('/api/holidays', 'POST', { token: token, year: args[0], month: args[1], entry: args[2] });
+    case 'api_seedThaiHolidays': return apiCall('/api/holidays/seed-thai', 'POST', { token: token, year: args[0] });
+    case 'api_deleteHoliday': return apiCall('/api/holidays/' + encodeURIComponent(args[2]) + qs({ token: token, year: args[0], month: args[1] }), 'DELETE');
+
+    case 'api_addOverride': return apiCall('/api/overrides', 'POST', { token: token, year: args[0], month: args[1], entry: args[2] });
+
+    case 'api_listMaster': return apiCall('/api/master/' + encodeURIComponent(args[0]) + qs({ token: token }), 'GET');
+    case 'api_saveSettings': return apiCall('/api/settings', 'POST', { token: token, patch: args[0] });
+    case 'api_updateShifts': return apiCall('/api/shifts', 'POST', { token: token, shifts: args[0] });
+    case 'api_crud': return apiCall('/api/crud', 'POST', { token: token, entity: args[0], op: args[1], payload: args[2] });
+    case 'api_getSetupBundle': return apiCall('/api/setup-bundle' + qs({ token: token, year: args[0], month: args[1] }), 'GET');
+
+    case 'api_listPermissions': return apiCall('/api/permissions' + qs({ token: token }), 'GET');
+    case 'api_setPermission': return apiCall('/api/permissions', 'POST', { token: token, role: args[0], action: args[1], allowed: args[2] });
+
+    case 'api_listUsers': return apiCall('/api/users' + qs({ token: token }), 'GET');
+    case 'api_setUserPerson': return apiCall('/api/users/' + encodeURIComponent(args[0]) + '/set-person', 'POST', { token: token, personId: args[1] });
+    case 'api_createUser': return apiCall('/api/users', 'POST', { token: token, name: args[0], email: args[1], role: args[2], plainPassword: args[3] });
+    case 'api_setUserActive': return apiCall('/api/users/' + encodeURIComponent(args[0]) + '/set-active', 'POST', { token: token, active: args[1] });
+    case 'api_resetUserPassword': return apiCall('/api/users/' + encodeURIComponent(args[0]) + '/reset-password', 'POST', { token: token, newPlainPassword: args[1] });
+
+    case 'api_getAuditLogs': return apiCall('/api/audit-logs' + qs(Object.assign({ token: token }, args[0] || {})), 'GET');
+
+    default:
+      return Promise.reject(new Error('ไม่รู้จัก API: ' + fnName));
+  }
+}
+
+/* ---------------- auth (ported from doLogin()/logout()/enterApp()) ---------------- */
+
+document.getElementById('loginBtn').addEventListener('click', doLogin);
+document.getElementById('loginPassword').addEventListener('keydown', function (e) { if (e.key === 'Enter') doLogin(); });
+
+function doLogin() {
+  var email = document.getElementById('loginEmail').value.trim();
+  var password = document.getElementById('loginPassword').value;
+  if (!email || !password) return;
+  gsRun('api_login', email, password).then(function (res) {
+    Session.token = res.token;
+    Session.user = res.user;
+    sessionStorage.setItem('lo_token', res.token);
+    enterApp(res.bootstrap); /* ใช้ bootstrap ที่มากับผลล็อกอิน เลี่ยง round trip ที่ 2 */
+  }).catch(function (err) {
+    var el = document.getElementById('loginError');
+    el.style.display = 'block';
+    el.textContent = err.message || 'เข้าสู่ระบบไม่สำเร็จ';
+  });
+}
+
+document.getElementById('logoutBtn').addEventListener('click', logout);
+function logout() {
+  gsRun('api_logout', Session.token).then(function () {
+    sessionStorage.removeItem('lo_token');
+    sessionStorage.removeItem('lo_last_page');
+    location.reload();
+  });
+}
+
+function brandSub() {
+  var s = Session.settings || {};
+  return s.org || s.hosp ? [s.org, s.hosp].filter(Boolean).join(' · ') : 'Platform · เทคนิคการแพทย์';
+}
+
+function applyBranding(settings) {
+  if (settings) Session.settings = settings;
+  var s = Session.settings || {};
+  document.getElementById('sbMark').textContent = (s.logo || (s.org || 'L').charAt(0)).toUpperCase();
+  document.getElementById('sbBrandName').textContent = s.org || 'labthungfon';
+  document.getElementById('sbBrandSub').textContent = brandSub();
+  if (_activeMod) document.getElementById('tbSub').textContent = brandSub();
+  applyThemeColors_(s.themeColor, s.themeAcc);
+}
+
+/* ---------------- theme color (--tl/--gold token families) ---------------- */
+
+function mixHex_(hex, withHex, ratio) {
+  var a = hexToRgb_(hex), b = hexToRgb_(withHex);
+  var mix = a.map(function (c, i) { return Math.round(c + (b[i] - c) * ratio); });
+  return rgbToHex_(mix);
+}
+function hexToRgb_(hex) {
+  hex = hex.replace('#', '');
+  if (hex.length === 3) hex = hex.split('').map(function (c) { return c + c; }).join('');
+  var n = parseInt(hex, 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
+function rgbToHex_(rgb) {
+  return '#' + rgb.map(function (c) { return Math.max(0, Math.min(255, c)).toString(16).padStart(2, '0'); }).join('');
+}
+function applyThemeColors_(themeColor, themeAcc) {
+  var root = document.documentElement.style;
+  if (themeColor) {
+    root.setProperty('--tl', themeColor);
+    root.setProperty('--tl-d', mixHex_(themeColor, '#000000', 0.22));
+    root.setProperty('--tl-m', mixHex_(themeColor, '#ffffff', 0.18));
+    root.setProperty('--tl-l', mixHex_(themeColor, '#ffffff', 0.78));
+    root.setProperty('--tl-vl', mixHex_(themeColor, '#ffffff', 0.92));
+  }
+  if (themeAcc) {
+    root.setProperty('--gold', themeAcc);
+    root.setProperty('--gold-l', mixHex_(themeAcc, '#ffffff', 0.88));
+  }
+}
+
+function enterApp(prefetchedBoot) {
+  /* prefetchedBoot = bootstrap ที่มากับ api_login (ล็อกอินใหม่) — ถ้ามีใช้เลย ไม่ต้องเรียก api_bootstrap ซ้ำ
+     กรณี resume (มี token เดิมใน sessionStorage) จะไม่มี prefetch จึง fetch ตามปกติ */
+  var bootP = prefetchedBoot ? Promise.resolve(prefetchedBoot) : gsRun('api_bootstrap', Session.token);
+  bootP.then(function (boot) {
+    Session.user = boot.user;
+    Session.permissions = boot.permissions;
+    Session.settings = boot.settings || {};
+    document.getElementById('loginScr').style.display = 'none';
+    document.getElementById('app').style.display = 'flex';
+    document.getElementById('avatarInitial').textContent = (boot.user.name || 'A').charAt(0).toUpperCase();
+    document.getElementById('avatarName').textContent = boot.user.name + ' (' + boot.user.role + ')';
+    if (localStorage.getItem('lo_theme') === 'dark') document.documentElement.dataset.theme = 'dark';
+    if (localStorage.getItem('lo_sb_open') !== '0') document.getElementById('sb').classList.add('open');
+    applyBranding(boot.settings);
+    loadModuleRegistry(boot.settings);
+    fillMY();
+    renderSidebar();
+    /* รีเฟรชหน้าแล้วอยู่หน้าเดิม ไม่ต้องกลับไปแดชบอร์ดทุกครั้ง */
+    var lastPage = null;
+    try { lastPage = JSON.parse(sessionStorage.getItem('lo_last_page') || 'null'); } catch (e) {}
+    if (lastPage && lastPage.mod) {
+      if (lastPage.mod === 'schedule' && lastPage.sub) _schedActiveTab = lastPage.sub;
+      navTo(lastPage.mod);
+    } else {
+      navTo('dashboard');
+    }
+  }).catch(function () {
+    sessionStorage.removeItem('lo_token');
+  });
+}
+
+(function tryResume() {
+  var token = sessionStorage.getItem('lo_token');
+  if (token) { Session.token = token; enterApp(); }
+})();
+
+/* ---------------- sidebar / navigation (ported from renderSidebar()/navTo()) ---------------- */
+
+function moduleAllowed(mod) {
+  if (mod.enabled === false) return false;
+  if (!mod.permission) return true;
+  return !!Session.permissions[mod.permission];
+}
+
+function renderSidebar() {
+  var nav = document.getElementById('sbNav');
+  var html = '';
+  var mains = MODULE_REGISTRY.filter(moduleAllowed);
+  html += '<div class="sb-section">';
+  mains.forEach(function (m) {
+    html += '<div class="sb-item' + (m.id === _activeMod ? ' active' : '') + '" data-mod="' + m.id + '">' +
+      '<i class="ti ' + m.icon + '" aria-hidden="true"></i><span class="lbl">' + m.label + '</span></div>';
+  });
+  html += '</div>';
+  var activeMod = MODULE_REGISTRY.filter(function (m) { return m.id === _activeMod; })[0];
+  if (activeMod && activeMod.subnav) {
+    html += '<div class="sb-sub" id="modSubNav"><div class="sb-sect-label">' + activeMod.label + '</div>';
+    activeMod.subnav.forEach(function (s) {
+      html += '<div class="sb-item' + (s.id === _schedActiveTab ? ' active' : '') + '" data-sub="' + s.id + '">' +
+        '<i class="ti ' + s.icon + '" aria-hidden="true"></i><span class="lbl">' + s.label + '</span></div>';
+    });
+    html += '</div>';
+  }
+  nav.innerHTML = html;
+  nav.querySelectorAll('[data-mod]').forEach(function (el) { el.onclick = function () { navTo(el.dataset.mod); }; });
+  nav.querySelectorAll('[data-sub]').forEach(function (el) { el.onclick = function () { schedSwitchTab(el.dataset.sub); }; });
+}
+
+function navTo(modId) {
+  _activeMod = modId;
+  var m = MODULE_REGISTRY.filter(function (x) { return x.id === modId; })[0];
+  if (modId === 'schedule') _schedActiveTab = _schedActiveTab || 'grid';
+  sessionStorage.setItem('lo_last_page', JSON.stringify({ mod: modId, sub: modId === 'schedule' ? _schedActiveTab : null }));
+  _pageLoadStart = performance.now();
+  _pageLoadMod = m ? m.label : modId;
+  _pendingGs = 0;
+  document.querySelectorAll('#content .frame').forEach(function (f) { f.classList.remove('active'); });
+
+  if (m && m.kind === 'url') {
+    document.getElementById('frame-ext').classList.add('active');
+    document.getElementById('extUrlLabel').textContent = m.label;
+    document.getElementById('extFrame').src = m.url;
+    document.getElementById('extOpenNewTab').href = m.url;
+    document.getElementById('tbTitle').textContent = m.label;
+    document.getElementById('tbSub').textContent = brandSub() + ' · โมดูลภายนอก';
+    document.getElementById('tbSchedMY').style.display = 'none';
+    renderSidebar();
+    _pageLoadStart = null; /* โมดูล URL โหลดผ่าน iframe ของตัวเอง ไม่ผ่าน gsRun จึงไม่นับเวลาที่นี่ */
+    if (window.innerWidth <= 768) document.getElementById('sb').classList.remove('mob-open');
+    return;
+  }
+
+  var frame = document.getElementById('frame-' + modId);
+  if (frame) frame.classList.add('active');
+  document.getElementById('tbTitle').textContent = m ? m.label : modId;
+  document.getElementById('tbSub').textContent = brandSub();
+  document.getElementById('tbSchedMY').style.display = modId === 'schedule' ? 'flex' : 'none';
+  renderSidebar();
+
+  if (modId === 'dashboard' && window.Dashboard) Dashboard.render();
+  if (modId === 'schedule' && window.Schedule) Schedule.render(_schedActiveTab);
+  if (modId === 'admin' && window.Admin) Admin.render();
+  if (modId === 'guide' && window.Guide) Guide.render();
+
+  if (window.innerWidth <= 768) document.getElementById('sb').classList.remove('mob-open');
+}
+
+function schedSwitchTab(subId) {
+  _schedActiveTab = subId;
+  if (_activeMod !== 'schedule') { navTo('schedule'); return; }
+  sessionStorage.setItem('lo_last_page', JSON.stringify({ mod: 'schedule', sub: subId }));
+  _pageLoadStart = performance.now();
+  _pageLoadMod = 'ตารางเวร > ' + subId;
+  _pendingGs = 0;
+  renderSidebar();
+  if (window.Schedule) Schedule.render(subId);
+}
+
+/* ---------------- sidebar collapse / dark mode (ported 1:1) ---------------- */
+
+document.getElementById('sbLogo').addEventListener('click', toggleSidebar);
+document.getElementById('sbToggle').addEventListener('click', toggleSidebar);
+function toggleSidebar() {
+  var sb = document.getElementById('sb');
+  /* บนมือถือ sidebar ถูกซ่อนนอกจอ (translateX) — ปุ่มเมนูต้องสลับ .mob-open เพื่อเลื่อนเข้ามา
+     และต้องมี .open ด้วยเพื่อให้แสดงป้ายชื่อเมนูเต็ม (เดิมสลับแค่ .open เลยกดเปลี่ยนเมนูไม่ได้) */
+  if (window.innerWidth <= 768) {
+    var shown = sb.classList.toggle('mob-open');
+    if (shown) sb.classList.add('open');
+    return;
+  }
+  var open = sb.classList.toggle('open');
+  localStorage.setItem('lo_sb_open', open ? '1' : '0');
+}
+
+/* แตะนอกแถบเมนู (พื้นที่ทางขวา) เพื่อปิดเมนูบนมือถือ — ใช้พิกัด clientX เทียบขอบขวาของ
+   sidebar จึงเชื่อถือได้ทุกเบราว์เซอร์ (ปุ่มสลับ/เลือกเมนูก็ปิดได้เช่นกันผ่าน navTo) */
+document.addEventListener('click', function (e) {
+  if (window.innerWidth > 768) return;
+  var sb = document.getElementById('sb');
+  if (!sb.classList.contains('mob-open')) return;
+  if (e.target.closest('#sbToggle, #sbLogo')) return;
+  if (e.clientX > sb.getBoundingClientRect().right) sb.classList.remove('mob-open');
+}, true);
+
+document.getElementById('darkBtn').addEventListener('click', toggleDark);
+function toggleDark() {
+  var isDark = document.documentElement.dataset.theme === 'dark';
+  if (isDark) { delete document.documentElement.dataset.theme; localStorage.setItem('lo_theme', 'light'); }
+  else { document.documentElement.dataset.theme = 'dark'; localStorage.setItem('lo_theme', 'dark'); }
+}
+
+/* ---------------- month/year selector for the schedule module (ported from fillMY()) ---------------- */
+
+function fillMY() {
+  var selM = document.getElementById('selM'), selY = document.getElementById('selY');
+  var now = new Date();
+  selM.innerHTML = TH_M.map(function (name, i) { return '<option value="' + i + '">' + name + '</option>'; }).join('');
+  var curYear = now.getFullYear() + 543;
+  var years = [];
+  for (var y = curYear - 1; y <= curYear + 1; y++) years.push(y);
+  selY.innerHTML = years.map(function (y) { return '<option value="' + y + '">' + y + '</option>'; }).join('');
+  selM.value = now.getMonth();
+  selY.value = curYear;
+  selM.onchange = selY.onchange = function () {
+    if (window.Schedule) Schedule.setMonthYear(+selY.value, +selM.value);
+  };
+}
+
+/* ---------------- search / refresh / my-permissions (ported names) ---------------- */
+
+document.getElementById('gSearch').addEventListener('input', function (e) { handleGSearch(e.target.value); });
+function handleGSearch(q) {
+  if (!q) return;
+  toast('ค้นหา', 'พิมพ์ "' + q + '" — ฟีเจอร์ค้นหาข้ามโมดูลกำลังพัฒนา');
+}
+
+document.getElementById('refreshBtn').addEventListener('click', pRefresh);
+function pRefresh() {
+  if (_activeMod === 'dashboard' && window.Dashboard) Dashboard.render();
+  else if (_activeMod === 'schedule' && window.Schedule) Schedule.render(_schedActiveTab);
+  else if (_activeMod === 'admin' && window.Admin) Admin.render();
+  toast('รีเฟรชแล้ว');
+}
+
+document.getElementById('avatarBtn').addEventListener('click', openMyPerms);
+function openMyPerms() {
+  var rows = Object.keys(Session.permissions).map(function (k) {
+    return '<tr><td class="l">' + k + '</td><td class="c">' + (Session.permissions[k] ? '<span class="badge ok">มีสิทธิ์</span>' : '<span class="badge none">ไม่มีสิทธิ์</span>') + '</td></tr>';
+  }).join('');
+  showModal('สิทธิ์ของฉัน — ' + Session.user.name, '<table class="tbl"><tr><th>การกระทำ</th><th>สิทธิ์</th></tr>' + rows + '</table>', 'ปิด', closeModal);
+}
+</script>
+
+<script>
+/* script-dashboard.html — Executive dashboard: KPI cards, monthly trend,
+   workload distribution, alerts panel, recent activity feed.
+   New module (Restriction allows Dashboard improvements); does not replace
+   the original per-module dashboards (Scheduling pg-dash is in script-schedule.html). */
+
+var Dashboard = (function () {
+  var trendChart = null, workloadChart = null;
+
+  function currentYM() {
+    var now = new Date();
+    return { year: now.getFullYear() + 543, month: now.getMonth() };
+  }
+
+  function render() {
+    var page = document.getElementById('frame-dashboard');
+    page.innerHTML =
+      '<h2 style="margin:0 0 4px;font-size:18px;">แดชบอร์ดผู้บริหาร</h2>' +
+      '<p style="margin:0 0 16px;color:var(--mut);font-size:13px;">ภาพรวมระบบจัดเวร — ดูรายละเอียดเชิงลึกได้ที่ ตารางเวร &gt; แดชบอร์ด/สมดุลเวร</p>' +
+      '<div class="kpi-row" id="kpiGrid" style="margin-bottom:18px;"></div>' +
+      '<div class="card"><div class="card-title"><i class="ti ti-bell"></i>การแจ้งเตือน</div><div id="alertsPanel"></div></div>';
+
+    var ym = currentYM();
+    loadKpis(ym.year, ym.month);
+    loadAlerts(ym.year, ym.month);
+  }
+
+  function loadKpis(year, month) {
+    Promise.all([gsRun('api_calculateWorkload', Session.token, year, month), gsRun('api_loadCalendar', Session.token, year, month)])
+      .then(function (res) {
+        var workload = res[0], cal = res[1];
+        var totalMoney = Object.keys(workload.money).reduce(function (s, k) { return s + workload.money[k]; }, 0);
+        var kpis = [
+          { label: 'เจ้าหน้าที่ Active', val: workload.people.filter(function (p) { return p.active; }).length },
+          { label: 'สถานะตารางเวร', val: cal.status === 'published' ? 'เผยแพร่แล้ว' : (cal.status === 'draft' ? 'ฉบับร่าง' : 'ยังไม่สร้าง') },
+          { label: 'Rule violations เปิดอยู่', val: cal.ruleViolations.length },
+          { label: 'ค่าตอบแทนรวม (บาท)', val: totalMoney.toLocaleString('en-US', { minimumFractionDigits: 2 }) }
+        ];
+        document.getElementById('kpiGrid').innerHTML = kpis.map(function (k) {
+          return '<div class="kpi"><div class="kpi-val">' + k.val + '</div><div class="kpi-lbl">' + k.label + '</div></div>';
+        }).join('');
+      });
+  }
+
+  function loadTrend(year, month) {
+    var months = [];
+    for (var i = 5; i >= 0; i--) {
+      var m = month - i, y = year;
+      if (m < 0) { m += 12; y -= 1; }
+      months.push({ year: y, month: m });
+    }
+    Promise.all(months.map(function (ym) {
+      return gsRun('api_calculateWorkload', Session.token, ym.year, ym.month)
+        .then(function (w) { return Object.keys(w.money).reduce(function (s, k) { return s + w.money[k]; }, 0); })
+        .catch(function () { return 0; });
+    })).then(function (totals) {
+      var labels = months.map(function (ym) { return ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'][ym.month]; });
+      if (trendChart) trendChart.destroy();
+      trendChart = new Chart(document.getElementById('trendCanvas'), {
+        type: 'bar',
+        data: { labels: labels, datasets: [{ label: 'บาท', data: totals, backgroundColor: '#13417a' }] },
+        options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+      });
+
+      gsRun('api_calculateWorkload', Session.token, year, month).then(function (workload) {
+        var byRole = { HT: 0, MT: 0, LA: 0 };
+        workload.people.forEach(function (p) {
+          var d = workload.byPerson[p.id];
+          var days = ['ch', 'b', 'b1', 'n', 'd'].reduce(function (s, k) { return s + (d[k] || []).length; }, 0);
+          byRole[p.role] = (byRole[p.role] || 0) + days;
+        });
+        if (workloadChart) workloadChart.destroy();
+        workloadChart = new Chart(document.getElementById('workloadCanvas'), {
+          type: 'doughnut',
+          data: { labels: Object.keys(byRole), datasets: [{ data: Object.values(byRole), backgroundColor: ['#0c2d57', '#1d9e75', '#ba7517'] }] },
+          options: { plugins: { legend: { position: 'bottom' } } }
+        });
+      });
+    });
+  }
+
+  function loadAlerts(year, month) {
+    gsRun('api_loadCalendar', Session.token, year, month).then(function (cal) {
+      var panel = document.getElementById('alertsPanel');
+      if (!cal.ruleViolations.length) { panel.innerHTML = '<div style="color:var(--mut);font-size:13px;">ไม่มีข้อควรตรวจสอบ</div>'; return; }
+      panel.innerHTML = cal.ruleViolations.slice(0, 5).map(function (v) {
+        var cls = v.severity === 'warn' ? 'warn' : 'ok';
+        return '<div style="display:flex;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);font-size:12.5px;">' +
+          '<span class="badge ' + cls + '">' + v.type + '</span><span>' + v.msg + '</span></div>';
+      }).join('');
+    });
+  }
+
+  return { render: render };
+})();
+</script>
+
+<script>
+/* script-schedule.html — ตารางเวร module: setup/dash/collect/grid/reports/oncall/balance.
+   Calls api_generateSchedule/api_saveSchedule/api_loadCalendar/api_calculateWorkload/
+   api_exportExcel — names match the required generateSchedule()/saveSchedule()/
+   loadCalendar()/calculateWorkload()/exportExcel(). Grid rendering (tokEl()/cellToks()/
+   renderGrid()/renderContacts()/dowCls()) ported 1:1 in look from the original
+   labthungfon-platform-v4_43.html (lines ~2432-2519). */
+
+/* ตั้งขนาดกระดาษก่อนพิมพ์ผ่าน <style> ฉีดเข้า <head> — เลี่ยงบั๊ก Chrome ที่แทรกหน้าเปล่า
+   หน้าแรกเมื่อใช้ named @page (ดูคอมเมนต์ใน style.html) */
+function printWithPageSize(size) {
+  var el = document.getElementById('printPageSize');
+  if (!el) {
+    el = document.createElement('style');
+    el.id = 'printPageSize';
+    document.head.appendChild(el);
+  }
+  el.textContent = '@media print{@page{' + size + '}}';
+  window.print();
+}
+
+var Schedule = (function () {
+  var current = { year: new Date().getFullYear() + 543, month: new Date().getMonth() };
+  var calendarData = null, peopleCache = null, rolePermsCache = null;
+  var printColorListenerAdded = false;
+
+  /* ── shift token defs, identical colors to the original .tok.* classes ── */
+  var SHIFT_DEFS = {
+    ch: { short: 'ช', name: 'เวรเช้า 08-16', bg: '#d9ebe8', color: '#0a4f47' },
+    b: { short: 'บ', name: 'เวรบ่าย 16-24', bg: '#e7eef8', color: '#2f5fa0' },
+    d: { short: 'ด', name: 'เวรดึก On call 24-08', bg: '#f7ecd6', color: '#7a5618' },
+    n: { short: 'x', name: 'เวรคลินิกนอกเวลา 07-08', bg: '#ede0c4', color: '#6b4e16' },
+    b1: { short: 'บ1', name: 'บ1 เวรเสริมบ่าย 16-20', bg: '#efe7f7', color: '#7a4fa0' }
+  };
+  var REPORT_TABS = [
+    { id: 'otsheet', label: 'OT timesheet' }, { id: 'otsheetb1', label: 'OT timesheet (บ1)' }, { id: 'otsheetd', label: 'OT timesheet (เวรดึก)' }, { id: 'nsheet', label: 'เวรคลินิก (น)' },
+    { id: 'pay', label: 'ใบเบิกเงินรวม' }, { id: 'payLandscape', label: 'ใบเบิกเงินรวม (แนวนอน A4)' },
+    { id: 'payperson', label: 'รายบุคคล' },
+    { id: 'shiftsummary', label: 'สรุปรายเวร' }, { id: 'teamoverview', label: 'ภาพรวมทีม' },
+    { id: 'ocrec', label: 'บันทึก on-call' }, { id: 'occlaim', label: 'บันทึก on-call (รายละเอียด)' }
+  ];
+
+  function setMonthYear(year, month) { current.year = year; current.month = month; render(_schedActiveTab); }
+  function monthLabel() { return TH_M[current.month] + ' ' + current.year; }
+  function dowLabel() { return ['อา', 'จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส']; }
+  function isWknd(year, month, d) { var w = new Date(year - 543, month, d).getDay(); return w === 0 || w === 6; }
+
+  function tokEl(t) { var s = SHIFT_DEFS[t]; return '<span class="tok" style="background:' + s.bg + ';color:' + s.color + '">' + s.short + '</span>'; }
+
+  function loadPeople() {
+    if (peopleCache) return Promise.resolve(peopleCache);
+    return gsRun('api_bootstrap', Session.token).then(function (boot) { peopleCache = boot.people; return peopleCache; });
+  }
+
+  /* Cached reads — cuts repeat Apps Script round trips when switching between
+     grid/dash/balance/oncall tabs for the same month (fixes "คลิกเข้าเมนูแล้วช้า"). */
+  function ymKey(prefix) { return prefix + '_' + current.year + '_' + current.month; }
+  function loadCalendarCached() { return cachedGsRun(ymKey('cal'), 15000, 'api_loadCalendar', Session.token, current.year, current.month); }
+  function loadWorkloadCached() { return cachedGsRun(ymKey('wl'), 15000, 'api_calculateWorkload', Session.token, current.year, current.month); }
+  function invalidateMonthCache() { invalidateCache(ymKey('cal')); invalidateCache(ymKey('wl')); }
+
+  function render(sub) {
+    var page = document.getElementById('schedInner');
+    if (sub === 'reports') return renderReportsPage(page);
+    if (sub === 'oncall') return renderOncallPage(page);
+    if (sub === 'setup') return renderSetupPage(page);
+    if (sub === 'dash') return renderSchedDashPage(page);
+    if (sub === 'collect') return renderCollectPage(page);
+    if (sub === 'balance') return renderBalancePage(page);
+    return renderGridPage(page);
+  }
+
+  /* ════════════════ GRID (ported from renderGrid()/renderContacts()) ════════════════ */
+
+  /* หัวตารางเวร — บรรทัด 1: ชื่อรายงาน + กลุ่มงาน/โรงพยาบาล, บรรทัด 2: ช่วงวันที่เต็มเดือน ตามฟีดแบ็ก
+     (เดิมแสดง "...และในวันหยุด — มิถุนายน 2569" สั้นไป) */
+  function gridTitleHtml() {
+    var s = Session.settings || {};
+    var orgLine = [s.org, s.hosp].filter(Boolean).join(' ');
+    var lastDay = new Date(current.year - 543, current.month + 1, 0).getDate();
+    var rangeLine = 'ตั้งแต่วันที่ 1 ' + TH_M[current.month] + ' ' + current.year + ' ถึงวันที่ ' + lastDay + ' ' + TH_M[current.month] + ' ' + current.year;
+    return '<div id="gridTitle" style="font-size:16px;font-weight:700;">ตารางปฏิบัติงานนอกเวลาราชการและวันหยุดราชการ' + (orgLine ? ' ' + orgLine : '') + '</div>' +
+      '<div id="gridTitleRange" style="font-size:13px;font-weight:600;margin-top:2px;">' + rangeLine + '</div>';
+  }
+
+  function renderGridPage(page) {
+    page.innerHTML =
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;flex-wrap:wrap;gap:10px;">' +
+      '<div>' + gridTitleHtml() +
+      '<div class="topbar-sub" id="gridSub" style="margin-top:2px;"></div></div>' +
+      '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">' +
+      '<span id="statusBadge"></span>' +
+      '<button class="btn btn-primary btn-sm" id="genBtn"><i class="ti ti-refresh"></i> สร้างตารางเวร</button>' +
+      '<button class="btn btn-sm" id="balanceBtn" style="background:var(--tl-l);color:var(--tl-d);border-color:var(--tl);"><i class="ti ti-scale"></i> สมดุลเวร</button>' +
+      '<button class="btn btn-sm" id="pubBtn"><i class="ti ti-send"></i> เผยแพร่</button>' +
+      '<button class="btn btn-sm" id="printBtn"><i class="ti ti-printer"></i> พิมพ์</button>' +
+      '<button class="btn btn-sm" id="printColorBtn"><i class="ti ti-printer"></i> พิมพ์สี</button>' +
+      '</div></div>' +
+      '<div class="legend" id="legend"></div>' +
+      '<div class="sched-wrap"><table class="sched" id="schedTbl"></table></div>' +
+      '<div id="violationsPanel" style="margin-top:12px;"></div>' +
+      '<div class="card" id="contactCard" style="margin-top:14px;"><div class="card-title"><i class="ti ti-address-book"></i>จุดปฏิบัติงาน & ข้อมูลติดต่อ</div>' +
+      '<div class="contact-grid" id="contactGrid"></div></div>' +
+      '<div class="card print-only" id="workHoursPrint" style="display:none;"></div>' +
+      '<div class="card" id="ovrLogCard" style="display:none;"><div class="card-title"><i class="ti ti-history"></i>Override Log</div>' +
+      '<div class="tbl-wrap"><table class="tbl" id="ovrLogTbl"></table></div></div>' +
+      '<div class="print-sign" id="printSign"></div>';
+
+    document.getElementById('legend').innerHTML = Object.keys(SHIFT_DEFS).map(function (k) {
+      var s = SHIFT_DEFS[k];
+      return '<span>' + tokEl(k) + ' ' + s.name + '</span>';
+    }).join('');
+
+    document.getElementById('genBtn').onclick = function () {
+      gsRun('api_generateSchedule', Session.token, current.year, current.month).then(function (result) {
+        invalidateMonthCache();
+        toast('สร้างตารางสำเร็จ', 'ปรับสมดุล ' + result.postBalanceSwaps + ' เวร · พบ ' + result.ruleViolations.length + ' ข้อควรตรวจสอบ');
+        loadAndRenderGrid();
+      });
+    };
+    document.getElementById('pubBtn').onclick = function () {
+      gsRun('api_publishSchedule', Session.token, current.year, current.month).then(function () {
+        invalidateMonthCache();
+        toast('ประกาศใช้แล้ว');
+        loadAndRenderGrid();
+      });
+    };
+    document.getElementById('balanceBtn').onclick = function () { schedSwitchTab('balance'); };
+    document.getElementById('printBtn').onclick = function () { printWithPageSize('size:A4 landscape;margin:6mm'); };
+    document.getElementById('printColorBtn').onclick = function () {
+      document.documentElement.classList.add('print-color');
+      printWithPageSize('size:A4 landscape;margin:6mm');
+    };
+    if (!printColorListenerAdded) {
+      printColorListenerAdded = true;
+      window.addEventListener('afterprint', function () { document.documentElement.classList.remove('print-color'); });
+    }
+    if (!Session.permissions.publish) document.getElementById('pubBtn').disabled = true;
+
+    loadAndRenderGrid();
+  }
+
+  function loadAndRenderGrid() {
+    /* stations ไม่ได้ขึ้นกับ cal เลยยิงคู่กันได้ — เดิมซ้อนอยู่ใน .then() ของ cal ทำให้
+       ต้องรอ round trip นึงจบก่อนค่อยยิงอีกอัน (เพิ่ม latency โดยไม่จำเป็น) */
+    var stationsP = cachedGsRun('stations_' + current.year + '_' + current.month, 60000, 'api_getStationsForMonth', Session.token, current.year, current.month);
+    loadCalendarCached().then(function (cal) {
+      calendarData = cal;
+      peopleCache = cal.people;
+      renderGridTable(calendarData);
+      renderViolations(calendarData.ruleViolations);
+      stationsP.then(function (stations) {
+        renderContacts(calendarData.people, stations);
+      });
+      renderOvrLog(calendarData.overrides, calendarData.people);
+      var N = calendarData.N;
+      var nW = 0, nH = (calendarData.holidays || []).length;
+      for (var d = 1; d <= N; d++) if (!isWknd(current.year, current.month, d) && !isHolD(d)) nW++;
+      document.getElementById('gridSub').textContent = 'วันราชการ ' + nW + ' · วันหยุด ' + (N - nW) + ' · นักขัตฤกษ์ ' + nH + ' วัน';
+      var badge = document.getElementById('statusBadge');
+      var map = { draft: ['draft', 'ดราฟต์ (รอตรวจสอบ)'], published: ['pub', 'ประกาศใช้แล้ว'], none: ['none', 'ยังไม่สร้าง'] };
+      var m = map[calendarData.status] || map.none;
+      badge.innerHTML = '<span class="badge ' + m[0] + '">' + m[1] + '</span>';
+      renderPrintSign();
+      renderWorkHoursPrint();
+    });
+  }
+
+  function renderPrintSign() {
+    var s = Session.settings || {};
+    var el = document.getElementById('printSign');
+    if (!el) return;
+    var blocks = [];
+    if (s.signH) blocks.push({ name: s.signH, title: s.signHT || '' });
+    if (s.signD) blocks.push({ name: s.signD, title: s.signDT || '' });
+    el.innerHTML = blocks.map(function (b) {
+      return '<div><div class="ln">' + b.name + '</div><div>' + b.title + '</div></div>';
+    }).join('');
+  }
+
+  /* ตารางสรุปเวลาในการปฏิบัติงาน — แสดงเฉพาะตอนพิมพ์ (ported per attached sample sheet)
+     เวลาแสดงแบบเต็ม เช่น 08.00-16.00 ตามฟีดแบ็ก (ไม่ใช่แบบย่อ 08-16) */
+  var WORK_HOURS_FULL_ = { ch: '08.00-16.00 น.', b1: '16.00-20.00 น.', b: '16.00-24.00 น.', d: '24.00-08.00 น.', n: '07.00-08.00 น.' };
+  function renderWorkHoursPrint() {
+    var el = document.getElementById('workHoursPrint');
+    if (!el) return;
+    var order = ['ch', 'b1', 'b', 'd', 'n'];
+    el.innerHTML = '<div class="card-title">เวลาในการปฏิบัติงาน</div>' +
+      '<table class="tbl"><tr><th>เวร</th><th>เวลาในการปฏิบัติงาน</th></tr>' +
+      order.map(function (k) {
+        var s = SHIFT_DEFS[k];
+        var label = s.name.replace(/\s*\d+-\d+$/, '');
+        if (label.indexOf(s.short) !== 0) label = s.short + ' ' + label;
+        return '<tr><td>' + label + '</td><td class="l">' + WORK_HOURS_FULL_[k] + '</td></tr>';
+      }).join('') + '</table>';
+  }
+
+  function isHolD(d) { return (calendarData.holidays || []).some(function (h) { return h.day === d; }); }
+  function dowCls(d) { return isHolD(d) ? 'holi' : (isWknd(current.year, current.month, d) ? 'wknd' : ''); }
+
+  /* เรียงตามเวลาเริ่มเวรจริง: ด (ต่อเนื่องจากเมื่อคืน จบ 08:00) · น 07-08 · ช 08-16 · บ1 16-20 · บ 16-24 */
+  var TOK_TIME_ORDER = { d: 0, n: 1, ch: 2, b1: 3, b: 4 };
+  function cellToks(p, d, cal) {
+    var t = [];
+    var a = cal.assign[d] || {};
+    if (a.ch === p.id && (isHolD(d) || isWknd(current.year, current.month, d))) t.push('ch');
+    if (a.b === p.id) t.push('b');
+    var prevA = cal.assign[d - 1];
+    if (prevA && prevA.d === p.id) t.push('d');
+    if (cal.clinicMt[d] === p.id || cal.clinicLa[d] === p.id) t.push('n');
+    if (cal.laB[d] === p.id) t.push('b1');
+    t.sort(function (x, y) { return TOK_TIME_ORDER[x] - TOK_TIME_ORDER[y]; });
+    return t;
+  }
+
+  function fullN(p) { return (p.pfx || '') + p.name; }
+
+  function renderGridTable(cal) {
+    var dl = dowLabel();
+    var r1 = '<th class="nm" rowspan="2">ชื่อ-สกุล</th>', r2 = '';
+    for (var d = 1; d <= cal.N; d++) {
+      var c = dowCls(d);
+      r1 += '<th class="dnum ' + c + '">' + d + '</th>';
+      r2 += '<th class="dow ' + c + '">' + dl[new Date(cal.year - 543, cal.month, d).getDay()] + '</th>';
+    }
+    r1 += '<th class="sumcol" rowspan="2">x</th><th class="sumcol" rowspan="2">ช</th><th class="sumcol" rowspan="2">บ1</th><th class="sumcol" rowspan="2">บ</th><th class="sumcol" rowspan="2">ด</th><th class="sumcol" rowspan="2">รวม</th>';
+    var h = '<thead><tr>' + r1 + '</tr><tr>' + r2 + '</tr></thead><tbody>';
+
+    var totals = { ch: 0, b: 0, b1: 0, n: 0, d: 0 };
+    cal.people.forEach(function (p) {
+      var sums = { ch: 0, b: 0, b1: 0, n: 0, d: 0 };
+      var row = '<tr><td class="nm">' + fullN(p) + '</td>';
+      for (var d2 = 1; d2 <= cal.N; d2++) {
+        var toks = cellToks(p, d2, cal);
+        toks.forEach(function (t) { sums[t] = (sums[t] || 0) + 1; });
+        var ovrd = (cal.overrides || []).some(function (o) { return o.day === d2 && (o.aff || []).indexOf(p.id) > -1; });
+        row += '<td class="' + dowCls(d2) + '"><div class="cell' + (ovrd ? ' ovrd' : '') + '" data-day="' + d2 + '" data-pid="' + p.id + '">' + toks.map(tokEl).join('') + '</div></td>';
+      }
+      var isLA = p.role === 'LA';
+      var rmt = isLA ? sums.ch + sums.b1 : sums.ch + sums.b;
+      row += '<td class="sumcol">' + sums.n + '</td><td class="sumcol">' + sums.ch + '</td><td class="sumcol">' + sums.b1 + '</td><td class="sumcol">' + sums.b + '</td><td class="sumcol">' + sums.d + '</td><td class="sumcol" style="font-size:12px">' + rmt + '</td></tr>';
+      h += row;
+      ['ch', 'b', 'b1', 'n', 'd'].forEach(function (t) { totals[t] += sums[t] || 0; });
+    });
+    h += '<tr class="sum-row"><td class="nm" style="text-align:right;font-size:11px;color:var(--mut)">รวมทั้งหมด</td>';
+    for (var d3 = 1; d3 <= cal.N; d3++) h += '<td></td>';
+    h += '<td class="sumcol">' + totals.n + '</td><td class="sumcol">' + totals.ch + '</td><td class="sumcol">' + totals.b1 + '</td><td class="sumcol">' + totals.b + '</td><td class="sumcol">' + totals.d + '</td><td class="sumcol">—</td></tr></tbody>';
+
+    var table = document.getElementById('schedTbl');
+    table.innerHTML = h;
+    table.onclick = function (e) {
+      var cell = e.target.closest('[data-day]');
+      if (cell && Session.permissions.override) openOvr(+cell.dataset.day, cell.dataset.pid);
+    };
+  }
+
+  var VIOLATION_LABEL = {
+    maxC: 'เวรติดต่อกันเกินกำหนด',
+    d_n_overlap: 'เวร ด/น ซ้อนกัน',
+    fri_block_split: 'แยกคนละกันวันศุกร์-เสาร์'
+  };
+  var OVR_TYPE_LABEL = {
+    'manual-override': 'แก้ไขด้วยตนเอง',
+    'balance-swap': 'สลับสมดุลอัตโนมัติ',
+    'cross-month-unlock': 'ปลดล็อกข้ามเดือน'
+  };
+  function renderViolations(violations) {
+    var panel = document.getElementById('violationsPanel');
+    if (!violations.length) { panel.innerHTML = ''; return; }
+    panel.innerHTML = '<div class="card"><div class="card-title"><i class="ti ti-alert-triangle"></i>สมดุลเวร / ข้อควรตรวจสอบ (' + violations.length + ')</div>' +
+      violations.map(function (v) {
+        return '<div style="padding:6px 0;border-bottom:1px solid var(--border);font-size:12.5px;"><span class="badge ' + (v.severity === 'warn' ? 'warn' : 'ok') + '">' + (VIOLATION_LABEL[v.type] || v.type) + '</span> ' + v.msg + '</div>';
+      }).join('') + '</div>';
+  }
+
+  function renderContacts(people, stations) {
+    var stationOf = {};
+    (stations || []).forEach(function (s) {
+      (s.assigned || []).forEach(function (pid) {
+        stationOf[pid] = stationOf[pid] ? stationOf[pid] + ', ' + s.name : s.name;
+      });
+    });
+    document.getElementById('contactGrid').innerHTML = people.filter(function (p) { return p.active !== false; }).map(function (p) {
+      return '<div class="contact"><div class="cn">' + fullN(p) + '</div><div class="cp">' + (p.title || '') + '</div>' +
+        (stationOf[p.id] ? '<div class="cp" style="color:var(--tl);"><i class="ti ti-map-pin"></i> ' + stationOf[p.id] + '</div>' : '') +
+        '<div class="cc">' + (p.phone ? '<i class="ti ti-phone"></i> ' + p.phone : '<span style="color:var(--mut)">ไม่มีเบอร์โทร</span>') + '</div></div>';
+    }).join('');
+  }
+
+  function renderOvrLog(overrides, people) {
+    var card = document.getElementById('ovrLogCard');
+    if (!overrides || !overrides.length) { card.style.display = 'none'; return; }
+    card.style.display = 'block';
+    var byId = {}; people.forEach(function (p) { byId[p.id] = p; });
+    document.getElementById('ovrLogTbl').innerHTML = '<tr><th>เวลา</th><th>วันที่</th><th>ประเภท</th><th>การเปลี่ยนแปลง</th></tr>' +
+      overrides.slice().reverse().map(function (o) {
+        var t = o.time ? new Date(o.time).toLocaleString('th-TH', { hour: '2-digit', minute: '2-digit' }) : '';
+        var change = o.from && o.to ? ((byId[o.from] ? byId[o.from].short || byId[o.from].name : o.from) + ' → ' + (byId[o.to] ? byId[o.to].short || byId[o.to].name : o.to)) : (o.shiftLabel || o.reason || '');
+        return '<tr><td>' + t + '</td><td>วันที่ ' + o.day + '</td><td><span class="badge none">' + (OVR_TYPE_LABEL[o.type] || o.type || 'override') + '</span></td><td class="l">' + change + '</td></tr>';
+      }).join('');
+  }
+
+  /* ── manual override modal (ported from openOvr()/applyOvr()) ── */
+  var OVR_SHIFT_OPTS = [
+    ['ch', 'เวรเช้า (วันหยุด)'], ['b', 'เวรบ่าย'], ['d', 'เวรดึก On call'],
+    ['n_mt', 'เวรคลินิกนอกเวลา (MT)'], ['n_la', 'เวรคลินิกนอกเวลา (LA)'], ['b1', 'บ1 เวรเสริมบ่าย']
+  ];
+  var OVR_BLOCK_PRESETS = [
+    { id: '', label: '(เลือกทีละเวร)', shifts: [] },
+    { id: 'chbd', label: 'ทั้งก้อน ช+บ+ด', shifts: ['ch', 'b', 'd'] },
+    { id: 'bd', label: 'ทั้งก้อน บ+ด', shifts: ['b', 'd'] }
+  ];
+  function openOvr(day, pid) {
+    loadPeople().then(function (people) {
+      var opts = people.map(function (p) { return '<option value="' + p.id + '"' + (p.id === pid ? ' selected' : '') + '>' + fullN(p) + '</option>'; }).join('');
+      var body = document.createElement('div');
+      body.innerHTML = '<div class="alert" style="background:var(--coral-l);border-color:var(--coral);color:var(--coral);"><i class="ti ti-alert-triangle"></i> Override ยกเว้นกฎทั้งหมด · บันทึก Log ทันที</div>' +
+        '<div class="oc-form-grid" style="grid-template-columns:1fr 1fr;">' +
+        '<label style="grid-column:1/-1;">ย้ายเป็นก้อน<select id="ovrPreset">' + OVR_BLOCK_PRESETS.map(function (p) { return '<option value="' + p.id + '">' + p.label + '</option>'; }).join('') + '</select></label>' +
+        '<label style="grid-column:1/-1;">ประเภทเวร (เลือกได้หลายเวร)<div id="ovrShiftChips" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px;">' +
+        OVR_SHIFT_OPTS.map(function (o) { return '<label style="display:flex;align-items:center;gap:4px;font-size:12.5px;border:1px solid var(--border);border-radius:7px;padding:4px 8px;cursor:pointer;"><input type="checkbox" value="' + o[0] + '" class="ovrShiftChk"> ' + o[1] + '</label>'; }).join('') +
+        '</div></label>' +
+        '<label>เจ้าหน้าที่<select id="ovrPid">' + opts + '</select></label>' +
+        '<label style="grid-column:1/-1;">เหตุผล<textarea id="ovrReason" rows="2" style="border:1px solid var(--border);border-radius:7px;padding:6px;"></textarea></label></div>';
+      body.querySelector('#ovrPreset').onchange = function (e) {
+        var preset = OVR_BLOCK_PRESETS.filter(function (p) { return p.id === e.target.value; })[0];
+        body.querySelectorAll('.ovrShiftChk').forEach(function (chk) { chk.checked = preset.shifts.indexOf(chk.value) > -1; });
+      };
+      showModal('แก้ไข/สลับเวร — วันที่ ' + day + ' ' + monthLabel(), body, 'บันทึก Override', function () {
+        var shifts = Array.prototype.slice.call(body.querySelectorAll('.ovrShiftChk:checked')).map(function (c) { return c.value; });
+        if (!shifts.length) { toast('กรุณาเลือกประเภทเวรอย่างน้อย 1 เวร', '', true); return; }
+        var toPid = document.getElementById('ovrPid').value, reason = document.getElementById('ovrReason').value;
+        var calls = shifts.map(function (shift) {
+          return gsRun('api_addOverride', Session.token, current.year, current.month, {
+            day: day, type: 'manual-override', shift: shift, to: toPid, from: pid || null,
+            reason: reason, time: new Date().toISOString(), aff: [pid, toPid].filter(Boolean)
+          });
+        });
+        Promise.all(calls).then(function () {
+          invalidateMonthCache();
+          toast('บันทึก Override แล้ว (' + shifts.length + ' เวร)'); closeModal(); loadAndRenderGrid();
+        }).catch(function () { closeModal(); });
+      });
+    });
+  }
+
+  /* ════════════════ DASH (per-month stat-grid, ported from renderDash()) ════════════════ */
+
+  function renderSchedDashPage(page) {
+    page.innerHTML = '<h2 style="margin:0 0 10px;font-size:16px;">แดชบอร์ดตารางเวร — ' + monthLabel() + '</h2>' +
+      '<div class="stat-grid" id="schedStatGrid"></div>' +
+      '<div class="card"><div class="card-title"><i class="ti ti-chart-bar"></i>ภาระงานรายบุคคล</div><div id="schedWorkloadBars"></div></div>' +
+      '<div class="card"><div class="card-title"><i class="ti ti-users-group"></i>ภาพรวมตามบทบาท</div>' +
+      '<div class="stat-grid" id="schedRoleGrid" style="grid-template-columns:repeat(auto-fill,minmax(200px,1fr));"></div></div>' +
+      '<div class="card"><div class="card-title"><i class="ti ti-user"></i>ภาพรวมรายบุคคล</div>' +
+      '<div class="stat-grid" id="schedPersonGrid" style="grid-template-columns:repeat(auto-fill,minmax(220px,1fr));"></div></div>';
+
+    Promise.all([loadCalendarCached(), loadWorkloadCached()])
+      .then(function (res) {
+        var cal = res[0], workload = res[1];
+        var N = cal.N, nW = 0;
+        for (var d = 1; d <= N; d++) if (!isWknd(current.year, current.month, d) && !(cal.holidays || []).some(function (h) { return h.day === d; })) nW++;
+        var nC = 0;
+        for (var d2 = 1; d2 <= N; d2++) if (cal.clinicMt[d2] || cal.clinicLa[d2]) nC++;
+        var stats = [
+          { lbl: 'วันราชการ', val: nW }, { lbl: 'วันหยุด', val: N - nW },
+          { lbl: 'นักขัตฤกษ์', val: (cal.holidays || []).length }, { lbl: 'คลินิก (วัน)', val: nC },
+          { lbl: 'On Call', val: (cal.oncall || []).length }
+        ];
+        document.getElementById('schedStatGrid').innerHTML = stats.map(function (s) {
+          return '<div class="stat"><div class="val">' + s.val + '</div><div class="lbl">' + s.lbl + '</div></div>';
+        }).join('');
+
+        var maxDays = 1;
+        var rows = workload.people.map(function (p) {
+          var d = workload.byPerson[p.id];
+          var days = ['ch', 'b', 'b1', 'n', 'd'].reduce(function (s, k) { return s + (d[k] || []).length; }, 0);
+          maxDays = Math.max(maxDays, days);
+          return { p: p, days: days };
+        });
+        document.getElementById('schedWorkloadBars').innerHTML = rows.map(function (r) {
+          var pct = Math.round((r.days / maxDays) * 100);
+          return '<div class="progress-row"><div class="progress-lbl">' + fullN(r.p) + '</div>' +
+            '<div class="progress-track"><div class="progress-fill" style="width:' + pct + '%"></div></div>' +
+            '<div class="progress-val">' + r.days + ' วัน</div></div>';
+        }).join('');
+
+        /* การ์ดสรุปตามบทบาท — ใช้ grid auto-fill จึงขยายเต็มความกว้างจอเสมอ และ
+           เพิ่มบทบาทใหม่ได้อัตโนมัติถ้ามีคนบทบาทอื่นเข้ามา ไม่ต้องแก้โค้ด */
+        var roleGroups = {};
+        workload.people.forEach(function (p) {
+          var role = p.role || 'MT';
+          var g = roleGroups[role] || (roleGroups[role] = { ch: 0, b: 0, b1: 0, n: 0, d: 0, count: 0 });
+          var d3 = workload.byPerson[p.id] || {};
+          ['ch', 'b', 'b1', 'n', 'd'].forEach(function (k) { g[k] += (d3[k] || []).length; });
+          g.count++;
+        });
+        var oncallByRole = {};
+        (cal.oncall || []).forEach(function (o) {
+          var p = workload.people.filter(function (pp) { return pp.id === o.pid; })[0];
+          var role = p ? (p.role || 'MT') : '—';
+          oncallByRole[role] = (oncallByRole[role] || 0) + 1;
+        });
+        document.getElementById('schedRoleGrid').innerHTML = Object.keys(roleGroups).map(function (role) {
+          var g = roleGroups[role];
+          var total = g.ch + g.b + g.b1 + g.n + g.d;
+          var lines = [
+            'เวร ช จำนวน ' + g.ch + ' วัน',
+            'เวร บ จำนวน ' + g.b + ' วัน'
+          ];
+          if (g.b1) lines.push('เวร บ1 จำนวน ' + g.b1 + ' วัน');
+          if (g.n) lines.push('เวร น จำนวน ' + g.n + ' วัน');
+          lines.push('on call ' + (oncallByRole[role] || 0) + ' ครั้ง');
+          return '<div class="stat" style="text-align:left;padding:14px;">' +
+            '<div style="font-weight:700;font-size:13px;margin-bottom:6px;">' + role + ' (' + g.count + ' คน)</div>' +
+            '<div style="font-size:12px;color:var(--mut);line-height:1.8;">' + lines.join('<br>') + '</div>' +
+            '<div style="margin-top:8px;font-weight:700;color:var(--tl);">รวม ' + total + ' เวร</div></div>';
+        }).join('') || '<div style="color:var(--mut);font-size:13px;">ยังไม่มีบุคลากร</div>';
+
+        /* การ์ดรายบุคคล — รายละเอียดเวร/on call ของแต่ละคน เสริมจากกราฟแถบด้านบน */
+        var oncallByPid = {};
+        (cal.oncall || []).forEach(function (o) { oncallByPid[o.pid] = (oncallByPid[o.pid] || 0) + 1; });
+        document.getElementById('schedPersonGrid').innerHTML = workload.people.map(function (p) {
+          var d4 = workload.byPerson[p.id] || {};
+          var counts = { ch: (d4.ch || []).length, b: (d4.b || []).length, b1: (d4.b1 || []).length, n: (d4.n || []).length, d: (d4.d || []).length };
+          var total = counts.ch + counts.b + counts.b1 + counts.n + counts.d;
+          var lines = [
+            'เวร ช จำนวน ' + counts.ch + ' วัน',
+            'เวร บ จำนวน ' + counts.b + ' วัน'
+          ];
+          if (counts.b1) lines.push('เวร บ1 จำนวน ' + counts.b1 + ' วัน');
+          if (counts.n) lines.push('เวร น จำนวน ' + counts.n + ' วัน');
+          lines.push('on call ' + (oncallByPid[p.id] || 0) + ' ครั้ง');
+          return '<div class="stat" style="text-align:left;padding:14px;">' +
+            '<div style="font-weight:700;font-size:13px;margin-bottom:6px;">' + fullN(p) + ' <span style="font-weight:400;color:var(--mut);font-size:11px;">(' + (p.role || 'MT') + ')</span></div>' +
+            '<div style="font-size:12px;color:var(--mut);line-height:1.8;">' + lines.join('<br>') + '</div>' +
+            '<div style="margin-top:8px;font-weight:700;color:var(--tl);">รวม ' + total + ' เวร</div></div>';
+        }).join('') || '<div style="color:var(--mut);font-size:13px;">ยังไม่มีบุคลากร</div>';
+      });
+  }
+
+  /* ════════════════ COLLECT — leave/availability (ported from renderCollect()/addAvail()) ════════════════ */
+
+  function renderCollectPage(page) {
+    page.innerHTML = '<h2 style="margin:0 0 10px;font-size:16px;">เก็บวันลา / ความไม่สะดวกขึ้นเวร — ' + monthLabel() + '</h2>' +
+      '<div class="oc-form-grid">' +
+      '<label>เจ้าหน้าที่<select id="avPid"></select></label>' +
+      '<label>วันที่<input id="avDay" type="number" min="1" max="31"></label>' +
+      '<label>ประเภท<select id="avType"><option value="leave">ลาทั้งวัน</option><option value="noB">ไม่สะดวกเวร บ</option><option value="noD">ไม่สะดวกเวร ด</option><option value="noCh">ไม่สะดวกเวร ช (วันหยุด)</option></select></label>' +
+      '</div><button class="btn btn-primary" id="avAddBtn"><i class="ti ti-plus"></i> เพิ่มรายการ</button>' +
+      '<div class="card" style="margin-top:14px;"><div class="card-title"><i class="ti ti-list"></i>รายการที่แจ้งไว้</div><div class="tbl-wrap"><table class="tbl" id="avTable"></table></div></div>';
+
+    loadPeople().then(function (people) {
+      document.getElementById('avPid').innerHTML = people.map(function (p) { return '<option value="' + p.id + '">' + fullN(p) + '</option>'; }).join('');
+    });
+
+    document.getElementById('avAddBtn').onclick = function () {
+      var entry = { pid: document.getElementById('avPid').value, day: +document.getElementById('avDay').value, type: document.getElementById('avType').value, mon: current.month, yr: current.year };
+      if (!entry.day) return;
+      gsRun('api_addAvailability', Session.token, current.year, current.month, entry).then(function () {
+        toast('บันทึกแล้ว'); loadAvailTable();
+      });
+    };
+    loadAvailTable();
+  }
+
+  function loadAvailTable() {
+    Promise.all([gsRun('api_listAvailability', Session.token, current.year, current.month), loadPeople()]).then(function (res) {
+      var rows = res[0], people = res[1];
+      var byId = {}; people.forEach(function (p) { byId[p.id] = p; });
+      var TYPE_LABEL = { leave: 'ลาทั้งวัน', noB: 'ไม่สะดวก บ', noD: 'ไม่สะดวก ด', noCh: 'ไม่สะดวก ช' };
+      var body = rows.sort(function (a, b) { return a.day - b.day; }).map(function (r) {
+        var p = byId[r.pid];
+        return '<tr><td class="l">' + (p ? fullN(p) : r.pid) + '</td><td>' + r.day + '</td><td><span class="badge none">' + (TYPE_LABEL[r.type] || r.type) + '</span></td>' +
+          '<td><button class="btn btn-sm btn-danger" data-del="' + r.__txId + '"><i class="ti ti-trash"></i></button></td></tr>';
+      }).join('') || '<tr><td colspan="4" style="color:var(--mut)">ยังไม่มีรายการ</td></tr>';
+      var table = document.getElementById('avTable');
+      table.innerHTML = '<tr><th>เจ้าหน้าที่</th><th>วันที่</th><th>ประเภท</th><th></th></tr>' + body;
+      table.querySelectorAll('[data-del]').forEach(function (btn) {
+        btn.onclick = function () {
+          gsRun('api_deleteAvailability', Session.token, current.year, current.month, btn.dataset.del).then(function () {
+            toast('ลบแล้ว'); loadAvailTable();
+          });
+        };
+      });
+    });
+  }
+
+  /* ════════════════ ON-CALL (ported from renderOcForm()/addOC()/renderOcTbl()) ════════════════ */
+
+  function renderOncallPage(page) {
+    page.innerHTML =
+      '<h2 style="margin:0 0 10px;font-size:16px;">บันทึก On-call — ' + monthLabel() + '</h2>' +
+      '<div class="card" style="margin-bottom:14px;">' +
+      '<div class="card-title" id="ocFormTitle"><i class="ti ti-phone-plus"></i>เพิ่มบันทึก On-call</div>' +
+      '<div class="oc-form-grid">' +
+      '<label>เจ้าหน้าที่<select id="ocPid"></select></label>' +
+      '<label>วันที่<input id="ocDate" type="date"></label>' +
+      '<label>เวลา<input id="ocTime" type="time"></label>' +
+      '<label>HN<input id="ocHn"></label>' +
+      '<label>ชื่อผู้ป่วย<input id="ocName"></label>' +
+      '<label>หน่วยงาน<select id="ocUnit"></select></label>' +
+      '</div>' +
+      '<div style="margin-top:12px;">' +
+      '<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">' +
+      '<span style="font-size:12px;font-weight:600;color:var(--mut);">Lab ที่ส่งตรวจ</span>' +
+      '<label style="display:flex;align-items:center;gap:4px;font-size:11.5px;cursor:pointer;"><input type="checkbox" id="ocLabAll"> เลือกทั้งหมด</label>' +
+      '<button class="btn btn-sm" id="ocLabClear" type="button" style="padding:2px 8px;">ล้าง</button>' +
+      '</div>' +
+      '<div id="ocLabChks" style="display:flex;flex-wrap:wrap;gap:6px;"></div></div>' +
+      '<div style="margin-top:14px;display:flex;gap:8px;">' +
+      '<button class="btn btn-primary" id="ocAddBtn"><i class="ti ti-plus"></i> เพิ่มบันทึก</button>' +
+      '<button class="btn" id="ocCancelEditBtn" style="display:none;">ยกเลิกแก้ไข</button>' +
+      '</div></div>' +
+      '<div class="card"><div class="card-title"><i class="ti ti-list-details"></i>รายการ On-call</div><div class="tbl-wrap"><table class="tbl" id="ocTable"></table></div></div>';
+
+    var editingTxId = null;
+
+    cachedGsRun('boot', 60000, 'api_bootstrap', Session.token).then(function (boot) {
+      document.getElementById('ocPid').innerHTML = boot.people.map(function (p) { return '<option value="' + p.id + '">' + fullN(p) + '</option>'; }).join('');
+      /* ถ้าบัญชีที่ล็อกอินผูกกับเจ้าหน้าที่ไว้ ตั้งค่าเริ่มต้นเป็นคนนั้น (ผู้ใช้คีย์ on call ของตัวเองได้เลย) */
+      if (boot.user && boot.user.personId) document.getElementById('ocPid').value = boot.user.personId;
+      document.getElementById('ocUnit').innerHTML = (boot.settings.units || ['ER', 'IPD', 'OPD', 'LR']).map(function (u) { return '<option>' + u + '</option>'; }).join('');
+      document.getElementById('ocLabChks').innerHTML = (boot.settings.labs || []).map(function (l) {
+        return '<label class="oc-lab-chip"><input type="checkbox" data-oclab="' + l + '">' + l + '</label>';
+      }).join('') || '<span style="font-size:11px;color:var(--mut);">ยังไม่ได้ตั้งค่ารายการ LAB (ตั้งค่า &gt; LAB ที่ตรวจได้)</span>';
+      document.querySelectorAll('#ocLabChks [data-oclab]').forEach(function (cb) { cb.onchange = syncLabAll; });
+    });
+
+    function setAllLabs(on) { document.querySelectorAll('#ocLabChks [data-oclab]').forEach(function (cb) { cb.checked = on; }); }
+    function syncLabAll() {
+      var boxes = document.querySelectorAll('#ocLabChks [data-oclab]');
+      var allEl = document.getElementById('ocLabAll');
+      if (allEl) allEl.checked = boxes.length > 0 && Array.prototype.every.call(boxes, function (cb) { return cb.checked; });
+    }
+    document.getElementById('ocLabAll').onchange = function () { setAllLabs(this.checked); };
+    document.getElementById('ocLabClear').onclick = function () { setAllLabs(false); syncLabAll(); };
+
+    function resetOcForm() {
+      editingTxId = null;
+      document.getElementById('ocDate').value = ''; document.getElementById('ocTime').value = '';
+      document.getElementById('ocHn').value = ''; document.getElementById('ocName').value = '';
+      setAllLabs(false); syncLabAll();
+      document.getElementById('ocFormTitle').innerHTML = '<i class="ti ti-phone-plus"></i>เพิ่มบันทึก On-call';
+      document.getElementById('ocAddBtn').innerHTML = '<i class="ti ti-plus"></i> เพิ่มบันทึก';
+      document.getElementById('ocCancelEditBtn').style.display = 'none';
+    }
+
+    document.getElementById('ocCancelEditBtn').onclick = resetOcForm;
+
+    document.getElementById('ocAddBtn').onclick = function () {
+      var labs = Array.prototype.slice.call(document.querySelectorAll('#ocLabChks [data-oclab]')).filter(function (cb) { return cb.checked; }).map(function (cb) { return cb.dataset.oclab; });
+      var entry = {
+        pid: document.getElementById('ocPid').value,
+        date: document.getElementById('ocDate').value, time: document.getElementById('ocTime').value,
+        hn: document.getElementById('ocHn').value, name: document.getElementById('ocName').value,
+        unit: document.getElementById('ocUnit').value, labs: labs
+      };
+      var call = editingTxId
+        ? gsRun('api_updateOnCall', Session.token, current.year, current.month, editingTxId, entry)
+        : gsRun('api_addOnCall', Session.token, current.year, current.month, entry);
+      call.then(function () {
+        invalidateMonthCache();
+        toast(editingTxId ? 'แก้ไขบันทึก On-call แล้ว' : 'เพิ่มบันทึก On-call แล้ว');
+        resetOcForm();
+        loadOncallTable();
+      });
+    };
+    loadOncallTable();
+
+    function startEditOc(o) {
+      editingTxId = o.__txId;
+      document.getElementById('ocPid').value = o.pid || '';
+      document.getElementById('ocDate').value = o.date || '';
+      document.getElementById('ocTime').value = o.time || '';
+      document.getElementById('ocHn').value = o.hn || '';
+      document.getElementById('ocName').value = o.name || '';
+      document.getElementById('ocUnit').value = o.unit || '';
+      var labSet = {}; (o.labs || []).forEach(function (l) { labSet[l] = true; });
+      document.querySelectorAll('#ocLabChks [data-oclab]').forEach(function (cb) { cb.checked = !!labSet[cb.dataset.oclab]; });
+      syncLabAll();
+      document.getElementById('ocFormTitle').innerHTML = '<i class="ti ti-edit"></i>แก้ไขบันทึก On-call';
+      document.getElementById('ocAddBtn').innerHTML = '<i class="ti ti-check"></i> บันทึกการแก้ไข';
+      document.getElementById('ocCancelEditBtn').style.display = 'inline-block';
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    page._startEditOc = startEditOc; // เรียกจาก loadOncallTable() (อยู่นอกฟังก์ชันนี้)
+  }
+
+  /* ใช้ api_getOnCallList (เบากว่า loadCalendarCached มาก — อ่านแค่ on-call + people)
+     แทนการดึงทั้ง loadCalendar ทุกครั้งที่กดเพิ่ม/แก้/ลบ ทำให้หน้านี้ตอบสนองเร็วขึ้นมาก */
+  function loadOncallTable() {
+    gsRun('api_getOnCallList', Session.token, current.year, current.month).then(function (cal) {
+      var page = document.getElementById('schedInner');
+      var rows = cal.oncall.map(function (o) {
+        var p = cal.people.filter(function (x) { return x.id === o.pid; })[0];
+        return '<tr><td>' + o.date + '</td><td class="l">' + (p ? fullN(p) : o.pid) + '</td><td>' + (o.time || '') + '</td><td>' + (o.hn || '') + '</td><td class="l">' + (o.name || '') + '</td><td>' + (o.unit || '') + '</td><td class="l">' + (o.labs || []).join(', ') + '</td>' +
+          '<td><button class="btn btn-sm" data-edit="' + o.__txId + '"><i class="ti ti-edit"></i></button> <button class="btn btn-sm btn-danger" data-del="' + o.__txId + '"><i class="ti ti-trash"></i></button></td></tr>';
+      }).join('');
+      var table = document.getElementById('ocTable');
+      table.innerHTML = '<tr><th>วันที่</th><th>เจ้าหน้าที่</th><th>เวลา</th><th>HN</th><th>ผู้ป่วย</th><th>หน่วยงาน</th><th>Lab</th><th></th></tr>' + (rows || '<tr><td colspan="8" style="color:var(--mut)">ยังไม่มีข้อมูล</td></tr>');
+      table.querySelectorAll('[data-edit]').forEach(function (btn) {
+        btn.onclick = function () {
+          var o = cal.oncall.filter(function (x) { return x.__txId === btn.dataset.edit; })[0];
+          if (o && page._startEditOc) page._startEditOc(o);
+        };
+      });
+      table.querySelectorAll('[data-del]').forEach(function (btn) {
+        btn.onclick = function () {
+          gsRun('api_deleteOnCall', Session.token, current.year, current.month, btn.dataset.del).then(function () {
+            invalidateMonthCache();
+            toast('ลบแล้ว'); loadOncallTable();
+          });
+        };
+      });
+    });
+  }
+
+  /* ════════════════ BALANCE (ported from renderBalance(), lines ~4178-4517) ════════════════
+     Tolerance + group/swap math now lives server-side in BusinessService.calculateBalance —
+     avoids shipping rate tables to the browser and keeps this a single cached round trip. */
+
+  function bpMoney(n) { return Math.round(n).toLocaleString('th-TH') + ' ฿'; }
+  var _bpTol = 650;
+
+  function bpRoleBadge(role) {
+    if (role === 'HT') return '<span style="font-size:11px;padding:2px 7px;border-radius:6px;font-weight:600;background:var(--gold-l);color:var(--gold)">HT</span>';
+    if (role === 'LA') return '<span style="font-size:11px;padding:2px 7px;border-radius:6px;font-weight:600;background:var(--pur-l);color:var(--pur)">LA</span>';
+    return '<span style="font-size:11px;padding:2px 7px;border-radius:6px;font-weight:600;background:var(--tl-l);color:var(--tl-d)">MT</span>';
+  }
+
+  function renderBalancePage(page) {
+    page.innerHTML =
+      '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">' +
+      '<h2 style="margin:0;font-size:16px;">สมดุลเวร (ค่าตอบแทน) — ' + monthLabel() + '</h2>' +
+      '<label style="font-size:12.5px;font-weight:600;margin-left:8px;">Tolerance (บาท):</label>' +
+      '<select id="bpTolSel" style="border:1px solid var(--border);border-radius:7px;padding:5px 9px;font-size:13px;background:var(--surface);color:var(--ink);">' +
+      '<option value="0">0 — เท่าเทียมสูงสุด</option><option value="650" selected>≤ 650 บาท (≈1 เวร)</option><option value="1300">≤ 1,300 บาท (≈2 เวร)</option></select>' +
+      '<button class="btn btn-sm" id="bpRecalcBtn" style="margin-left:auto;"><i class="ti ti-refresh"></i> คำนวณใหม่</button>' +
+      '</div>' +
+      '<div id="balanceBody"><div style="padding:20px;text-align:center;color:var(--mut);">กำลังโหลด…</div></div>';
+
+    document.getElementById('bpTolSel').onchange = function () { _bpTol = +this.value; paintBalance(); };
+    document.getElementById('bpRecalcBtn').onclick = function () { invalidateMonthCache(); invalidateCache('bal_' + current.year + '_' + current.month); paintBalance(); };
+    paintBalance();
+  }
+
+  function paintBalance() {
+    var body = document.getElementById('balanceBody');
+    if (!body) return;
+    cachedGsRun('bal_' + current.year + '_' + current.month + '_' + _bpTol, 15000, 'api_getBalance', Session.token, current.year, current.month, _bpTol)
+      .then(function (b) { paintBalanceBody(body, b); });
+  }
+
+  function paintBalanceBody(body, b) {
+    var tol = b.tolerance;
+    var thM3 = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
+    /* แมป person id → ชื่อ เพื่อแสดงชื่อแทนรหัสในตารางปรับสมดุล/Block ข้ามเดือน */
+    var nameById = {};
+    b.mtStats.concat(b.laStats).forEach(function (x) { nameById[x.p.id] = fullN(x.p); });
+    var nm = function (id) { return nameById[id] || id; };
+
+    /* ── auto-balance pass card (เวรที่ปรับสมดุลอัตโนมัติช่วงสร้างตาราง) ── */
+    var crossHtml = '';
+    if (b.trailInfo && b.trailInfo.lastPid) {
+      var ti = b.trailInfo;
+      var nextM = (current.month + 1) % 12, nextY = current.year + Math.floor((current.month + 1) / 12);
+      var dowName = ['อา', 'จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส'][ti.lastDow] || '';
+      crossHtml += '<div class="bp-alert ok" style="margin-bottom:8px"><i class="ti ti-arrows-right-left"></i><span><strong>Block ข้ามเดือน → ' + thM3[nextM] + ' ' + nextY + '</strong> — วันสุดท้าย (' + dowName + '. ' + ti.lastDay + ') ขึ้นโดย <strong>' + nm(ti.lastPid) + '</strong> ติดต่อกัน ' + ti.trailingCount + ' วัน</span></div>';
+    }
+    if (b.autoUnlocks.length) {
+      crossHtml += '<div class="bp-alert warn" style="margin-bottom:8px"><i class="ti ti-lock-open"></i><span><strong>ปล่อย cross-month lock ' + b.autoUnlocks.length + ' วัน</strong> — lock ทำให้ไม่สมดุล ระบบเลือกคนใหม่อัตโนมัติ</span></div>';
+    }
+    var shiftName = function (sh) { return { b: 'บ่าย', ch: 'เช้า(วันหยุด)', b1: 'บ1', n: 'คลินิก', d: 'On call' }[sh] || sh; };
+    var autoBody;
+    if (b.autoSwaps.length) {
+      autoBody = crossHtml + '<div class="bp-alert ok" style="margin-bottom:10px"><i class="ti ti-check"></i><span><strong>ปรับสมดุล ' + b.autoSwaps.length + ' เวรอัตโนมัติ</strong> — บันทึกใน Override Log แล้ว เป็นส่วนหนึ่งของตารางเวร</span></div>' +
+        '<table class="tbl"><thead><tr><th>วันที่</th><th>เวรที่ย้าย</th><th>จาก</th><th>เป็น</th></tr></thead><tbody>' +
+        b.autoSwaps.map(function (s) { return '<tr><td>วันที่ ' + s.day + '</td><td style="font-weight:600">' + shiftName(s.shift) + '</td><td style="color:var(--mut)">' + (s.from ? nm(s.from) : '—') + '</td><td><strong style="color:var(--tl)">' + (s.to ? nm(s.to) : '—') + '</strong></td></tr>'; }).join('') +
+        '</tbody></table>';
+    } else {
+      autoBody = crossHtml + '<div class="bp-alert ok"><i class="ti ti-circle-check"></i><span><strong>ตารางสมดุลแล้ว</strong> — ไม่จำเป็นต้องปรับก่อนบันทึก</span></div>';
+    }
+
+    /* ── rule violations card ── */
+    var ruleBody;
+    if (b.ruleViolations.length) {
+      ruleBody = '<table class="tbl"><thead><tr><th>ประเภท</th><th style="min-width:320px;text-align:left">รายละเอียด</th><th>วันที่</th></tr></thead><tbody>' +
+        b.ruleViolations.map(function (v) {
+          var icon = v.severity === 'warn' ? '<i class="ti ti-alert-triangle" style="color:var(--amber)"></i>' : '<i class="ti ti-info-circle" style="color:var(--tl)"></i>';
+          return '<tr><td style="white-space:nowrap;font-size:12px">' + icon + ' ' + (VIOLATION_LABEL[v.type] || v.type) + '</td><td class="l" style="font-size:12px">' + v.msg + '</td><td style="font-size:11px;color:var(--mut)">' + (v.days || []).join(', ') + '</td></tr>';
+        }).join('') + '</tbody></table>' +
+        '<div style="font-size:11px;color:var(--mut);margin-top:8px">กฎเหล่านี้ไม่ได้บล็อกตาราง — หัวหน้าพิจารณาปรับผ่าน Override ได้ตามสถานการณ์จริง</div>';
+    } else {
+      ruleBody = '<div class="bp-alert ok"><i class="ti ti-circle-check"></i><span><strong>ผ่านทุกกฎ</strong> — ไม่พบการติดต่อเกิน maxC, ด+น ซ้อนทับ หรือ ศ/ส/อา แยกก้อน</span></div>';
+    }
+
+    /* ── KPI row, แยก 2 กลุ่ม ── */
+    var kpiHtml =
+      '<div class="kpi" style="border-top:3px solid var(--tl)"><div class="kpi-lbl" style="color:var(--tl);font-weight:600">MT/HT — เฉลี่ย</div><div class="kpi-val" style="color:var(--tl);font-size:16px">' + bpMoney(b.mtAvg) + '</div><div class="kpi-sub" style="color:' + (b.unbalMT ? 'var(--amber)' : 'var(--jade)') + '">เกิน tol: ' + b.unbalMT + '/' + b.mtStats.length + ' คน</div></div>' +
+      '<div class="kpi" style="border-top:3px solid var(--tl)"><div class="kpi-lbl" style="color:var(--tl)">ช่วงห่าง MT/HT</div><div class="kpi-val" style="color:' + (b.gapMT > tol ? 'var(--amber)' : 'var(--jade)') + ';font-size:16px">' + bpMoney(b.gapMT) + '</div></div>' +
+      '<div class="kpi" style="border-top:3px solid var(--pur)"><div class="kpi-lbl" style="color:var(--pur);font-weight:600">LA — เฉลี่ย</div><div class="kpi-val" style="color:var(--pur);font-size:16px">' + bpMoney(b.laAvg) + '</div><div class="kpi-sub" style="color:' + (b.unbalLA ? 'var(--amber)' : 'var(--jade)') + '">เกิน tol: ' + b.unbalLA + '/' + b.laStats.length + ' คน</div></div>' +
+      '<div class="kpi" style="border-top:3px solid var(--pur)"><div class="kpi-lbl" style="color:var(--pur)">ช่วงห่าง LA</div><div class="kpi-val" style="color:' + (b.gapLA > tol ? 'var(--amber)' : 'var(--jade)') + ';font-size:16px">' + bpMoney(b.gapLA) + '</div></div>';
+
+    /* ── alert ── */
+    var alertHtml;
+    if (!b.hasSchedule) alertHtml = '<div class="bp-alert warn"><i class="ti ti-alert-triangle"></i><span><strong>ยังไม่มีตารางเวร</strong> — ไปที่ "ตารางเวร" กด สร้าง/สร้างใหม่ ก่อน</span></div>';
+    else if (!b.unbalMT && !b.unbalLA) alertHtml = '<div class="bp-alert ok"><i class="ti ti-circle-check"></i><span><strong>สมดุลดี</strong> — ทั้ง MT/HT และ LA อยู่ใน tolerance</span></div>';
+    else {
+      var parts = [];
+      if (b.unbalMT) parts.push('MT/HT: ' + b.unbalMT + ' คนเกิน');
+      if (b.unbalLA) parts.push('LA: ' + b.unbalLA + ' คนเกิน');
+      alertHtml = '<div class="bp-alert warn"><i class="ti ti-alert-triangle"></i><span><strong>พบความไม่สมดุล</strong> — ' + parts.join(' · ') + '</span></div>';
+    }
+
+    /* ── staff table, แยก section MT vs LA ── */
+    function renderRows(grp, groupAvg) {
+      var maxG = Math.max.apply(null, grp.map(function (x) { return x.money; }).concat([1]));
+      var avgPct = (groupAvg / maxG * 100).toFixed(1);
+      return grp.map(function (x, i) {
+        var pct = (x.money / maxG * 100).toFixed(1);
+        var over = Math.abs(x.diff) <= tol ? 'ok' : (x.diff > 0 ? 'over' : 'under');
+        var fillC = over === 'ok' ? 'var(--tl)' : (over === 'over' ? 'var(--coral)' : 'var(--amber)');
+        var dlbl = over === 'ok' ? '✓ สมดุล' : (over === 'over' ? '+' + bpMoney(x.diff) : bpMoney(x.diff));
+        var sb = over === 'ok' ? '<span style="font-size:11px;padding:2px 8px;border-radius:20px;background:var(--jade-l);color:var(--jade);font-weight:600">✓ ปกติ</span>'
+          : over === 'over' ? '<span style="font-size:11px;padding:2px 8px;border-radius:20px;background:var(--coral-l);color:var(--coral);font-weight:600">สูงเกิน</span>'
+          : '<span style="font-size:11px;padding:2px 8px;border-radius:20px;background:var(--amber-l);color:var(--amber);font-weight:600">ต่ำกว่า</span>';
+        return '<tr><td style="color:var(--mut);font-weight:600">' + (i + 1) + '</td><td style="font-weight:600">' + fullN(x.p) + '</td><td>' + bpRoleBadge(x.role) + '</td>' +
+          '<td style="text-align:center">' + (x.shifts.ch || []).length + '</td><td style="text-align:center">' + (x.shifts.b || []).length + '</td>' +
+          '<td style="text-align:center">' + (x.shifts.n || []).length + '</td><td style="text-align:center">' + (x.shifts.b1 || []).length + '</td>' +
+          '<td style="font-weight:700">' + bpMoney(x.money) + '</td>' +
+          '<td><div class="bp-bar-track"><div class="bp-bar-fill" style="width:' + pct + '%;background:' + fillC + '"></div><div class="bp-avg-line" style="left:' + avgPct + '%" title="เฉลี่ยกลุ่ม ' + bpMoney(groupAvg) + '"></div></div></td>' +
+          '<td><span class="bp-diff ' + over + '">' + dlbl + '</span></td><td>' + sb + '</td></tr>';
+      }).join('');
+    }
+    var thead = '<thead><tr><th>#</th><th>ชื่อ</th><th>บทบาท</th><th title="เวรเช้า(วันหยุด)">ช</th><th title="เวรบ่าย">บ</th><th title="คลินิก">น</th><th title="ผู้ช่วย บ1">บ1</th><th>เงินรวม</th><th style="min-width:140px">เทียบเฉลี่ยกลุ่ม</th><th>ส่วนต่าง</th><th>สถานะ</th></tr></thead>';
+    function secHdr(label, color, avg) { return '<tr><td colspan="11" style="padding:6px 10px;background:' + color + '22;color:' + color + ';font-size:12px;font-weight:700;border-left:3px solid ' + color + '">' + label + ' — ค่าเฉลี่ย ' + bpMoney(avg) + '</td></tr>'; }
+    var tblBody = secHdr('กลุ่ม MT / HT', 'var(--tl)', b.mtAvg) +
+      (b.mtStats.length ? renderRows(b.mtStats, b.mtAvg) : '<tr><td colspan="11" style="text-align:center;color:var(--mut);padding:8px">ไม่มีข้อมูล</td></tr>') +
+      secHdr('กลุ่ม LA', 'var(--pur)', b.laAvg) +
+      (b.laStats.length ? renderRows(b.laStats, b.laAvg) : '<tr><td colspan="11" style="text-align:center;color:var(--mut);padding:8px">ไม่มีข้อมูล</td></tr>');
+
+    /* ── swap suggestions ── */
+    function explainDiff(pair) {
+      var rate = pair.sRate || pair.uRate || 0;
+      var sLbl = { b: 'เวรบ่าย', ch: 'เวรเช้า(วันหยุด)', b1: 'เวรบ1', n: 'คลินิก' }[pair.bestShift] || pair.bestShift;
+      return pair.ovName + ' มี' + sLbl + 'มากกว่า · มูลค่าประมาณ ' + bpMoney(rate) + '/วัน';
+    }
+    function buildSwaps(pairs, label) {
+      if (!pairs.length) return '<div class="bp-alert ok" style="margin:4px 0"><i class="ti ti-circle-check"></i><span><strong>' + label + '</strong> — สมดุลในเกณฑ์แล้ว หรือมีคนเดียวในกลุ่ม</span></div>';
+      var hdr = '<div style="font-size:11px;font-weight:700;color:var(--mut);padding:6px 0 4px">' + label + '</div>';
+      return hdr + pairs.map(function (p, idx) {
+        var imp = p.impact > 0 ? 'ลด ' + bpMoney(p.impact) : 'ผลเล็กน้อย';
+        var rs = p.reasons.map(function (r) { return '<span class="ctag-bp ' + (r.ok ? 'good' : 'bad') + '"><i class="ti ' + (r.ok ? 'ti-check' : 'ti-alert-circle') + '" style="font-size:11px"></i>' + r.label + '</span>'; }).join(' ');
+        var why = explainDiff(p);
+        var shLbl = { b: 'บ่าย', ch: 'เช้า(วันหยุด)', b1: 'บ1', n: 'คลินิก' }[p.bestShift] || p.bestShift;
+        return '<div class="swap-card-bp" id="bpSwap_' + label.replace(/\s/g, '') + idx + '">' +
+          '<div class="swap-head-bp"><span class="swap-person-bp over"><i class="ti ti-arrow-up" style="font-size:12px"></i>' + p.ovName + ' <small>' + bpMoney(p.ovMoney) + '</small></span>' +
+          '<i class="ti ti-arrows-exchange" style="color:var(--mut);font-size:16px"></i>' +
+          '<span class="swap-person-bp under"><i class="ti ti-arrow-down" style="font-size:12px"></i>' + p.unName + ' <small>' + bpMoney(p.unMoney) + '</small></span>' +
+          '<span style="margin-left:auto;font-size:11px;color:var(--mut)">ช่วงห่างจะ <strong style="color:var(--tl)">' + imp + '</strong></span></div>' +
+          '<div class="swap-body-bp"><div style="font-size:12px;margin-bottom:5px"><strong>สาเหตุที่ต่าง:</strong> <span style="color:var(--mut)">' + why + '</span></div>' +
+          '<div style="font-size:12px;margin-bottom:7px">แนะนำสลับ <strong>เวร' + shLbl + '</strong> 1 วัน &nbsp;·&nbsp; ' + p.ovName + ': ' + bpMoney(p.ovMoney) + ' → <strong style="color:var(--tl)">' + bpMoney(p.newOvM) + '</strong> &nbsp;·&nbsp; ' + p.unName + ': ' + bpMoney(p.unMoney) + ' → <strong style="color:var(--tl)">' + bpMoney(p.newUnM) + '</strong></div>' +
+          '<div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px">' + rs + '</div>' +
+          '<div style="display:flex;justify-content:flex-end;gap:7px"><button class="btn btn-sm" data-dismiss="1">ข้าม</button>' +
+          '<button class="btn btn-sm btn-primary" data-approve-ov="' + p.ovId + '" data-approve-un="' + p.unId + '" data-approve-shift="' + p.bestShift + '">✓ อนุมัติสลับ</button></div></div></div>';
+      }).join('');
+    }
+    var swapHtml = !b.hasSchedule ? '<div style="padding:12px;color:var(--mut);font-size:13px">ต้องมีตารางเวรก่อน</div>'
+      : buildSwaps(b.swapPairsMT, 'กลุ่ม MT/HT') + buildSwaps(b.swapPairsLA, 'กลุ่ม LA');
+
+    body.innerHTML =
+      '<div class="bp-kpi-row">' + kpiHtml + '</div>' + alertHtml +
+      '<div class="card"><div class="card-title"><i class="ti ti-wand"></i>ผลการปรับสมดุลอัตโนมัติ — หลังสร้างตาราง</div><div>' + autoBody + '</div></div>' +
+      '<div class="card"><div class="card-title"><i class="ti ti-alert-triangle"></i>กฎที่ควรตรวจสอบ</div><div>' + ruleBody + '</div></div>' +
+      '<div class="card"><div class="card-title"><i class="ti ti-users"></i>ยอดเงินค่าตอบแทน — เรียงตามลำดับในตาราง</div><div class="tbl-wrap"><table class="tbl">' + thead + '<tbody>' + tblBody + '</tbody></table></div></div>' +
+      '<div class="card"><div class="card-title"><i class="ti ti-arrows-exchange"></i>คำแนะนำการสลับ — อนุมัติทีละคู่</div><div>' + swapHtml + '</div></div>';
+
+    body.querySelectorAll('[data-dismiss]').forEach(function (btn) {
+      btn.onclick = function () { var c = btn.closest('.swap-card-bp'); c.style.opacity = '.4'; c.style.pointerEvents = 'none'; };
+    });
+    body.querySelectorAll('[data-approve-ov]').forEach(function (btn) {
+      btn.onclick = function () {
+        var ovId = btn.dataset.approveOv, unId = btn.dataset.approveUn, shift = btn.dataset.approveShift;
+        gsRun('api_approveBalanceSwap', Session.token, current.year, current.month, ovId, unId, shift).then(function () {
+          toast('สลับสมดุลแล้ว');
+          invalidateMonthCache(); invalidateCache('bal_' + current.year + '_' + current.month);
+          paintBalance();
+        });
+      };
+    });
+  }
+
+  /* ════════════════ REPORTS (ported from renderRep() dispatcher) ════════════════ */
+
+  function renderReportsPage(page) {
+    page.innerHTML =
+      '<div class="rtabs" id="repTabs"></div>' +
+      '<div style="display:flex;justify-content:space-between;margin-bottom:10px;align-items:center;flex-wrap:wrap;gap:8px;">' +
+      '<select id="repPersonSel" style="display:none;padding:6px 9px;border:1px solid var(--border);border-radius:7px;background:var(--surface);color:var(--ink);"></select>' +
+      '<div style="display:flex;gap:6px;margin-left:auto;">' +
+      '<button class="btn btn-sm" id="repExcelBtn"><i class="ti ti-file-spreadsheet"></i> exportExcel()</button>' +
+      '<button class="btn btn-sm" id="repWordBtn"><i class="ti ti-file-text"></i> exportWord()</button>' +
+      '<button class="btn btn-sm" id="repPrintBtn"><i class="ti ti-printer"></i> print</button>' +
+      '</div></div>' +
+      '<div class="doc" id="repBody"></div>';
+
+    var tabsEl = document.getElementById('repTabs');
+    var curKind = 'otsheet';
+    function paintTabs() {
+      tabsEl.innerHTML = REPORT_TABS.map(function (t) {
+        return '<div class="rtab' + (t.id === curKind ? ' active' : '') + '" data-k="' + t.id + '">' + t.label + '</div>';
+      }).join('');
+      tabsEl.querySelectorAll('[data-k]').forEach(function (el) {
+        el.onclick = function () { curKind = el.dataset.k; paintTabs(); loadReport(curKind); };
+      });
+    }
+    function personOptionsNeeded(kind) { return ['payperson', 'shiftsummary', 'ocrec', 'occlaim'].indexOf(kind) > -1; }
+
+    function loadReport(kind) {
+      var sel = document.getElementById('repPersonSel');
+      sel.style.display = personOptionsNeeded(kind) ? 'inline-block' : 'none';
+      if (personOptionsNeeded(kind) && sel.dataset.loadedFor !== kind) {
+        loadPeople().then(function (people) {
+          var opts = people.map(function (p) { return '<option value="' + p.id + '">' + fullN(p) + '</option>'; }).join('');
+          if (kind === 'ocrec') opts = '<option value="all">ทุกคน</option>' + opts;
+          sel.innerHTML = opts; sel.dataset.loadedFor = kind;
+          sel.onchange = function () { loadReport(curKind); };
+        });
+      }
+      var pid = sel.value || null;
+      gsRun('api_getReport', Session.token, kind, current.year, current.month, pid).then(function (rep) {
+        document.getElementById('repBody').innerHTML = rep.html;
+        var titleEl = document.getElementById('repTit');
+        if (titleEl) titleEl.textContent = rep.title || '';
+      });
+    }
+
+    document.getElementById('repExcelBtn').onclick = function () {
+      var pid = document.getElementById('repPersonSel').value || null;
+      gsRun('api_exportExcel', Session.token, curKind, current.year, current.month, pid).then(downloadBase64);
+    };
+    document.getElementById('repWordBtn').onclick = function () {
+      var pid = document.getElementById('repPersonSel').value || null;
+      gsRun('api_exportExcel', Session.token, curKind, current.year, current.month, pid).then(downloadBase64);
+    };
+    document.getElementById('repPrintBtn').onclick = function () {
+      var landscapeKinds = ['payLandscape', 'ocrec'];
+      printWithPageSize(landscapeKinds.indexOf(curKind) > -1 ? 'size:A4 landscape;margin:6mm' : 'size:A4 portrait;margin:9mm');
+    };
+
+    paintTabs();
+    loadReport(curKind);
+  }
+
+  function downloadBase64(file) {
+    var byteChars = atob(file.base64);
+    var bytes = new Uint8Array(byteChars.length);
+    for (var i = 0; i < byteChars.length; i++) bytes[i] = byteChars.charCodeAt(i);
+    var blob = new Blob([bytes], { type: file.mimeType });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url; a.download = file.filename; a.click();
+    setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+    toast('ดาวน์โหลดแล้ว', file.filename);
+  }
+
+  /* ════════════════ SETUP — full config UI, ported from bindCFG() in the original
+     (org/theme · people · stations · shifts · rules · rates · holidays · signers ·
+     labs/units · notifications · permission matrix). All sections save through the
+     existing api_saveSettings/api_crud/api_setPermission/api_addHoliday endpoints. ════════════════ */
+
+  var MONTH_SHORT = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
+  var PERM_ACTIONS = ['publish', 'override', 'viewAllPay', 'editPay', 'manageSettings', 'collect'];
+  var PERM_LABEL = { publish: 'ประกาศใช้ตาราง', override: 'แก้ไข/override', viewAllPay: 'ดูค่าตอบแทนทุกคน', editPay: 'แก้ไขค่าตอบแทน', manageSettings: 'จัดการตั้งค่า', collect: 'เก็บวันลา/on-call' };
+
+  function renderSetupPage(page) {
+    page.innerHTML = '<h2 style="margin:0 0 4px;font-size:16px;">ตั้งค่า</h2>' +
+      '<div class="alert alert-blue" style="background:var(--sky-l);border-color:var(--sky);color:var(--sky);"><i class="ti ti-info-circle"></i> ทุกการตั้งค่าบันทึกอัตโนมัติ — ไม่ต้องแก้โค้ด หน่วยงานอื่นเปลี่ยนชื่อ-บุคลากร-อัตราได้ทันที</div>' +
+      '<details class="acc" open><summary><i class="ti ti-building"></i> หน่วยงาน &amp; ทีม</summary><div class="acc-body" id="accOrg"></div></details>' +
+      '<details class="acc"><summary><i class="ti ti-users"></i> บุคลากร · จุดปฏิบัติงาน · Priority · สิทธิ์รายบุคคล</summary><div class="acc-body" id="accPeople"></div></details>' +
+      '<details class="acc"><summary><i class="ti ti-map-pin"></i> จุดปฏิบัติงาน (Work Stations)</summary><div class="acc-body" id="accStations"></div></details>' +
+      '<details class="acc"><summary><i class="ti ti-refresh"></i> ประเภทเวร (Shift Types)</summary><div class="acc-body" id="accShifts"></div></details>' +
+      '<details class="acc"><summary><i class="ti ti-scale"></i> กฎการจัดเวร</summary><div class="acc-body" id="accRules"></div></details>' +
+      '<details class="acc"><summary><i class="ti ti-coin"></i> อัตราค่าตอบแทน (รองรับไม่เท่ากันราย วัน/เดือน/บุคคล)</summary><div class="acc-body" id="accRates"></div></details>' +
+      '<details class="acc"><summary><i class="ti ti-calendar-event"></i> วันหยุดราชการ — ' + monthLabel() + '</summary><div class="acc-body" id="accHolidays"></div></details>' +
+      '<details class="acc"><summary><i class="ti ti-signature"></i> ผู้ลงนามในเอกสาร</summary><div class="acc-body" id="accSign"></div></details>' +
+      '<details class="acc"><summary><i class="ti ti-flask"></i> Master Data (LAB · หน่วยงาน)</summary><div class="acc-body" id="accMaster"></div></details>' +
+      '<details class="acc"><summary><i class="ti ti-bell"></i> การแจ้งเตือน &amp; กำหนดการ</summary><div class="acc-body" id="accNotif"></div></details>' +
+      '<details class="acc"><summary><i class="ti ti-shield-lock"></i> สิทธิ์การใช้งาน (รายบุคคล)</summary><div class="acc-body" id="accPerms"></div></details>';
+
+    gsRun('api_getSetupBundle', Session.token, current.year, current.month).then(function (bundle) {
+      peopleCache = bundle.people;
+      rolePermsCache = bundle.permissions;
+      renderOrgSection(bundle.settings);
+      renderPeopleSection(bundle.people);
+      renderStationsSection(bundle.stations, bundle.people);
+      renderShiftsSection(bundle.shifts, bundle.settings.shiftDisabled || {});
+      renderRulesSection(bundle.settings, bundle.people);
+      renderRatesSection(bundle.settings.rates || {}, bundle.rateOvr, bundle.people);
+      renderHolidaysSection(bundle.holidays);
+      renderSignSection(bundle.settings);
+      renderMasterSection(bundle.settings);
+      renderNotifSection(bundle.settings);
+      renderPermsSection(bundle.permissions);
+    });
+  }
+
+  function saveField(btn, fn) {
+    btn.disabled = true;
+    fn().then(function () { toast('บันทึกแล้ว'); btn.disabled = false; }).catch(function () { btn.disabled = false; });
+  }
+
+  function renderOrgSection(s) {
+    document.getElementById('accOrg').innerHTML =
+      '<div class="frm-grid">' +
+      '<label>ชื่อกลุ่มงาน<input id="cfOrg" value="' + (s.org || '') + '"></label>' +
+      '<label>ชื่อโรงพยาบาล<input id="cfHosp" value="' + (s.hosp || '') + '"></label>' +
+      '<label>ที่อยู่<input id="cfProv" value="' + (s.prov || '') + '"></label>' +
+      '<label>อักษรย่อโลโก้<input id="cfLogo" value="' + (s.logo || '') + '"></label>' +
+      '</div><div style="margin-top:10px;display:flex;align-items:center;gap:10px;">' +
+      '<label style="font-size:11.5px;color:var(--mut);">สีหลัก</label><input type="color" id="cfTheme" value="' + (s.themeColor || '#0E6158') + '">' +
+      '<label style="font-size:11.5px;color:var(--mut);">สีเสริม</label><input type="color" id="cfAcc" value="' + (s.themeAcc || '#B8862E') + '">' +
+      '<button class="btn btn-primary btn-sm" id="orgSaveBtn" style="margin-left:auto;">บันทึก</button></div>';
+    document.getElementById('orgSaveBtn').onclick = function (e) {
+      saveField(e.target, function () {
+        var fields = {
+          org: val('cfOrg'), hosp: val('cfHosp'), prov: val('cfProv'), logo: val('cfLogo'),
+          themeColor: val('cfTheme'), themeAcc: val('cfAcc')
+        };
+        return gsRun('api_saveSettings', Session.token, fields).then(function (res) {
+          applyBranding(Object.assign({}, Session.settings, fields));
+          return res;
+        });
+      });
+    };
+  }
+  function val(id) { return document.getElementById(id).value; }
+
+  function renderPeopleSection(people) {
+    var body = document.getElementById('accPeople');
+    body.innerHTML = '<div style="display:flex;justify-content:flex-end;margin-bottom:8px;"><button class="btn btn-primary btn-sm" id="addPersonBtn"><i class="ti ti-plus"></i> เพิ่มบุคลากร</button></div>' +
+      '<div class="tbl-wrap"><table class="tbl" id="peopleTbl"></table></div>';
+    paintPeople(people);
+    document.getElementById('addPersonBtn').onclick = function () { openPersonForm(null); };
+  }
+  function paintPeople(people) {
+    document.getElementById('peopleTbl').innerHTML = '<tr><th>ชื่อ</th><th>บทบาท</th><th>Priority</th><th>Active</th><th></th></tr>' +
+      people.map(function (p) {
+        return '<tr><td class="l">' + fullN(p) + '<div style="font-size:10.5px;color:var(--mut);">' + (p.title || '') + '</div></td><td>' + p.role + '</td><td>' + (p.priority || '') + '</td>' +
+          '<td>' + (p.active !== false ? '<span class="badge ok">Active</span>' : '<span class="badge none">ปิด</span>') + '</td>' +
+          '<td><button class="btn btn-sm" data-edit="' + p.id + '"><i class="ti ti-edit"></i></button></td></tr>';
+      }).join('') + '<tr data-row-end style="display:none;"></tr>';
+    document.querySelectorAll('#peopleTbl [data-edit]').forEach(function (btn) {
+      btn.onclick = function () { openPersonForm(people.filter(function (p) { return p.id === btn.dataset.edit; })[0]); };
+    });
+  }
+  function roleDefaultAllowed_(role, action) {
+    var hit = (rolePermsCache || []).filter(function (p) { return p.roleId === role && p.action === action; })[0];
+    return !!(hit && (hit.allowed === true || hit.allowed === 'true' || hit.allowed === 'TRUE'));
+  }
+  function permOptionsHtml_(role, action, cur) {
+    var defLabel = '(ค่าเริ่มต้น: ' + (roleDefaultAllowed_(role, action) ? 'มีสิทธิ์' : 'ไม่มีสิทธิ์') + ')';
+    return '<option value="">' + defLabel + '</option><option value="true"' + (cur === true ? ' selected' : '') + '>มีสิทธิ์</option><option value="false"' + (cur === false ? ' selected' : '') + '>ไม่มีสิทธิ์</option>';
+  }
+  function openPersonForm(record) {
+    var body = document.createElement('div');
+    body.innerHTML = '<div class="frm-grid">' +
+      ['pfx', 'name', 'short', 'title', 'phone', 'email', 'priority'].map(function (f) {
+        return '<label>' + f + '<input data-f="' + f + '" value="' + (record && record[f] !== undefined ? record[f] : '') + '"></label>';
+      }).join('') +
+      '<label>บทบาท<select data-f="role"><option value="HT">HT — หัวหน้า</option><option value="MT">MT — นักเทคนิค</option><option value="LA">LA — ผู้ช่วย</option></select></label>' +
+      '<label style="display:flex;flex-direction:row;align-items:center;gap:6px;">Active<input type="checkbox" data-f="active" ' + (!record || record.active !== false ? 'checked' : '') + '></label>' +
+      '</div><div class="card-title" style="margin-top:14px;">สิทธิ์รายบุคคล (เว้นว่าง = ใช้ค่าเริ่มต้นตามบทบาท)</div><div class="frm-grid">' +
+      PERM_ACTIONS.map(function (a) {
+        var cur = record && record.perms && record.perms[a];
+        return '<label style="display:flex;flex-direction:row;align-items:center;gap:6px;">' + PERM_LABEL[a] +
+          '<select data-perm="' + a + '">' + permOptionsHtml_(record ? record.role : 'MT', a, cur) + '</select></label>';
+      }).join('') + '</div>';
+    if (record) body.querySelector('[data-f="role"]').value = record.role;
+    body.querySelector('[data-f="role"]').onchange = function () {
+      var role = this.value;
+      PERM_ACTIONS.forEach(function (a) {
+        var sel = body.querySelector('[data-perm="' + a + '"]');
+        var cur = sel.value === '' ? undefined : sel.value === 'true';
+        sel.innerHTML = permOptionsHtml_(role, a, cur);
+      });
+    };
+    showModal((record ? 'แก้ไข' : 'เพิ่ม') + 'บุคลากร', body, 'บันทึก', function () {
+      var payload = record ? Object.assign({}, record) : {};
+      ['pfx', 'name', 'short', 'title', 'phone', 'email', 'priority', 'role'].forEach(function (f) { payload[f] = body.querySelector('[data-f="' + f + '"]').value; });
+      payload.active = body.querySelector('[data-f="active"]').checked;
+      var perms = {};
+      PERM_ACTIONS.forEach(function (a) {
+        var v = body.querySelector('[data-perm="' + a + '"]').value;
+        if (v !== '') perms[a] = v === 'true';
+      });
+      payload.perms = perms;
+      gsRun('api_crud', Session.token, 'people', record ? 'update' : 'create', payload).then(function () {
+        closeModal(); toast('บันทึกแล้ว'); peopleCache = null;
+        loadPeople().then(renderPeopleSection);
+      });
+    });
+  }
+
+  function renderStationsSection(stations, people) {
+    var body = document.getElementById('accStations');
+    body.innerHTML = '<div style="display:flex;justify-content:flex-end;margin-bottom:8px;"><button class="btn btn-primary btn-sm" id="addStationBtn"><i class="ti ti-plus"></i> เพิ่มจุดปฏิบัติงาน</button></div>' +
+      '<div class="tbl-wrap"><table class="tbl" id="stationTbl"></table></div>';
+    var byId = {}; people.forEach(function (p) { byId[p.id] = p; });
+    function paint() {
+      var stById = {}; stations.forEach(function (st) { stById[st.id] = st; });
+      document.getElementById('stationTbl').innerHTML = '<tr><th>ชื่อจุด</th><th>ผู้รับผิดชอบ</th><th>สลับกับ</th><th></th></tr>' +
+        stations.map(function (s) {
+          var names = (s.assigned || []).map(function (pid) { return byId[pid] ? fullN(byId[pid]) : pid; }).join(', ');
+          var rotName = s.rotateWith && stById[s.rotateWith] ? stById[s.rotateWith].name : '—';
+          return '<tr><td class="l">' + s.name + '</td><td class="l">' + names + '</td><td>' + rotName + '</td><td><button class="btn btn-sm" data-edit="' + s.id + '"><i class="ti ti-edit"></i></button> <button class="btn btn-sm btn-danger" data-del="' + s.id + '"><i class="ti ti-trash"></i></button></td></tr>';
+        }).join('');
+      document.querySelectorAll('#stationTbl [data-edit]').forEach(function (b) { b.onclick = function () { openStationForm(stations.filter(function (s) { return s.id === b.dataset.edit; })[0]); }; });
+      document.querySelectorAll('#stationTbl [data-del]').forEach(function (b) {
+        b.onclick = function () {
+          if (!confirm('ยืนยันการลบ?')) return;
+          gsRun('api_crud', Session.token, 'station', 'delete', { id: b.dataset.del }).then(function () {
+            stations = stations.filter(function (s) { return s.id !== b.dataset.del; });
+            paint();
+          });
+        };
+      });
+    }
+    function openStationForm(record) {
+      var assignedSet = {};
+      (record && record.assigned || []).forEach(function (pid) { assignedSet[pid] = true; });
+      var body2 = document.createElement('div');
+      body2.innerHTML = '<div class="frm-grid">' +
+        '<label>ชื่อจุด<input data-f="name" value="' + (record ? record.name : '') + '"></label>' +
+        '<label>สลับกับจุด<select data-f="rotateWith"><option value="">— ไม่สลับ —</option>' +
+        stations.filter(function (st) { return !record || st.id !== record.id; }).map(function (st) {
+          return '<option value="' + st.id + '"' + (record && record.rotateWith === st.id ? ' selected' : '') + '>' + st.name + '</option>';
+        }).join('') + '</select></label>' +
+        '<label style="display:flex;flex-direction:row;gap:6px;align-items:center;">หมุนเวียน<input type="checkbox" data-f="rotate" ' + (record && record.rotate ? 'checked' : '') + '></label></div>' +
+        '<div style="margin-top:10px;"><label style="font-weight:600;font-size:12.5px;">ผู้รับผิดชอบ</label>' +
+        '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:6px;">' +
+        people.map(function (p) {
+          return '<label style="display:flex;align-items:center;gap:5px;font-size:12.5px;border:1px solid var(--border);border-radius:7px;padding:5px 9px;">' +
+            '<input type="checkbox" data-assign-pid="' + p.id + '" ' + (assignedSet[p.id] ? 'checked' : '') + '>' + fullN(p) + '</label>';
+        }).join('') + '</div></div>';
+      showModal((record ? 'แก้ไข' : 'เพิ่ม') + 'จุดปฏิบัติงาน', body2, 'บันทึก', function () {
+        var payload = record ? Object.assign({}, record) : {};
+        payload.name = body2.querySelector('[data-f="name"]').value;
+        payload.assigned = Array.prototype.slice.call(body2.querySelectorAll('[data-assign-pid]')).filter(function (cb) { return cb.checked; }).map(function (cb) { return cb.dataset.assignPid; });
+        payload.rotateWith = body2.querySelector('[data-f="rotateWith"]').value;
+        payload.rotate = body2.querySelector('[data-f="rotate"]').checked;
+        gsRun('api_crud', Session.token, 'station', record ? 'update' : 'create', payload).then(function (r) {
+          closeModal(); toast('บันทึกแล้ว');
+          if (record) {
+            stations = stations.map(function (s) { return s.id === record.id ? Object.assign({}, s, payload) : s; });
+          } else {
+            stations.push(r);
+          }
+          paint();
+        });
+      });
+    }
+    document.getElementById('addStationBtn').onclick = function () { openStationForm(null); };
+    paint();
+  }
+
+  function renderShiftsSection(shifts, shiftDisabled) {
+    var body = document.getElementById('accShifts');
+    var rowsHtml = shifts.map(function (s) {
+      var monthRow = function (key, label) {
+        var disabled = shiftDisabled[key] || [];
+        return (label ? '<div style="font-size:10.5px;color:var(--mut);margin-top:4px;">' + label + '</div>' : '') +
+          MONTH_SHORT.map(function (m, i) {
+            var mn = i + 1, on = disabled.indexOf(mn) === -1;
+            return '<span class="mo-chip ' + (on ? 'on' : 'off') + '" data-skey="' + key + '" data-mon="' + mn + '">' + m + '</span>';
+          }).join('');
+      };
+      var disableCell = s.id === 'n' ? (monthRow('n_mt', 'คลินิก MT') + monthRow('n_la', 'ผู้ช่วย LA')) : monthRow(s.id, '');
+      return '<tr><td>' + s.id + '</td>' +
+        '<td><input data-sf="name" data-sid="' + s.id + '" value="' + (s.name || '') + '"></td>' +
+        '<td><input data-sf="short" data-sid="' + s.id + '" value="' + (s.short || '') + '" style="width:48px;text-align:center;"></td>' +
+        '<td><input type="color" data-sf="color" data-sid="' + s.id + '" value="' + (s.color || '#000000') + '"></td>' +
+        '<td><input type="color" data-sf="bg" data-sid="' + s.id + '" value="' + (s.bg || '#ffffff') + '"></td>' +
+        '<td><span class="tok" style="background:' + s.bg + ';color:' + s.color + '">' + (s.short || '') + '</span></td>' +
+        '<td style="text-align:left;white-space:normal;">' + disableCell + '<div style="font-size:9.5px;color:var(--mut);margin-top:3px;">คลิกเดือนเพื่อเปิด/ปิด · สีเด่น = เปิดใช้เดือนนั้น</div></td></tr>';
+    }).join('');
+    body.innerHTML = '<p style="font-size:12px;color:var(--mut);margin-bottom:10px;">กำหนดชื่อเต็ม ชื่อย่อ และสีของแต่ละเวร</p>' +
+      '<div class="tbl-wrap"><table class="tbl"><tr><th>ID</th><th>ชื่อเต็ม</th><th>ชื่อย่อ</th><th>สีตัวอักษร</th><th>สีพื้นหลัง</th><th>ตัวอย่าง</th><th>ปิดใช้เดือน</th></tr>' + rowsHtml + '</table></div>' +
+      '<button class="btn btn-primary btn-sm" id="shiftsSaveBtn" style="margin-top:10px;">บันทึกประเภทเวรทั้งหมด</button>';
+
+    var disabledState = JSON.parse(JSON.stringify(shiftDisabled));
+    body.querySelectorAll('.mo-chip').forEach(function (chip) {
+      chip.onclick = function () {
+        var key = chip.dataset.skey, mon = +chip.dataset.mon;
+        disabledState[key] = disabledState[key] || [];
+        var idx = disabledState[key].indexOf(mon);
+        if (idx > -1) { disabledState[key].splice(idx, 1); chip.classList.add('on'); chip.classList.remove('off'); }
+        else { disabledState[key].push(mon); chip.classList.remove('on'); chip.classList.add('off'); }
+      };
+    });
+    document.getElementById('shiftsSaveBtn').onclick = function (e) {
+      var payloads = shifts.map(function (s) {
+        var payload = Object.assign({}, s);
+        ['name', 'short', 'color', 'bg'].forEach(function (f) {
+          var input = body.querySelector('[data-sf="' + f + '"][data-sid="' + s.id + '"]');
+          if (input) payload[f] = input.value;
+        });
+        return payload;
+      });
+      gsRun('api_updateShifts', Session.token, payloads)
+        .then(function () { return gsRun('api_saveSettings', Session.token, { shiftDisabled: disabledState }); })
+        .then(function () { toast('บันทึกประเภทเวรแล้ว'); });
+    };
+  }
+
+  function renderRulesSection(s, people) {
+    var mtla = people.filter(function (p) { return p.role !== 'HT'; });
+    function sel(id, opts, cur) {
+      return '<select id="' + id + '">' + opts.map(function (o) { return '<option value="' + o[0] + '"' + (String(cur) === String(o[0]) ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') + '</select>';
+    }
+    document.getElementById('accRules').innerHTML = '<div class="frm-grid">' +
+      '<label>การกระจายเวร' + sel('cfDist', [['equal', 'สมดุลที่สุด (พักผ่อนมากสุด)'], ['priority', 'ตาม Priority']], s.dist) + '</label>' +
+      '<label>วันติดต่อกันสูงสุด<input id="cfMaxC" type="number" min="1" value="' + (s.maxC || 4) + '"></label>' +
+      '<label>เวร บ1 เวรเสริมบ่าย — สลับสัปดาห์' + sel('cfLaB', [['A', 'A: จ-อ · B: พ-พฤ'], ['B', 'A: พ-พฤ · B: จ-อ']], s.laB) + '</label>' +
+      '<label>ผู้ช่วย A (เวร บ1)' + sel('cfLaA', [['no', '(ไม่กำหนด)']].concat(mtla.map(function (p) { return [p.id, fullN(p)]; })), s.laA) + '</label>' +
+      '<label>ผู้ช่วย B (เวร บ1)' + sel('cfLaB2', [['no', '(ไม่กำหนด)']].concat(mtla.map(function (p) { return [p.id, fullN(p)]; })), s.laB2) + '</label>' +
+      '<label>ผู้ช่วยประจำคลินิก (น)' + sel('cfClinicLa', [['auto', 'เลือกอัตโนมัติ (เท่ากันไม่ซ้อนบ1)'], ['', 'ไม่จัด']].concat(mtla.filter(function (p) { return p.role === 'LA'; }).map(function (p) { return [p.id, fullN(p)]; })), s.clinicLa) + '</label>' +
+      '</div><button class="btn btn-primary btn-sm" id="rulesSaveBtn" style="margin-top:10px;">บันทึกกฎ</button>' +
+      '<div style="margin-top:18px;border-top:1px solid var(--border);padding-top:14px;">' +
+      '<div style="font-weight:600;font-size:13px;margin-bottom:6px;">เจ้าหน้าที่ขึ้นเวร ช/บ/ด เดือน ' + monthLabel() + '</div>' +
+      '<div style="font-size:11.5px;color:var(--mut);margin-bottom:8px;">ติ๊กเฉพาะคนที่จะให้ระบบจัดเวร ช/บ/ด ให้ในเดือนนี้ — ไม่ติ๊กไว้ทุกคน = ใช้ทุกคน MT/HT ที่ active (เหมือนเดิม) ค่านี้แยกเก็บรายเดือน ไม่กระทบเดือนอื่น</div>' +
+      '<div id="dutyRosterBox" style="font-size:12.5px;color:var(--mut);margin-bottom:16px;">กำลังโหลด...</div>' +
+      '<div style="font-weight:600;font-size:13px;margin-bottom:6px;">เจ้าหน้าที่ขึ้นเวร น คลินิก เดือน ' + monthLabel() + '</div>' +
+      '<div style="font-size:11.5px;color:var(--mut);margin-bottom:8px;">แยกจากชุด ช/บ/ด ด้านบน — บางคนอาจขึ้น น แต่ไม่ขึ้น ช/บ/ด หรือกลับกันก็ได้</div>' +
+      '<div id="dutyRosterClinicBox" style="font-size:12.5px;color:var(--mut);">กำลังโหลด...</div></div>';
+    document.getElementById('rulesSaveBtn').onclick = function (e) {
+      saveField(e.target, function () {
+        return gsRun('api_saveSettings', Session.token, {
+          dist: val('cfDist'), maxC: +val('cfMaxC'),
+          laB: val('cfLaB'), laA: val('cfLaA'), laB2: val('cfLaB2'), clinicLa: val('cfClinicLa')
+        });
+      });
+    };
+    renderDutyRoster(s, people, 'chbd', 'dutyRosterBox', 'included');
+    renderDutyRoster(s, people, 'clinic', 'dutyRosterClinicBox', 'includedClinic');
+  }
+
+  /** เจ้าหน้าที่ MT/HT ที่ขึ้นเวรของเดือนนี้ — แยก 2 ชุด (ช/บ/ด กับ น คลินิก) เก็บรายเดือน (ดู api_getDutyRoster/api_setDutyRoster) */
+  function renderDutyRoster(s, people, type, boxId, key) {
+    var eligible = people.filter(function (p) { return p.active && (p.role === 'MT' || p.role === 'HT'); });
+    gsRun('api_getDutyRoster', Session.token, current.year, current.month).then(function (roster) {
+      var included = roster && roster[key];
+      document.getElementById(boxId).innerHTML = eligible.map(function (p) {
+        var on = !included || included.indexOf(p.id) > -1;
+        return '<label style="display:inline-flex;align-items:center;gap:5px;margin:0 14px 8px 0;">' +
+          '<input type="checkbox" data-duty-pid="' + p.id + '" ' + (on ? 'checked' : '') + '>' + fullN(p) + '</label>';
+      }).join('') || '<span>ไม่มีเจ้าหน้าที่ MT/HT ที่ใช้งานอยู่</span>';
+      document.querySelectorAll('#' + boxId + ' [data-duty-pid]').forEach(function (cb) {
+        cb.onchange = function () {
+          var checkedIds = Array.prototype.map.call(
+            document.querySelectorAll('#' + boxId + ' [data-duty-pid]:checked'),
+            function (c) { return c.dataset.dutyPid; }
+          );
+          gsRun('api_setDutyRoster', Session.token, current.year, current.month, type, checkedIds).then(function () {
+            toast('อัปเดตเจ้าหน้าที่ขึ้นเวรเดือนนี้แล้ว');
+          });
+        };
+      });
+    });
+  }
+
+  function renderRatesSection(rates, rateOvr, people) {
+    var body = document.getElementById('accRates');
+    var SH = ['ch', 'b', 'd0', 'd1', 'n', 'b1'];
+    var rateRow = function (role, label) {
+      return '<tr><td class="l">' + label + '</td>' + SH.map(function (sh) {
+        var applicable = (role === 'MT' && sh !== 'b1') || (role === 'LA' && (sh === 'ch' || sh === 'b1' || sh === 'n'));
+        if (!applicable) return '<td style="color:#ccc;">—</td>';
+        return '<td><input type="number" data-rate-role="' + role + '" data-rate-sh="' + sh + '" value="' + ((rates[role] || {})[sh] || 0) + '" style="width:64px;text-align:center;"></td>';
+      }).join('') + '</tr>';
+    };
+    body.innerHTML = '<div class="card-title" style="margin-top:0;">อัตรามาตรฐาน</div>' +
+      '<p style="font-size:11px;color:var(--mut);margin:-4px 0 8px;">เวร ด (on call) แยก 2 อัตราตามช่วงเวลา — ใครมี on call หลายเวลาในช่วงเดียวกันของวันเดียวกัน นับเป็น 1 ครั้งของช่วงนั้น</p>' +
+      '<table class="tbl"><tr><th>กลุ่ม</th><th>ช</th><th>บ</th><th>ด (00.00-04.00)</th><th>ด (04.00-08.00)</th><th>น</th><th>บ1</th></tr>' + rateRow('MT', 'MT/HT') + rateRow('LA', 'ผู้ช่วย (LA)') + '</table>' +
+      '<button class="btn btn-primary btn-sm" id="ratesSaveBtn" style="margin-top:10px;">บันทึกอัตรา</button>' +
+      '<div class="card-title" style="margin-top:18px;">อัตราพิเศษ (Override)</div>' +
+      '<p style="font-size:11.5px;color:var(--mut);margin-bottom:8px;">เจาะจงมากกว่า = ใช้ก่อน: บุคคล &gt; ช่วงวันที่ &gt; อัตรามาตรฐาน</p>' +
+      '<div style="display:flex;justify-content:flex-end;margin-bottom:8px;"><button class="btn btn-sm" id="addRateOvrBtn"><i class="ti ti-plus"></i> เพิ่มอัตราพิเศษ</button></div>' +
+      '<div class="tbl-wrap"><table class="tbl" id="rateOvrTbl"></table></div>';
+
+    document.getElementById('ratesSaveBtn').onclick = function (e) {
+      var newRates = { MT: {}, LA: {} };
+      body.querySelectorAll('[data-rate-role]').forEach(function (inp) { newRates[inp.dataset.rateRole][inp.dataset.rateSh] = +inp.value; });
+      saveField(e.target, function () { return gsRun('api_saveSettings', Session.token, { rates: newRates }); });
+    };
+
+    var byId = {}; people.forEach(function (p) { byId[p.id] = p; });
+    function paintOvr() {
+      document.getElementById('rateOvrTbl').innerHTML = '<tr><th>เวร</th><th>บุคคล</th><th>ช่วงวันที่</th><th>จำนวน</th><th></th></tr>' +
+        rateOvr.map(function (o) {
+          return '<tr><td>' + o.shift + '</td><td class="l">' + (o.pid ? (byId[o.pid] ? fullN(byId[o.pid]) : o.pid) : 'ทุกคน') + '</td><td>' + (o.from ? (o.from + '-' + (o.to || '')) : 'ทั้งเดือน') + '</td><td>' + o.amount + '</td>' +
+            '<td><button class="btn btn-sm btn-danger" data-del="' + o.id + '"><i class="ti ti-trash"></i></button></td></tr>';
+        }).join('') || '<tr><td colspan="5" style="color:var(--mut)">ไม่มีอัตราพิเศษ</td></tr>';
+      document.querySelectorAll('#rateOvrTbl [data-del]').forEach(function (b) {
+        b.onclick = function () { gsRun('api_crud', Session.token, 'rateOvr', 'delete', { id: b.dataset.del }).then(function () { rateOvr = rateOvr.filter(function (o) { return o.id !== b.dataset.del; }); paintOvr(); }); };
+      });
+    }
+    document.getElementById('addRateOvrBtn').onclick = function () {
+      var f = document.createElement('div');
+      f.innerHTML = '<div class="frm-grid">' +
+        '<label>เวร<select data-f="shift">' + SH.map(function (s) { return '<option value="' + s + '">' + s + '</option>'; }).join('') + '</select></label>' +
+        '<label>บุคคล (เว้นว่าง=ทุกคน)<select data-f="pid"><option value="">ทุกคน</option>' + people.map(function (p) { return '<option value="' + p.id + '">' + fullN(p) + '</option>'; }).join('') + '</select></label>' +
+        '<label>วันที่เริ่ม<input data-f="from" type="number"></label><label>ถึงวันที่<input data-f="to" type="number"></label>' +
+        '<label>จำนวน (บาท)<input data-f="amount" type="number"></label></div>';
+      showModal('เพิ่มอัตราพิเศษ', f, 'บันทึก', function () {
+        var payload = {};
+        ['shift', 'pid', 'from', 'to', 'amount'].forEach(function (k) { payload[k] = f.querySelector('[data-f="' + k + '"]').value; });
+        payload.from = payload.from ? +payload.from : null; payload.to = payload.to ? +payload.to : null; payload.amount = +payload.amount;
+        gsRun('api_crud', Session.token, 'rateOvr', 'create', payload).then(function (r) { closeModal(); toast('บันทึกแล้ว'); rateOvr.push(r); paintOvr(); });
+      });
+    };
+    paintOvr();
+  }
+
+  function renderHolidaysSection(holidays) {
+    var body = document.getElementById('accHolidays');
+    body.innerHTML = '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px;">' +
+      '<button class="btn btn-sm" id="seedHolBtn"><i class="ti ti-calendar-plus"></i> เติมวันหยุดราชการอัตโนมัติ (ปี ' + current.year + ')</button>' +
+      '<span style="font-size:11px;color:var(--mut);">เติมวันหยุดประจำปีให้ทั้งปี ไม่ทับวันที่เพิ่มไว้แล้ว ยังแก้ไข/ลบทีละรายการได้ตามปกติ</span></div>' +
+      '<div class="frm-grid" style="margin-bottom:10px;">' +
+      '<label>วันที่<input id="hDay" type="number" min="1" max="31"></label>' +
+      '<label>ชื่อวันหยุด<input id="hName" placeholder="เช่น วันแม่"></label></div>' +
+      '<button class="btn btn-primary btn-sm" id="addHolBtn"><i class="ti ti-plus"></i> เพิ่มวันหยุด</button>' +
+      '<div class="tbl-wrap" style="margin-top:10px;"><table class="tbl" id="holTbl"></table></div>';
+    document.getElementById('seedHolBtn').onclick = function () {
+      gsRun('api_seedThaiHolidays', Session.token, current.year).then(function (r) {
+        if (!r.hasLunarTable) {
+          toast('เติมวันหยุดราชการแล้ว ' + r.added + ' วัน', 'วันหยุดที่อิงปฏิทินจันทรคติ (มาฆบูชา/วิสาขบูชา/อาสาฬหบูชา) ของปีนี้ยังไม่มีในระบบ กรุณาเพิ่มเองตามประกาศราชการ');
+        } else {
+          toast('เติมวันหยุดราชการแล้ว', r.added + ' วัน');
+        }
+        invalidateMonthCache();
+        gsRun('api_getSetupBundle', Session.token, current.year, current.month).then(function (bundle) { renderHolidaysSection(bundle.holidays); });
+      });
+    };
+    function paint() {
+      document.getElementById('holTbl').innerHTML = '<tr><th>วันที่</th><th>ชื่อวันหยุด</th><th></th></tr>' +
+        holidays.sort(function (a, b) { return a.day - b.day; }).map(function (h) {
+          return '<tr><td>' + h.day + '</td><td class="l">' + h.name + '</td><td><button class="btn btn-sm btn-danger" data-del="' + h.id + '"><i class="ti ti-trash"></i></button></td></tr>';
+        }).join('') || '<tr><td colspan="3" style="color:var(--mut)">ยังไม่มีวันหยุดในเดือนนี้</td></tr>';
+      document.querySelectorAll('#holTbl [data-del]').forEach(function (b) {
+        b.onclick = function () { gsRun('api_deleteHoliday', Session.token, current.year, current.month, b.dataset.del).then(function () { holidays = holidays.filter(function (h) { return h.id !== b.dataset.del; }); paint(); }); };
+      });
+    }
+    document.getElementById('addHolBtn').onclick = function () {
+      var day = +val('hDay'), name = val('hName') || 'วันหยุด';
+      if (!day) return;
+      gsRun('api_addHoliday', Session.token, current.year, current.month, { day: day, name: name }).then(function (r) {
+        holidays.push(r); paint(); document.getElementById('hDay').value = ''; document.getElementById('hName').value = ''; toast('เพิ่มวันหยุดแล้ว');
+      });
+    };
+    paint();
+  }
+
+  function renderSignSection(s) {
+    document.getElementById('accSign').innerHTML = '<div class="frm-grid">' +
+      ['signH', 'signHT', 'signD', 'signDT', 'signPay', 'signPayT'].map(function (f) {
+        var labels = { signH: 'ชื่อหัวหน้าหน่วย', signHT: 'ตำแหน่งหัวหน้าหน่วย', signD: 'ชื่อผู้อำนวยการ', signDT: 'ตำแหน่งผู้อำนวยการ', signPay: 'ชื่อผู้จ่ายเงิน', signPayT: 'ตำแหน่งผู้จ่ายเงิน' };
+        return '<label>' + labels[f] + '<input id="cf_' + f + '" value="' + (s[f] || '') + '"></label>';
+      }).join('') + '</div>' +
+      '<div style="font-size:11.5px;color:var(--mut);margin-top:6px;">ผู้จ่ายเงินใช้เป็นผู้ลงนามคนที่ 2 ในรายงาน "ใบเบิกเงินรวม" (แทนที่ผู้อำนวยการ)</div>' +
+      '<button class="btn btn-primary btn-sm" id="signSaveBtn" style="margin-top:10px;">บันทึก</button>';
+    document.getElementById('signSaveBtn').onclick = function (e) {
+      saveField(e.target, function () {
+        return gsRun('api_saveSettings', Session.token, {
+          signH: val('cf_signH'), signHT: val('cf_signHT'), signD: val('cf_signD'), signDT: val('cf_signDT'),
+          signPay: val('cf_signPay'), signPayT: val('cf_signPayT')
+        });
+      });
+    };
+  }
+
+  function tagEditor(id, items) {
+    return '<div id="' + id + '" data-items=\'' + JSON.stringify(items || []) + '\'>' +
+      (items || []).map(function (t, i) { return '<span class="mo-chip on" data-i="' + i + '">' + t + ' <i class="ti ti-x" style="font-size:10px;"></i></span>'; }).join('') +
+      '<input style="border:none;background:none;font-size:12px;width:90px;outline:none;" placeholder="+ เพิ่ม แล้ว Enter">' + '</div>';
+  }
+
+  function renderMasterSection(s) {
+    var body = document.getElementById('accMaster');
+    body.innerHTML = '<div class="card-title" style="margin-top:0;">LAB ที่ตรวจได้</div>' + tagEditor('labsTags', s.labs || []) +
+      '<div class="card-title" style="margin-top:16px;">หน่วยงานที่ขอ On-call</div>' + tagEditor('unitsTags', s.units || []) +
+      '<button class="btn btn-primary btn-sm" id="masterSaveBtn" style="margin-top:12px;">บันทึก</button>';
+    [['labsTags'], ['unitsTags']].forEach(function (a) {
+      var wrap = document.getElementById(a[0]);
+      var input = wrap.querySelector('input');
+      input.addEventListener('keydown', function (e) {
+        if (e.key !== 'Enter' || !input.value.trim()) return;
+        var items = JSON.parse(wrap.dataset.items); items.push(input.value.trim()); wrap.dataset.items = JSON.stringify(items);
+        var chip = document.createElement('span'); chip.className = 'mo-chip on'; chip.textContent = input.value.trim();
+        wrap.insertBefore(chip, input); input.value = '';
+      });
+    });
+    document.getElementById('masterSaveBtn').onclick = function (e) {
+      saveField(e.target, function () {
+        return gsRun('api_saveSettings', Session.token, {
+          labs: JSON.parse(document.getElementById('labsTags').dataset.items),
+          units: JSON.parse(document.getElementById('unitsTags').dataset.items)
+        });
+      });
+    };
+  }
+
+  function renderNotifSection(s) {
+    document.getElementById('accNotif').innerHTML = '<div class="frm-grid">' +
+      '<label>วันเก็บข้อมูลวันลา (ของเดือน)<input id="cfColDay" type="number" value="' + (s.colDay || 25) + '"></label>' +
+      '<label>วันประกาศใช้ตาราง<input id="cfPubDay" type="number" value="' + (s.pubDay || 28) + '"></label>' +
+      '<label>LINE Notify token<input id="cfLineToken" value="' + (s.lineToken || '') + '"></label>' +
+      '<label>Google Calendar ID<input id="cfCalId" value="' + (s.calId || '') + '"></label>' +
+      '</div><div style="display:flex;gap:18px;margin-top:10px;">' +
+      ['chEmail:Email', 'chLine:LINE', 'chCal:Google Calendar'].map(function (kv) {
+        var k = kv.split(':')[0], lbl = kv.split(':')[1];
+        return '<label style="display:flex;align-items:center;gap:6px;font-size:12.5px;"><input type="checkbox" id="cf_' + k + '" ' + (s[k] ? 'checked' : '') + '> ' + lbl + '</label>';
+      }).join('') + '</div><button class="btn btn-primary btn-sm" id="notifSaveBtn" style="margin-top:10px;">บันทึก</button>';
+    document.getElementById('notifSaveBtn').onclick = function (e) {
+      saveField(e.target, function () {
+        return gsRun('api_saveSettings', Session.token, {
+          colDay: +val('cfColDay'), pubDay: +val('cfPubDay'), lineToken: val('cfLineToken'), calId: val('cfCalId'),
+          chEmail: document.getElementById('cf_chEmail').checked, chLine: document.getElementById('cf_chLine').checked, chCal: document.getElementById('cf_chCal').checked
+        });
+      });
+    };
+  }
+
+  function renderPermsSection(perms) {
+    var byRoleAction = {};
+    perms.forEach(function (p) { byRoleAction[p.roleId + '.' + p.action] = (p.allowed === true || p.allowed === 'true' || p.allowed === 'TRUE'); });
+    var roles = ['HT', 'MT', 'LA'];
+    var body = document.getElementById('accPerms');
+    body.innerHTML = '<table class="tbl perm-ind"><tr><th>สิทธิ์</th>' + roles.map(function (r) { return '<th>' + r + '</th>'; }).join('') + '</tr>' +
+      PERM_ACTIONS.map(function (a) {
+        return '<tr><td class="l">' + PERM_LABEL[a] + '</td>' + roles.map(function (r) {
+          var on = !!byRoleAction[r + '.' + a];
+          return '<td><span class="mo-chip ' + (on ? 'on' : 'off') + '" data-role="' + r + '" data-action="' + a + '">' + (on ? 'มีสิทธิ์' : 'ไม่มีสิทธิ์') + '</span></td>';
+        }).join('') + '</tr>';
+      }).join('') + '</table>';
+    body.querySelectorAll('.mo-chip').forEach(function (chip) {
+      chip.onclick = function () {
+        var on = chip.classList.contains('on');
+        gsRun('api_setPermission', Session.token, chip.dataset.role, chip.dataset.action, !on).then(function () {
+          chip.classList.toggle('on'); chip.classList.toggle('off'); chip.textContent = on ? 'ไม่มีสิทธิ์' : 'มีสิทธิ์';
+          toast('อัปเดตสิทธิ์แล้ว');
+        });
+      };
+    });
+  }
+
+  return { render: render, setMonthYear: setMonthYear };
+})();
+</script>
+
+<script>
+/* script-admin.html — ผู้ดูแลระบบ: บัญชีผู้ใช้ + จัดการโมดูล (module manager, ported from the
+   original's separate frame-modmgr / renderModList()/addUrlModule()). Staff/stations/shifts/rates/holidays/
+   permissions now live under จัดเวร > ตั้งค่า (script-schedule.html renderSetupPage). */
+
+var Admin = (function () {
+  var ADMIN_TABS = [
+    { id: 'users', label: 'บัญชีผู้ใช้' },
+    { id: 'modules', label: 'โมดูล' }
+  ];
+  var curTab = 'modules';
+
+  function render() {
+    var page = document.getElementById('frame-admin');
+    page.innerHTML = '<h2 style="margin:0 0 10px;font-size:16px;">' + moduleLabel('admin', 'ผู้ดูแลระบบ') + '</h2>' +
+      '<div class="rtabs" id="adminTabs"></div>' +
+      '<div id="adminBody"></div>';
+    paintTabs();
+    renderTab(curTab);
+  }
+
+  function paintTabs() {
+    var el = document.getElementById('adminTabs');
+    el.innerHTML = ADMIN_TABS.map(function (t) {
+      return '<div class="rtab' + (t.id === curTab ? ' active' : '') + '" data-t="' + t.id + '">' + t.label + '</div>';
+    }).join('');
+    el.querySelectorAll('[data-t]').forEach(function (e) {
+      e.onclick = function () { curTab = e.dataset.t; paintTabs(); renderTab(curTab); };
+    });
+  }
+
+  function renderTab(tabId) {
+    if (tabId === 'users') return renderUsersTab();
+    return renderModulesTab();
+  }
+
+  /* ---------------- User accounts (เพิ่ม/ปิดใช้งาน/รีเซ็ตรหัสผ่าน login) ---------------- */
+
+  var USER_ROLES = [['admin', 'admin'], ['HT', 'HT (หัวหน้าหน่วย)'], ['MT', 'MT'], ['LA', 'LA']];
+  var usersPeople = [];
+
+  function personOptions(selectedId) {
+    return '<option value="">— ไม่ผูก —</option>' + usersPeople.map(function (p) {
+      var nm = (p.pfx || '') + p.name;
+      return '<option value="' + p.id + '"' + (p.id === selectedId ? ' selected' : '') + '>' + nm + '</option>';
+    }).join('');
+  }
+
+  function renderUsersTab() {
+    var body = document.getElementById('adminBody');
+    body.innerHTML =
+      '<div class="card" style="margin-bottom:14px;">' +
+      '<div class="card-title"><i class="ti ti-users"></i>บัญชีผู้ใช้ทั้งหมด</div>' +
+      '<div class="tbl-wrap"><table class="tbl" id="userTbl"></table></div></div>' +
+      '<div class="card">' +
+      '<div class="card-title"><i class="ti ti-user-plus"></i>เพิ่มบัญชีผู้ใช้ใหม่</div>' +
+      '<div class="frm-grid">' +
+      '<label>ชื่อ-สกุล<input id="uNewName"></label>' +
+      '<label>อีเมล<input id="uNewEmail" type="email"></label>' +
+      '<label>บทบาท<select id="uNewRole">' + USER_ROLES.map(function (r) { return '<option value="' + r[0] + '">' + r[1] + '</option>'; }).join('') + '</select></label>' +
+      '<label>รหัสผ่านชั่วคราว<input id="uNewPw" value="ChangeMe123!"></label>' +
+      '</div><button class="btn btn-primary btn-sm" id="addUserBtn" style="margin-top:10px;"><i class="ti ti-plus"></i> สร้างบัญชี</button>' +
+      '<p style="font-size:11.5px;color:var(--mut);margin-top:8px;">แจ้งอีเมล+รหัสผ่านชั่วคราวนี้ให้เจ้าหน้าที่ไปเข้าสู่ระบบเอง ยังไม่มีหน้าเปลี่ยนรหัสผ่านด้วยตนเอง หากต้องการเปลี่ยน ให้ผู้ดูแลระบบกดปุ่ม "รีเซ็ตรหัสผ่าน" ในตารางด้านบนแทน</p></div>';
+
+    /* listMaster และ listUsers ไม่ได้ขึ้นกับกันและกัน ยิงคู่กันได้เลย — เดิมรอ listMaster
+       จบก่อนค่อยเรียก loadUsers() (ซึ่งเรียก listUsers) ทำให้เสียเวลา round trip เพิ่มโดยไม่จำเป็น */
+    gsRun('api_listMaster', Session.token, 'people').then(function (people) { usersPeople = people || []; });
+    loadUsers();
+    document.getElementById('addUserBtn').onclick = function () {
+      var name = document.getElementById('uNewName').value.trim();
+      var email = document.getElementById('uNewEmail').value.trim();
+      var role = document.getElementById('uNewRole').value;
+      var pw = document.getElementById('uNewPw').value;
+      if (!name || !email || !pw) { toast('กรุณากรอกชื่อ อีเมล และรหัสผ่าน', '', true); return; }
+      gsRun('api_createUser', Session.token, name, email, role, pw).then(function () {
+        toast('สร้างบัญชีแล้ว', email);
+        document.getElementById('uNewName').value = ''; document.getElementById('uNewEmail').value = '';
+        loadUsers();
+      });
+    };
+  }
+
+  function loadUsers() {
+    gsRun('api_listUsers', Session.token).then(function (users) {
+      document.getElementById('userTbl').innerHTML = '<tr><th>ชื่อ</th><th>อีเมล</th><th>บทบาท</th><th>เจ้าหน้าที่ (เชื่อมโยง)</th><th>สถานะ</th><th></th></tr>' +
+        users.map(function (u) {
+          return '<tr><td class="l">' + u.name + '</td><td class="l">' + u.email + '</td><td>' + u.role + '</td>' +
+            '<td><select data-person="' + u.userId + '" style="padding:4px 6px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--ink);font-size:12px;">' + personOptions(u.personId) + '</select></td>' +
+            '<td>' + (u.active ? '<span class="badge ok">ใช้งานได้</span>' : '<span class="badge none">ปิดใช้งาน</span>') + '</td>' +
+            '<td style="display:flex;gap:4px;">' +
+            '<button class="btn btn-sm" data-reset="' + u.userId + '" title="รีเซ็ตรหัสผ่าน"><i class="ti ti-key"></i></button>' +
+            '<button class="btn btn-sm ' + (u.active ? 'btn-danger' : '') + '" data-toggle="' + u.userId + '" data-active="' + u.active + '">' + (u.active ? 'ปิดใช้งาน' : 'เปิดใช้งาน') + '</button>' +
+            '</td></tr>';
+        }).join('');
+      document.querySelectorAll('#userTbl [data-person]').forEach(function (sel) {
+        sel.onchange = function () {
+          gsRun('api_setUserPerson', Session.token, sel.dataset.person, sel.value).then(function () { toast('ผูกเจ้าหน้าที่แล้ว'); });
+        };
+      });
+      document.querySelectorAll('#userTbl [data-toggle]').forEach(function (b) {
+        b.onclick = function () {
+          gsRun('api_setUserActive', Session.token, b.dataset.toggle, b.dataset.active !== 'true').then(function () { toast('อัปเดตแล้ว'); loadUsers(); });
+        };
+      });
+      document.querySelectorAll('#userTbl [data-reset]').forEach(function (b) {
+        b.onclick = function () {
+          var pw = prompt('รหัสผ่านใหม่สำหรับบัญชีนี้:', 'ChangeMe123!');
+          if (!pw) return;
+          gsRun('api_resetUserPassword', Session.token, b.dataset.reset, pw).then(function () { toast('รีเซ็ตรหัสผ่านแล้ว', 'แจ้งรหัสใหม่ให้เจ้าหน้าที่: ' + pw); });
+        };
+      });
+    });
+  }
+
+  /* ---------------- Module manager (ported from renderModList()/addUrlModule()/toggleModule()) ---------------- */
+
+  function renderModulesTab() {
+    var body = document.getElementById('adminBody');
+    body.innerHTML =
+      '<div class="card" style="margin-bottom:14px;">' +
+      '<div class="card-title"><i class="ti ti-apps"></i>รายการโมดูลทั้งหมด</div>' +
+      '<div id="modList"></div></div>' +
+      '<div class="card">' +
+      '<div class="card-title"><i class="ti ti-plus"></i>เพิ่มโมดูลใหม่ผ่าน URL</div>' +
+      '<div class="frm-grid">' +
+      '<label>ชื่อโมดูล<input id="modNewLabel" placeholder="เช่น คลังน้ำยา/วัสดุ"></label>' +
+      '<label>URL<input id="modNewUrl" placeholder="https://... (Google Sheets/เว็บภายนอก)"></label>' +
+      '<label>ไอคอน (Tabler)<input id="modNewIcon" placeholder="ti-package" value="ti-package"></label>' +
+      '<label>สิทธิ์ขั้นต่ำ<select id="modNewPerm"><option value="">ทุกคนเข้าถึงได้</option><option value="manageSettings">ผู้มีสิทธิ์ตั้งค่าเท่านั้น</option></select></label>' +
+      '</div><button class="btn btn-primary btn-sm" id="addUrlModBtn" style="margin-top:10px;"><i class="ti ti-plus"></i> เพิ่มโมดูล</button></div>';
+
+    paintModList();
+    document.getElementById('addUrlModBtn').onclick = function () {
+      var label = document.getElementById('modNewLabel').value.trim();
+      var url = document.getElementById('modNewUrl').value.trim();
+      if (!label || !url) { toast('กรุณากรอกชื่อและ URL', '', true); return; }
+      MODULE_REGISTRY.push({
+        id: 'url_' + Date.now(), label: label, url: url, kind: 'url', enabled: true, removable: true,
+        icon: document.getElementById('modNewIcon').value.trim() || 'ti-package',
+        permission: document.getElementById('modNewPerm').value
+      });
+      saveModuleRegistry().then(function () {
+        toast('เพิ่มโมดูลแล้ว', label);
+        document.getElementById('modNewLabel').value = ''; document.getElementById('modNewUrl').value = '';
+        paintModList(); renderSidebar();
+      });
+    };
+  }
+
+  function paintModList() {
+    document.getElementById('modList').innerHTML = MODULE_REGISTRY.map(function (m) {
+      var subRows = (m.subnav || []).map(function (s) {
+        return '<div style="display:flex;align-items:center;gap:8px;padding:6px 0 6px 32px;border-bottom:1px solid var(--border);">' +
+          '<i class="ti ' + s.icon + '" style="font-size:14px;color:var(--mut);"></i>' +
+          '<div style="flex:1;font-size:12.5px;">' + s.label + '</div>' +
+          '<button class="btn btn-sm" data-rename-sub="' + m.id + '.' + s.id + '" data-cur="' + s.label + '" title="แก้ไขชื่อเมนูย่อย"><i class="ti ti-pencil"></i></button>' +
+          '</div>';
+      }).join('');
+      return '<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);">' +
+        '<i class="ti ' + m.icon + '" style="font-size:18px;color:var(--tl);"></i>' +
+        '<div style="flex:1;"><div style="font-weight:600;font-size:13px;">' + m.label + (m.kind === 'url' ? ' <span class="badge none">URL</span>' : '') + '</div>' +
+        (m.url ? '<div style="font-size:11px;color:var(--mut);">' + m.url + '</div>' : '') + '</div>' +
+        '<button class="btn btn-sm" data-rename="' + m.id + '" data-cur="' + m.label + '" title="แก้ไขชื่อเมนู"><i class="ti ti-pencil"></i></button>' +
+        (m.essential
+          ? '<span class="badge ok" title="โมดูลหลัก ปิดไม่ได้">จำเป็น</span>'
+          : '<label class="toggle" style="position:relative;width:36px;height:20px;"><input type="checkbox" data-toggle="' + m.id + '" ' + (m.enabled !== false ? 'checked' : '') + ' style="opacity:0;"><span style="position:absolute;inset:0;background:' + (m.enabled !== false ? 'var(--tl)' : 'var(--border2)') + ';border-radius:20px;"></span></label>') +
+        (m.removable ? '<button class="btn btn-sm btn-danger" data-remove="' + m.id + '"><i class="ti ti-trash"></i></button>' : '') +
+        '</div>' + subRows;
+    }).join('');
+    document.querySelectorAll('#modList [data-toggle]').forEach(function (cb) {
+      cb.onchange = function () {
+        var m = MODULE_REGISTRY.filter(function (x) { return x.id === cb.dataset.toggle; })[0];
+        m.enabled = cb.checked;
+        /* บันทึกสถานะเปิด/ปิดทุกชนิด (รวม builtin) ลง Settings เพื่อให้คงอยู่หลังรีเฟรช */
+        saveModuleRegistry().then(function () { toast(cb.checked ? 'เปิดโมดูลแล้ว' : 'ปิดโมดูลแล้ว', m.label); renderSidebar(); paintModList(); });
+      };
+    });
+    document.querySelectorAll('#modList [data-remove]').forEach(function (btn) {
+      btn.onclick = function () {
+        if (!confirm('ยืนยันการลบโมดูลนี้?')) return;
+        MODULE_REGISTRY = MODULE_REGISTRY.filter(function (m) { return m.id !== btn.dataset.remove; });
+        saveModuleRegistry().then(function () { toast('ลบโมดูลแล้ว'); paintModList(); renderSidebar(); });
+      };
+    });
+    document.querySelectorAll('#modList [data-rename]').forEach(function (btn) {
+      btn.onclick = function () {
+        var v = prompt('ชื่อเมนูใหม่:', btn.dataset.cur);
+        if (v === null) return;
+        saveModuleLabel(btn.dataset.rename, v).then(function () { toast('เปลี่ยนชื่อเมนูแล้ว'); renderSidebar(); paintModList(); });
+      };
+    });
+    document.querySelectorAll('#modList [data-rename-sub]').forEach(function (btn) {
+      btn.onclick = function () {
+        var v = prompt('ชื่อเมนูย่อยใหม่:', btn.dataset.cur);
+        if (v === null) return;
+        saveModuleLabel(btn.dataset.renameSub, v).then(function () { toast('เปลี่ยนชื่อเมนูย่อยแล้ว'); renderSidebar(); paintModList(); });
+      };
+    });
+  }
+
+  return { render: render };
+})();
+</script>
+
+<script>
+/* script-guide.html — คู่มือการใช้งานระบบ (เนื้อหาคงที่, ไม่เรียก server) */
+
+var Guide = (function () {
+  var SECTIONS = [
+    {
+      title: 'ภาพรวมระบบ',
+      icon: 'ti-info-circle',
+      body: '<p>labthungfon Platform เป็นระบบจัดเวร/ภาระงาน/ค่าตอบแทน ของกลุ่มงานเทคนิคการแพทย์ ' +
+        'แทนที่ไฟล์ Excel/HTML เดิม ด้วยฐานข้อมูล Google Sheets ทุกคนเข้าผ่านลิงก์เว็บเดียว ' +
+        'สิทธิ์การใช้งานแบ่งตามบทบาท (role) และสามารถปรับสิทธิ์รายบุคคลได้</p>' +
+        '<ul><li><b>HT</b> (หัวหน้าหน่วย) — เห็น/ทำได้ทุกอย่าง รวมถึงเผยแพร่ตารางเวรและดูค่าตอบแทนทุกคน</li>' +
+        '<li><b>MT / LA</b> — เก็บข้อมูลเวรของตนเอง (วันลา, on call) และดูตารางเวร/รายงานของตนเอง</li>' +
+        '<li><b>admin</b> — สิทธิ์เต็มทุกอย่าง รวมจัดการผู้ใช้และโมดูล</li></ul>'
+    },
+    {
+      title: 'เข้าสู่ระบบ',
+      icon: 'ti-login',
+      body: '<p>กรอกอีเมลและรหัสผ่านที่ได้รับจากผู้ดูแลระบบ ระบบนี้ใช้บัญชีของตัวเอง <b>ไม่ใช่</b> การ login ผ่าน Google โดยตรง</p>' +
+        '<p>หากลืมรหัสผ่าน ให้ติดต่อผู้ดูแลระบบ (HT/admin) เพื่อรีเซ็ตให้ผ่าน Apps Script editor</p>'
+    },
+    {
+      title: 'แดชบอร์ด',
+      icon: 'ti-layout-dashboard',
+      body: '<p>หน้าแรกหลัง login แสดงภาพรวม: จำนวนเจ้าหน้าที่ Active, สถานะตารางเวรเดือนปัจจุบัน, ' +
+        'จำนวนข้อควรตรวจสอบ (rule violations), ค่าตอบแทนรวม, แนวโน้มค่าตอบแทน 6 เดือน, ' +
+        'และการกระจายภาระงานตามตำแหน่ง</p>'
+    },
+    {
+      title: 'ตั้งค่า (จัดเวร > ตั้งค่า)',
+      icon: 'ti-settings',
+      body: '<p>ศูนย์กลางการกรอก/แก้ข้อมูลพื้นฐานทั้งหมด เป็นแบบ accordion เปิด-ปิดทีละส่วน เห็นได้เฉพาะผู้มีสิทธิ์ <b>manageSettings</b></p>' +
+        '<ul>' +
+        '<li><b>หน่วยงาน &amp; ทีม</b> — ชื่อหน่วยงาน/โรงพยาบาล/จังหวัด, สีธีม, กฎการกระจายเวร, จำนวนเวรติดสูงสุด (maxC)</li>' +
+        '<li><b>บุคลากร</b> — เพิ่ม/แก้/ปิดใช้งานเจ้าหน้าที่ พร้อมกำหนดสิทธิ์รายคน (override สิทธิ์ของ role)</li>' +
+        '<li><b>จุดปฏิบัติงาน</b> — กำหนดจุดงานและผู้รับผิดชอบ/การหมุนเวร</li>' +
+        '<li><b>ประเภทเวร</b> — สี/ชื่อ/ย่อของเวร ช/บ/ด/น/บ1 และปิดเวรบางประเภทเป็นรายเดือนได้</li>' +
+        '<li><b>กฎการจัดเวร</b> — ตั้งค่ากฎการกระจายเวร, วันติดต่อกันสูงสุด, ผู้ช่วย b1/น คลินิก และเลือก "เจ้าหน้าที่ขึ้นเวร" รายเดือนแยกเป็น 2 ชุด ' +
+        '(ช/บ/ด กับ น คลินิก) — ติ๊กเฉพาะคนที่จะให้ระบบจัดเวรให้ในเดือนนั้น คนละชุดกันได้ เช่น ขึ้น น คลินิก แต่ไม่ขึ้น ช/บ/ด ' +
+        '(ไม่ติ๊กไว้ทุกคน = ใช้ทุกคน MT/HT ที่ active ตามปกติ ค่านี้แยกเก็บแต่ละเดือน ไม่กระทบเดือนอื่น — ไม่มีบทบาทหัวหน้าพิเศษสำหรับการขึ้นเวรอีกต่อไป ทุกคนถูกพิจารณาเท่ากันผ่านรายชื่อนี้)</li>' +
+        '<li><b>อัตราค่าตอบแทน</b> — อัตราตามบทบาท + override รายบุคคล/ช่วงวันที่</li>' +
+        '<li><b>วันหยุด</b> — กำหนดวันหยุด/นักขัตฤกษ์ของเดือนนั้น (มีผลกับการคำนวณเวร ช)</li>' +
+        '<li><b>ผู้ลงนาม</b> — ชื่อ-ตำแหน่งหัวหน้าหน่วย/ผู้อำนวยการ (ใช้ในตารางเวร) และผู้จ่ายเงิน (ใช้เป็นผู้ลงนามคนที่ 2 ในรายงาน "ใบเบิกเงินรวม")</li>' +
+        '<li><b>ข้อมูลหลัก (master data)</b> — รายการ labs/หน่วยงานที่ใช้อ้างอิงในระบบ</li>' +
+        '<li><b>การแจ้งเตือน</b> — เปิด/ปิดช่องทางแจ้งเตือน (Email/Line/Calendar)</li>' +
+        '<li><b>สิทธิ์การใช้งาน</b> — ตาราง matrix สิทธิ์ตาม role (publish/override/viewAllPay/editPay/manageSettings/collect)</li>' +
+        '</ul><p style="color:var(--mut);font-size:12.5px;">ทุกช่องบันทึกอัตโนมัติทันทีที่แก้ ไม่ต้องกดปุ่ม Save รวม</p>'
+    },
+    {
+      title: 'ตารางเวร — เก็บวันลา',
+      icon: 'ti-calendar-off',
+      body: '<p>เจ้าหน้าที่แต่ละคนกรอกวันที่ไม่สามารถขึ้นเวรได้ (วันลา/ติดราชการ) ก่อนถึงรอบจัดเวร ' +
+        'มีปุ่มลบรายการที่กรอกผิดได้ที่ท้ายแถว</p>'
+    },
+    {
+      title: 'ตารางเวร — สร้าง/ตารางเวร (grid)',
+      icon: 'ti-table',
+      body: '<p>กดปุ่ม "สร้างตารางเวร" เพื่อให้ระบบจัดเวรอัตโนมัติตามกฎที่ตั้งไว้ ' +
+        '(จำกัดเวรติดต่อกัน, สิทธิ์คลินิกตามวัน, สมดุลภาระงาน) ระบบจะตรวจกฎและแจ้งเตือนหากมีข้อขัดแย้ง</p>' +
+        '<p>ตารางที่ได้แสดงเป็นกริดสีตามประเภทเวร (ช/บ/ด/น/บ1) แก้ไขแต่ละช่องได้โดยคลิกเซลล์ → เปิด "Override" ' +
+        '(ต้องมีสิทธิ์ <b>override</b>) การแก้ไขทุกครั้งถูกบันทึกลง log การแก้ไขด้านล่างตาราง</p>' +
+        '<p>เมื่อตรวจสอบเรียบร้อยแล้ว กด "เผยแพร่" (ต้องมีสิทธิ์ <b>publish</b>) เพื่อให้สถานะเป็นทางการ — ' +
+        'ระบบจะส่งแจ้งเตือนอัตโนมัติให้ทุกคนที่เกี่ยวข้อง</p>'
+    },
+    {
+      title: 'ตารางเวร — On Call',
+      icon: 'ti-phone',
+      body: '<p>บันทึกการ on call นอกเวร พร้อมรายละเอียด ลบรายการที่บันทึกผิดได้ด้วยปุ่มถังขยะท้ายแถว</p>'
+    },
+    {
+      title: 'ตารางเวร — สมดุลเวร',
+      icon: 'ti-scale',
+      body: '<p>เปรียบเทียบจำนวนเวร/ภาระงานของแต่ละคนในเดือนนั้น เพื่อตรวจสอบความเป็นธรรมก่อนเผยแพร่ตาราง</p>'
+    },
+    {
+      title: 'ตารางเวร — รายงาน',
+      icon: 'ti-report',
+      body: '<p>ดึงรายงานสำเร็จรูป เช่น สรุปค่าตอบแทนรวม/รายบุคคล, สรุปเวร, ภาพรวมทีม, สรุป on call ' +
+        'เลือกเดือน/บุคคลที่ต้องการแล้วกด export เป็น Excel ได้ทันที</p>' +
+        '<p><b>ใบเบิกเงินรวม (แนวนอน A4)</b> — เนื้อหาเดียวกับ "ใบเบิกเงินรวม" แต่จัดหน้าแนวนอนและบีบขนาดให้พอดี 1 หน้า A4 ' +
+        'สำหรับพิมพ์เก็บแฟ้มแบบกระดาษน้อย</p>' +
+        '<p><b>บันทึก on-call (รายละเอียด)</b> — ต้องเลือกเจ้าหน้าที่รายคน แสดงรายละเอียดทุกครั้งที่ on call แยกเป็นบล็อกต่อครั้ง ' +
+        '(วันที่/เวลา/ช่วงเวลา 00.00-04.00 หรือ 04.01-08.00/ชื่อผู้ป่วย/HN/LAB ที่ตรวจ/หน่วยงานที่ส่งตรวจ) ตามแบบฟอร์มเบิกเงิน On Call ของหน่วยงาน</p>' +
+        '<p>การดูค่าตอบแทนของผู้อื่น (ไม่ใช่ตัวเอง) ต้องมีสิทธิ์ <b>viewAllPay</b></p>'
+    },
+    {
+      title: 'ผู้ดูแลระบบ — จัดการโมดูล',
+      icon: 'ti-apps',
+      body: '<p>เพิ่ม/ปิด/ลบเมนูภายนอกที่เป็นลิงก์ URL (เช่น ระบบอื่นที่อยากฝังไว้ในเมนูเดียวกัน) ' +
+        'กำหนดชื่อ ไอคอน และสิทธิ์ขั้นต่ำที่จะเห็นเมนูนั้นได้ ไม่กระทบโมดูลหลักของระบบ (แดชบอร์ด/ตารางเวร/ผู้ดูแลระบบ/คู่มือ) ' +
+        'ซึ่งลบไม่ได้</p>' +
+        '<p><b>แก้ไขชื่อเมนู/โมดูล</b> — กดไอคอนดินสอ <i class="ti ti-pencil"></i> ข้างชื่อเมนูแต่ละรายการในตารางเดียวกันนี้ ' +
+        'แก้ได้ทั้งเมนูหลัก (แดชบอร์ด/ตารางเวร/ผู้ดูแลระบบ/คู่มือ) และเมนูย่อยของตารางเวร (ตั้งค่า/แดชบอร์ด/เก็บวันลา/ตารางเวร/รายงาน/On Call/สมดุลเวร) ' +
+        'เปลี่ยนชื่อแล้วมีผลทันทีทั้งแถบเมนูด้านซ้ายและหัวข้อบนแถบบน (topbar) ไม่กระทบฟังก์ชันการทำงานเดิม — เปลี่ยนได้แค่ป้ายชื่อที่แสดง</p>'
+    },
+    {
+      title: 'การพิมพ์เอกสาร',
+      icon: 'ti-printer',
+      body: '<p>กด Ctrl+P (หรือ Cmd+P บน Mac) ที่หน้าตารางเวร/รายงานที่ต้องการ ระบบจะซ่อนเมนู/ปุ่ม/แถบด้านข้างอัตโนมัติ ' +
+        'เหลือเฉพาะเนื้อหารายงานสำหรับพิมพ์</p>'
+    },
+    {
+      title: 'คำถามที่พบบ่อย',
+      icon: 'ti-help',
+      body: '<p><b>ทำไมระบบช้าตอนคลิกเข้าเมนู?</b> รอบแรกที่เปิดแต่ละเมนูในแต่ละเดือนจะมีการดึงข้อมูลจาก Google Sheets ' +
+        'ครั้งเดียว แล้วระบบจะจำผลไว้ชั่วคราว (ประมาณ 15-45 วินาที) การสลับเมนูในช่วงนั้นจะเร็วขึ้น</p>' +
+        '<p><b>แก้ไขแล้วแต่คนอื่นไม่เห็นข้อมูลใหม่ทันที?</b> ลองกด Refresh (ปุ่มไอคอนวงกลมที่แถบบน) เพื่อล้าง cache ของหน้านั้น</p>' +
+        '<p><b>เปลี่ยนข้อความ/คำในหน้าจอได้ที่ไฟล์ไหน?</b> ข้อความส่วนใหญ่อยู่ในไฟล์ script-*.html (เช่น script-schedule.html ' +
+        'สำหรับหน้าตารางเวร) ตามชื่อโมดูลที่ตรงกับหน้าจอนั้น ส่วนสไตล์/สีอยู่ใน style.html</p>'
+    }
+  ];
+
+  function render() {
+    var page = document.getElementById('frame-guide');
+    page.innerHTML = '<h2 style="margin:0 0 4px;font-size:18px;">' + moduleLabel('guide', 'คู่มือการใช้งาน') + '</h2>' +
+      '<p style="margin:0 0 16px;color:var(--mut);font-size:13px;">สรุปการใช้งานแต่ละส่วนของระบบ</p>' +
+      SECTIONS.map(function (s, i) {
+        return '<details class="acc"' + (i === 0 ? ' open' : '') + '>' +
+          '<summary><i class="ti ' + s.icon + '"></i> ' + s.title + '</summary>' +
+          '<div class="acc-body">' + s.body + '</div>' +
+          '</details>';
+      }).join('');
+  }
+
+  return { render: render };
+})();
+</script>
+
+
+</body>
+</html>
