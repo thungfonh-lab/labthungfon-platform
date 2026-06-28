@@ -8,6 +8,7 @@ require('dotenv').config();
 
 const express = require('express');
 const cors = require('cors');
+const gs = require('../lib/googleSheets');
 
 const authRoutes = require('./routes/auth').router;
 const scheduleRoutes = require('./routes/schedule').router;
@@ -22,6 +23,13 @@ const app = express();
 const corsOrigin = process.env.CORS_ORIGIN || '*';
 app.use(cors({ origin: corsOrigin === '*' ? '*' : corsOrigin.split(',').map((s) => s.trim()) }));
 app.use(express.json({ limit: '10mb' }));
+
+// Vercel can reuse a warm serverless instance across unrelated HTTP requests, unlike
+// GAS where every execution was a fresh process — without this, lib/googleSheets.js's
+// per-process readAll cache could serve a later request's reads from before an
+// earlier request's write, even though that write correctly invalidated its own
+// instance's copy. See resetCaches()'s comment in lib/googleSheets.js.
+app.use((req, res, next) => { gs.resetCaches(); next(); });
 
 app.get('/api/health', (req, res) => res.json({ success: true, data: { ok: true }, message: null }));
 
