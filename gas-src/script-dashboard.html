@@ -1,0 +1,96 @@
+<script>
+/* script-dashboard.html — Executive dashboard: KPI cards, monthly trend,
+   workload distribution, alerts panel, recent activity feed.
+   New module (Restriction allows Dashboard improvements); does not replace
+   the original per-module dashboards (Scheduling pg-dash is in script-schedule.html). */
+
+var Dashboard = (function () {
+  var trendChart = null, workloadChart = null;
+
+  function currentYM() {
+    var now = new Date();
+    return { year: now.getFullYear() + 543, month: now.getMonth() };
+  }
+
+  function render() {
+    var page = document.getElementById('frame-dashboard');
+    page.innerHTML =
+      '<h2 style="margin:0 0 4px;font-size:18px;">แดชบอร์ดผู้บริหาร</h2>' +
+      '<p style="margin:0 0 16px;color:var(--mut);font-size:13px;">ภาพรวมระบบจัดเวร — ดูรายละเอียดเชิงลึกได้ที่ ตารางเวร &gt; แดชบอร์ด/สมดุลเวร</p>' +
+      '<div class="kpi-row" id="kpiGrid" style="margin-bottom:18px;"></div>' +
+      '<div class="card"><div class="card-title"><i class="ti ti-bell"></i>การแจ้งเตือน</div><div id="alertsPanel"></div></div>';
+
+    var ym = currentYM();
+    loadKpis(ym.year, ym.month);
+    loadAlerts(ym.year, ym.month);
+  }
+
+  function loadKpis(year, month) {
+    Promise.all([gsRun('api_calculateWorkload', Session.token, year, month), gsRun('api_loadCalendar', Session.token, year, month)])
+      .then(function (res) {
+        var workload = res[0], cal = res[1];
+        var totalMoney = Object.keys(workload.money).reduce(function (s, k) { return s + workload.money[k]; }, 0);
+        var kpis = [
+          { label: 'เจ้าหน้าที่ Active', val: workload.people.filter(function (p) { return p.active; }).length },
+          { label: 'สถานะตารางเวร', val: cal.status === 'published' ? 'เผยแพร่แล้ว' : (cal.status === 'draft' ? 'ฉบับร่าง' : 'ยังไม่สร้าง') },
+          { label: 'Rule violations เปิดอยู่', val: cal.ruleViolations.length },
+          { label: 'ค่าตอบแทนรวม (บาท)', val: totalMoney.toLocaleString('en-US', { minimumFractionDigits: 2 }) }
+        ];
+        document.getElementById('kpiGrid').innerHTML = kpis.map(function (k) {
+          return '<div class="kpi"><div class="kpi-val">' + k.val + '</div><div class="kpi-lbl">' + k.label + '</div></div>';
+        }).join('');
+      });
+  }
+
+  function loadTrend(year, month) {
+    var months = [];
+    for (var i = 5; i >= 0; i--) {
+      var m = month - i, y = year;
+      if (m < 0) { m += 12; y -= 1; }
+      months.push({ year: y, month: m });
+    }
+    Promise.all(months.map(function (ym) {
+      return gsRun('api_calculateWorkload', Session.token, ym.year, ym.month)
+        .then(function (w) { return Object.keys(w.money).reduce(function (s, k) { return s + w.money[k]; }, 0); })
+        .catch(function () { return 0; });
+    })).then(function (totals) {
+      var labels = months.map(function (ym) { return ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'][ym.month]; });
+      if (trendChart) trendChart.destroy();
+      trendChart = new Chart(document.getElementById('trendCanvas'), {
+        type: 'bar',
+        data: { labels: labels, datasets: [{ label: 'บาท', data: totals, backgroundColor: '#13417a' }] },
+        options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+      });
+
+      gsRun('api_calculateWorkload', Session.token, year, month).then(function (workload) {
+        var byRole = { HT: 0, MT: 0, LA: 0 };
+        workload.people.forEach(function (p) {
+          var d = workload.byPerson[p.id];
+          var days = ['ch', 'b', 'b1', 'n', 'd'].reduce(function (s, k) { return s + (d[k] || []).length; }, 0);
+          byRole[p.role] = (byRole[p.role] || 0) + days;
+        });
+        if (workloadChart) workloadChart.destroy();
+        workloadChart = new Chart(document.getElementById('workloadCanvas'), {
+          type: 'doughnut',
+          data: { labels: Object.keys(byRole), datasets: [{ data: Object.values(byRole), backgroundColor: ['#0c2d57', '#1d9e75', '#ba7517'] }] },
+          options: { plugins: { legend: { position: 'bottom' } } }
+        });
+      });
+    });
+  }
+
+  function loadAlerts(year, month) {
+    gsRun('api_loadCalendar', Session.token, year, month).then(function (cal) {
+      var panel = document.getElementById('alertsPanel');
+      if (!cal.ruleViolations.length) { panel.innerHTML = '<div style="color:var(--mut);font-size:13px;">ไม่มีข้อควรตรวจสอบ</div>'; return; }
+      panel.innerHTML = cal.ruleViolations.slice(0, 5).map(function (v) {
+        var cls = v.severity === 'warn' ? 'warn' : 'ok';
+        return '<div style="display:flex;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);font-size:12.5px;">' +
+          '<span class="badge ' + cls + '">' + v.type + '</span><span>' + v.msg + '</span></div>';
+      }).join('');
+    });
+  }
+
+  return { render: render };
+})();
+</script>

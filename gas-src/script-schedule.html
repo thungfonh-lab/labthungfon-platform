@@ -1,0 +1,1362 @@
+<script>
+/* script-schedule.html — ตารางเวร module: setup/dash/collect/grid/reports/oncall/balance.
+   Calls api_generateSchedule/api_saveSchedule/api_loadCalendar/api_calculateWorkload/
+   api_exportExcel — names match the required generateSchedule()/saveSchedule()/
+   loadCalendar()/calculateWorkload()/exportExcel(). Grid rendering (tokEl()/cellToks()/
+   renderGrid()/renderContacts()/dowCls()) ported 1:1 in look from the original
+   labthungfon-platform-v4_43.html (lines ~2432-2519). */
+
+/* ตั้งขนาดกระดาษก่อนพิมพ์ผ่าน <style> ฉีดเข้า <head> — เลี่ยงบั๊ก Chrome ที่แทรกหน้าเปล่า
+   หน้าแรกเมื่อใช้ named @page (ดูคอมเมนต์ใน style.html) */
+function printWithPageSize(size) {
+  var el = document.getElementById('printPageSize');
+  if (!el) {
+    el = document.createElement('style');
+    el.id = 'printPageSize';
+    document.head.appendChild(el);
+  }
+  el.textContent = '@media print{@page{' + size + '}}';
+  window.print();
+}
+
+var Schedule = (function () {
+  var current = { year: new Date().getFullYear() + 543, month: new Date().getMonth() };
+  var calendarData = null, peopleCache = null, rolePermsCache = null;
+  var printColorListenerAdded = false;
+
+  /* ── shift token defs, identical colors to the original .tok.* classes ── */
+  var SHIFT_DEFS = {
+    ch: { short: 'ช', name: 'เวรเช้า 08-16', bg: '#d9ebe8', color: '#0a4f47' },
+    b: { short: 'บ', name: 'เวรบ่าย 16-24', bg: '#e7eef8', color: '#2f5fa0' },
+    d: { short: 'ด', name: 'เวรดึก On call 24-08', bg: '#f7ecd6', color: '#7a5618' },
+    n: { short: 'x', name: 'เวรคลินิกนอกเวลา 07-08', bg: '#ede0c4', color: '#6b4e16' },
+    b1: { short: 'บ1', name: 'บ1 เวรเสริมบ่าย 16-20', bg: '#efe7f7', color: '#7a4fa0' }
+  };
+  var REPORT_TABS = [
+    { id: 'otsheet', label: 'OT timesheet' }, { id: 'otsheetb1', label: 'OT timesheet (บ1)' }, { id: 'otsheetd', label: 'OT timesheet (เวรดึก)' }, { id: 'nsheet', label: 'เวรคลินิก (น)' },
+    { id: 'pay', label: 'ใบเบิกเงินรวม' }, { id: 'payLandscape', label: 'ใบเบิกเงินรวม (แนวนอน A4)' },
+    { id: 'payperson', label: 'รายบุคคล' },
+    { id: 'shiftsummary', label: 'สรุปรายเวร' }, { id: 'teamoverview', label: 'ภาพรวมทีม' },
+    { id: 'ocrec', label: 'บันทึก on-call' }, { id: 'occlaim', label: 'บันทึก on-call (รายละเอียด)' }
+  ];
+
+  function setMonthYear(year, month) { current.year = year; current.month = month; render(_schedActiveTab); }
+  function monthLabel() { return TH_M[current.month] + ' ' + current.year; }
+  function dowLabel() { return ['อา', 'จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส']; }
+  function isWknd(year, month, d) { var w = new Date(year - 543, month, d).getDay(); return w === 0 || w === 6; }
+
+  function tokEl(t) { var s = SHIFT_DEFS[t]; return '<span class="tok" style="background:' + s.bg + ';color:' + s.color + '">' + s.short + '</span>'; }
+
+  function loadPeople() {
+    if (peopleCache) return Promise.resolve(peopleCache);
+    return gsRun('api_bootstrap', Session.token).then(function (boot) { peopleCache = boot.people; return peopleCache; });
+  }
+
+  /* Cached reads — cuts repeat Apps Script round trips when switching between
+     grid/dash/balance/oncall tabs for the same month (fixes "คลิกเข้าเมนูแล้วช้า"). */
+  function ymKey(prefix) { return prefix + '_' + current.year + '_' + current.month; }
+  function loadCalendarCached() { return cachedGsRun(ymKey('cal'), 15000, 'api_loadCalendar', Session.token, current.year, current.month); }
+  function loadWorkloadCached() { return cachedGsRun(ymKey('wl'), 15000, 'api_calculateWorkload', Session.token, current.year, current.month); }
+  function invalidateMonthCache() { invalidateCache(ymKey('cal')); invalidateCache(ymKey('wl')); }
+
+  function render(sub) {
+    var page = document.getElementById('schedInner');
+    if (sub === 'reports') return renderReportsPage(page);
+    if (sub === 'oncall') return renderOncallPage(page);
+    if (sub === 'setup') return renderSetupPage(page);
+    if (sub === 'dash') return renderSchedDashPage(page);
+    if (sub === 'collect') return renderCollectPage(page);
+    if (sub === 'balance') return renderBalancePage(page);
+    return renderGridPage(page);
+  }
+
+  /* ════════════════ GRID (ported from renderGrid()/renderContacts()) ════════════════ */
+
+  /* หัวตารางเวร — บรรทัด 1: ชื่อรายงาน + กลุ่มงาน/โรงพยาบาล, บรรทัด 2: ช่วงวันที่เต็มเดือน ตามฟีดแบ็ก
+     (เดิมแสดง "...และในวันหยุด — มิถุนายน 2569" สั้นไป) */
+  function gridTitleHtml() {
+    var s = Session.settings || {};
+    var orgLine = [s.org, s.hosp].filter(Boolean).join(' ');
+    var lastDay = new Date(current.year - 543, current.month + 1, 0).getDate();
+    var rangeLine = 'ตั้งแต่วันที่ 1 ' + TH_M[current.month] + ' ' + current.year + ' ถึงวันที่ ' + lastDay + ' ' + TH_M[current.month] + ' ' + current.year;
+    return '<div id="gridTitle" style="font-size:16px;font-weight:700;">ตารางปฏิบัติงานนอกเวลาราชการและวันหยุดราชการ' + (orgLine ? ' ' + orgLine : '') + '</div>' +
+      '<div id="gridTitleRange" style="font-size:13px;font-weight:600;margin-top:2px;">' + rangeLine + '</div>';
+  }
+
+  function renderGridPage(page) {
+    page.innerHTML =
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;flex-wrap:wrap;gap:10px;">' +
+      '<div>' + gridTitleHtml() +
+      '<div class="topbar-sub" id="gridSub" style="margin-top:2px;"></div></div>' +
+      '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">' +
+      '<span id="statusBadge"></span>' +
+      '<button class="btn btn-primary btn-sm" id="genBtn"><i class="ti ti-refresh"></i> สร้างตารางเวร</button>' +
+      '<button class="btn btn-sm" id="balanceBtn" style="background:var(--tl-l);color:var(--tl-d);border-color:var(--tl);"><i class="ti ti-scale"></i> สมดุลเวร</button>' +
+      '<button class="btn btn-sm" id="pubBtn"><i class="ti ti-send"></i> เผยแพร่</button>' +
+      '<button class="btn btn-sm" id="printBtn"><i class="ti ti-printer"></i> พิมพ์</button>' +
+      '<button class="btn btn-sm" id="printColorBtn"><i class="ti ti-printer"></i> พิมพ์สี</button>' +
+      '</div></div>' +
+      '<div class="legend" id="legend"></div>' +
+      '<div class="sched-wrap"><table class="sched" id="schedTbl"></table></div>' +
+      '<div id="violationsPanel" style="margin-top:12px;"></div>' +
+      '<div class="card" id="contactCard" style="margin-top:14px;"><div class="card-title"><i class="ti ti-address-book"></i>จุดปฏิบัติงาน & ข้อมูลติดต่อ</div>' +
+      '<div class="contact-grid" id="contactGrid"></div></div>' +
+      '<div class="card print-only" id="workHoursPrint" style="display:none;"></div>' +
+      '<div class="card" id="ovrLogCard" style="display:none;"><div class="card-title"><i class="ti ti-history"></i>Override Log</div>' +
+      '<div class="tbl-wrap"><table class="tbl" id="ovrLogTbl"></table></div></div>' +
+      '<div class="print-sign" id="printSign"></div>';
+
+    document.getElementById('legend').innerHTML = Object.keys(SHIFT_DEFS).map(function (k) {
+      var s = SHIFT_DEFS[k];
+      return '<span>' + tokEl(k) + ' ' + s.name + '</span>';
+    }).join('');
+
+    document.getElementById('genBtn').onclick = function () {
+      gsRun('api_generateSchedule', Session.token, current.year, current.month).then(function (result) {
+        invalidateMonthCache();
+        toast('สร้างตารางสำเร็จ', 'ปรับสมดุล ' + result.postBalanceSwaps + ' เวร · พบ ' + result.ruleViolations.length + ' ข้อควรตรวจสอบ');
+        loadAndRenderGrid();
+      });
+    };
+    document.getElementById('pubBtn').onclick = function () {
+      gsRun('api_publishSchedule', Session.token, current.year, current.month).then(function () {
+        invalidateMonthCache();
+        toast('ประกาศใช้แล้ว');
+        loadAndRenderGrid();
+      });
+    };
+    document.getElementById('balanceBtn').onclick = function () { schedSwitchTab('balance'); };
+    document.getElementById('printBtn').onclick = function () { printWithPageSize('size:A4 landscape;margin:6mm'); };
+    document.getElementById('printColorBtn').onclick = function () {
+      document.documentElement.classList.add('print-color');
+      printWithPageSize('size:A4 landscape;margin:6mm');
+    };
+    if (!printColorListenerAdded) {
+      printColorListenerAdded = true;
+      window.addEventListener('afterprint', function () { document.documentElement.classList.remove('print-color'); });
+    }
+    if (!Session.permissions.publish) document.getElementById('pubBtn').disabled = true;
+
+    loadAndRenderGrid();
+  }
+
+  function loadAndRenderGrid() {
+    /* stations ไม่ได้ขึ้นกับ cal เลยยิงคู่กันได้ — เดิมซ้อนอยู่ใน .then() ของ cal ทำให้
+       ต้องรอ round trip นึงจบก่อนค่อยยิงอีกอัน (เพิ่ม latency โดยไม่จำเป็น) */
+    var stationsP = cachedGsRun('stations_' + current.year + '_' + current.month, 60000, 'api_getStationsForMonth', Session.token, current.year, current.month);
+    loadCalendarCached().then(function (cal) {
+      calendarData = cal;
+      peopleCache = cal.people;
+      renderGridTable(calendarData);
+      renderViolations(calendarData.ruleViolations);
+      stationsP.then(function (stations) {
+        renderContacts(calendarData.people, stations);
+      });
+      renderOvrLog(calendarData.overrides, calendarData.people);
+      var N = calendarData.N;
+      var nW = 0, nH = (calendarData.holidays || []).length;
+      for (var d = 1; d <= N; d++) if (!isWknd(current.year, current.month, d) && !isHolD(d)) nW++;
+      document.getElementById('gridSub').textContent = 'วันราชการ ' + nW + ' · วันหยุด ' + (N - nW) + ' · นักขัตฤกษ์ ' + nH + ' วัน';
+      var badge = document.getElementById('statusBadge');
+      var map = { draft: ['draft', 'ดราฟต์ (รอตรวจสอบ)'], published: ['pub', 'ประกาศใช้แล้ว'], none: ['none', 'ยังไม่สร้าง'] };
+      var m = map[calendarData.status] || map.none;
+      badge.innerHTML = '<span class="badge ' + m[0] + '">' + m[1] + '</span>';
+      renderPrintSign();
+      renderWorkHoursPrint();
+    });
+  }
+
+  function renderPrintSign() {
+    var s = Session.settings || {};
+    var el = document.getElementById('printSign');
+    if (!el) return;
+    var blocks = [];
+    if (s.signH) blocks.push({ name: s.signH, title: s.signHT || '' });
+    if (s.signD) blocks.push({ name: s.signD, title: s.signDT || '' });
+    el.innerHTML = blocks.map(function (b) {
+      return '<div><div class="ln">' + b.name + '</div><div>' + b.title + '</div></div>';
+    }).join('');
+  }
+
+  /* ตารางสรุปเวลาในการปฏิบัติงาน — แสดงเฉพาะตอนพิมพ์ (ported per attached sample sheet)
+     เวลาแสดงแบบเต็ม เช่น 08.00-16.00 ตามฟีดแบ็ก (ไม่ใช่แบบย่อ 08-16) */
+  var WORK_HOURS_FULL_ = { ch: '08.00-16.00 น.', b1: '16.00-20.00 น.', b: '16.00-24.00 น.', d: '24.00-08.00 น.', n: '07.00-08.00 น.' };
+  function renderWorkHoursPrint() {
+    var el = document.getElementById('workHoursPrint');
+    if (!el) return;
+    var order = ['ch', 'b1', 'b', 'd', 'n'];
+    el.innerHTML = '<div class="card-title">เวลาในการปฏิบัติงาน</div>' +
+      '<table class="tbl"><tr><th>เวร</th><th>เวลาในการปฏิบัติงาน</th></tr>' +
+      order.map(function (k) {
+        var s = SHIFT_DEFS[k];
+        var label = s.name.replace(/\s*\d+-\d+$/, '');
+        if (label.indexOf(s.short) !== 0) label = s.short + ' ' + label;
+        return '<tr><td>' + label + '</td><td class="l">' + WORK_HOURS_FULL_[k] + '</td></tr>';
+      }).join('') + '</table>';
+  }
+
+  function isHolD(d) { return (calendarData.holidays || []).some(function (h) { return h.day === d; }); }
+  function dowCls(d) { return isHolD(d) ? 'holi' : (isWknd(current.year, current.month, d) ? 'wknd' : ''); }
+
+  /* เรียงตามเวลาเริ่มเวรจริง: ด (ต่อเนื่องจากเมื่อคืน จบ 08:00) · น 07-08 · ช 08-16 · บ1 16-20 · บ 16-24 */
+  var TOK_TIME_ORDER = { d: 0, n: 1, ch: 2, b1: 3, b: 4 };
+  function cellToks(p, d, cal) {
+    var t = [];
+    var a = cal.assign[d] || {};
+    if (a.ch === p.id && (isHolD(d) || isWknd(current.year, current.month, d))) t.push('ch');
+    if (a.b === p.id) t.push('b');
+    var prevA = cal.assign[d - 1];
+    if (prevA && prevA.d === p.id) t.push('d');
+    if (cal.clinicMt[d] === p.id || cal.clinicLa[d] === p.id) t.push('n');
+    if (cal.laB[d] === p.id) t.push('b1');
+    t.sort(function (x, y) { return TOK_TIME_ORDER[x] - TOK_TIME_ORDER[y]; });
+    return t;
+  }
+
+  function fullN(p) { return (p.pfx || '') + p.name; }
+
+  function renderGridTable(cal) {
+    var dl = dowLabel();
+    var r1 = '<th class="nm" rowspan="2">ชื่อ-สกุล</th>', r2 = '';
+    for (var d = 1; d <= cal.N; d++) {
+      var c = dowCls(d);
+      r1 += '<th class="dnum ' + c + '">' + d + '</th>';
+      r2 += '<th class="dow ' + c + '">' + dl[new Date(cal.year - 543, cal.month, d).getDay()] + '</th>';
+    }
+    r1 += '<th class="sumcol" rowspan="2">x</th><th class="sumcol" rowspan="2">ช</th><th class="sumcol" rowspan="2">บ1</th><th class="sumcol" rowspan="2">บ</th><th class="sumcol" rowspan="2">ด</th><th class="sumcol" rowspan="2">รวม</th>';
+    var h = '<thead><tr>' + r1 + '</tr><tr>' + r2 + '</tr></thead><tbody>';
+
+    var totals = { ch: 0, b: 0, b1: 0, n: 0, d: 0 };
+    cal.people.forEach(function (p) {
+      var sums = { ch: 0, b: 0, b1: 0, n: 0, d: 0 };
+      var row = '<tr><td class="nm">' + fullN(p) + '</td>';
+      for (var d2 = 1; d2 <= cal.N; d2++) {
+        var toks = cellToks(p, d2, cal);
+        toks.forEach(function (t) { sums[t] = (sums[t] || 0) + 1; });
+        var ovrd = (cal.overrides || []).some(function (o) { return o.day === d2 && (o.aff || []).indexOf(p.id) > -1; });
+        row += '<td class="' + dowCls(d2) + '"><div class="cell' + (ovrd ? ' ovrd' : '') + '" data-day="' + d2 + '" data-pid="' + p.id + '">' + toks.map(tokEl).join('') + '</div></td>';
+      }
+      var isLA = p.role === 'LA';
+      var rmt = isLA ? sums.ch + sums.b1 : sums.ch + sums.b;
+      row += '<td class="sumcol">' + sums.n + '</td><td class="sumcol">' + sums.ch + '</td><td class="sumcol">' + sums.b1 + '</td><td class="sumcol">' + sums.b + '</td><td class="sumcol">' + sums.d + '</td><td class="sumcol" style="font-size:12px">' + rmt + '</td></tr>';
+      h += row;
+      ['ch', 'b', 'b1', 'n', 'd'].forEach(function (t) { totals[t] += sums[t] || 0; });
+    });
+    h += '<tr class="sum-row"><td class="nm" style="text-align:right;font-size:11px;color:var(--mut)">รวมทั้งหมด</td>';
+    for (var d3 = 1; d3 <= cal.N; d3++) h += '<td></td>';
+    h += '<td class="sumcol">' + totals.n + '</td><td class="sumcol">' + totals.ch + '</td><td class="sumcol">' + totals.b1 + '</td><td class="sumcol">' + totals.b + '</td><td class="sumcol">' + totals.d + '</td><td class="sumcol">—</td></tr></tbody>';
+
+    var table = document.getElementById('schedTbl');
+    table.innerHTML = h;
+    table.onclick = function (e) {
+      var cell = e.target.closest('[data-day]');
+      if (cell && Session.permissions.override) openOvr(+cell.dataset.day, cell.dataset.pid);
+    };
+  }
+
+  var VIOLATION_LABEL = {
+    maxC: 'เวรติดต่อกันเกินกำหนด',
+    d_n_overlap: 'เวร ด/น ซ้อนกัน',
+    fri_block_split: 'แยกคนละกันวันศุกร์-เสาร์'
+  };
+  var OVR_TYPE_LABEL = {
+    'manual-override': 'แก้ไขด้วยตนเอง',
+    'balance-swap': 'สลับสมดุลอัตโนมัติ',
+    'cross-month-unlock': 'ปลดล็อกข้ามเดือน'
+  };
+  function renderViolations(violations) {
+    var panel = document.getElementById('violationsPanel');
+    if (!violations.length) { panel.innerHTML = ''; return; }
+    panel.innerHTML = '<div class="card"><div class="card-title"><i class="ti ti-alert-triangle"></i>สมดุลเวร / ข้อควรตรวจสอบ (' + violations.length + ')</div>' +
+      violations.map(function (v) {
+        return '<div style="padding:6px 0;border-bottom:1px solid var(--border);font-size:12.5px;"><span class="badge ' + (v.severity === 'warn' ? 'warn' : 'ok') + '">' + (VIOLATION_LABEL[v.type] || v.type) + '</span> ' + v.msg + '</div>';
+      }).join('') + '</div>';
+  }
+
+  function renderContacts(people, stations) {
+    var stationOf = {};
+    (stations || []).forEach(function (s) {
+      (s.assigned || []).forEach(function (pid) {
+        stationOf[pid] = stationOf[pid] ? stationOf[pid] + ', ' + s.name : s.name;
+      });
+    });
+    document.getElementById('contactGrid').innerHTML = people.filter(function (p) { return p.active !== false; }).map(function (p) {
+      return '<div class="contact"><div class="cn">' + fullN(p) + '</div><div class="cp">' + (p.title || '') + '</div>' +
+        (stationOf[p.id] ? '<div class="cp" style="color:var(--tl);"><i class="ti ti-map-pin"></i> ' + stationOf[p.id] + '</div>' : '') +
+        '<div class="cc">' + (p.phone ? '<i class="ti ti-phone"></i> ' + p.phone : '<span style="color:var(--mut)">ไม่มีเบอร์โทร</span>') + '</div></div>';
+    }).join('');
+  }
+
+  function renderOvrLog(overrides, people) {
+    var card = document.getElementById('ovrLogCard');
+    if (!overrides || !overrides.length) { card.style.display = 'none'; return; }
+    card.style.display = 'block';
+    var byId = {}; people.forEach(function (p) { byId[p.id] = p; });
+    document.getElementById('ovrLogTbl').innerHTML = '<tr><th>เวลา</th><th>วันที่</th><th>ประเภท</th><th>การเปลี่ยนแปลง</th></tr>' +
+      overrides.slice().reverse().map(function (o) {
+        var t = o.time ? new Date(o.time).toLocaleString('th-TH', { hour: '2-digit', minute: '2-digit' }) : '';
+        var change = o.from && o.to ? ((byId[o.from] ? byId[o.from].short || byId[o.from].name : o.from) + ' → ' + (byId[o.to] ? byId[o.to].short || byId[o.to].name : o.to)) : (o.shiftLabel || o.reason || '');
+        return '<tr><td>' + t + '</td><td>วันที่ ' + o.day + '</td><td><span class="badge none">' + (OVR_TYPE_LABEL[o.type] || o.type || 'override') + '</span></td><td class="l">' + change + '</td></tr>';
+      }).join('');
+  }
+
+  /* ── manual override modal (ported from openOvr()/applyOvr()) ── */
+  var OVR_SHIFT_OPTS = [
+    ['ch', 'เวรเช้า (วันหยุด)'], ['b', 'เวรบ่าย'], ['d', 'เวรดึก On call'],
+    ['n_mt', 'เวรคลินิกนอกเวลา (MT)'], ['n_la', 'เวรคลินิกนอกเวลา (LA)'], ['b1', 'บ1 เวรเสริมบ่าย']
+  ];
+  var OVR_BLOCK_PRESETS = [
+    { id: '', label: '(เลือกทีละเวร)', shifts: [] },
+    { id: 'chbd', label: 'ทั้งก้อน ช+บ+ด', shifts: ['ch', 'b', 'd'] },
+    { id: 'bd', label: 'ทั้งก้อน บ+ด', shifts: ['b', 'd'] }
+  ];
+  function openOvr(day, pid) {
+    loadPeople().then(function (people) {
+      var opts = people.map(function (p) { return '<option value="' + p.id + '"' + (p.id === pid ? ' selected' : '') + '>' + fullN(p) + '</option>'; }).join('');
+      var body = document.createElement('div');
+      body.innerHTML = '<div class="alert" style="background:var(--coral-l);border-color:var(--coral);color:var(--coral);"><i class="ti ti-alert-triangle"></i> Override ยกเว้นกฎทั้งหมด · บันทึก Log ทันที</div>' +
+        '<div class="oc-form-grid" style="grid-template-columns:1fr 1fr;">' +
+        '<label style="grid-column:1/-1;">ย้ายเป็นก้อน<select id="ovrPreset">' + OVR_BLOCK_PRESETS.map(function (p) { return '<option value="' + p.id + '">' + p.label + '</option>'; }).join('') + '</select></label>' +
+        '<label style="grid-column:1/-1;">ประเภทเวร (เลือกได้หลายเวร)<div id="ovrShiftChips" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px;">' +
+        OVR_SHIFT_OPTS.map(function (o) { return '<label style="display:flex;align-items:center;gap:4px;font-size:12.5px;border:1px solid var(--border);border-radius:7px;padding:4px 8px;cursor:pointer;"><input type="checkbox" value="' + o[0] + '" class="ovrShiftChk"> ' + o[1] + '</label>'; }).join('') +
+        '</div></label>' +
+        '<label>เจ้าหน้าที่<select id="ovrPid">' + opts + '</select></label>' +
+        '<label style="grid-column:1/-1;">เหตุผล<textarea id="ovrReason" rows="2" style="border:1px solid var(--border);border-radius:7px;padding:6px;"></textarea></label></div>';
+      body.querySelector('#ovrPreset').onchange = function (e) {
+        var preset = OVR_BLOCK_PRESETS.filter(function (p) { return p.id === e.target.value; })[0];
+        body.querySelectorAll('.ovrShiftChk').forEach(function (chk) { chk.checked = preset.shifts.indexOf(chk.value) > -1; });
+      };
+      showModal('แก้ไข/สลับเวร — วันที่ ' + day + ' ' + monthLabel(), body, 'บันทึก Override', function () {
+        var shifts = Array.prototype.slice.call(body.querySelectorAll('.ovrShiftChk:checked')).map(function (c) { return c.value; });
+        if (!shifts.length) { toast('กรุณาเลือกประเภทเวรอย่างน้อย 1 เวร', '', true); return; }
+        var toPid = document.getElementById('ovrPid').value, reason = document.getElementById('ovrReason').value;
+        var calls = shifts.map(function (shift) {
+          return gsRun('api_addOverride', Session.token, current.year, current.month, {
+            day: day, type: 'manual-override', shift: shift, to: toPid, from: pid || null,
+            reason: reason, time: new Date().toISOString(), aff: [pid, toPid].filter(Boolean)
+          });
+        });
+        Promise.all(calls).then(function () {
+          invalidateMonthCache();
+          toast('บันทึก Override แล้ว (' + shifts.length + ' เวร)'); closeModal(); loadAndRenderGrid();
+        }).catch(function () { closeModal(); });
+      });
+    });
+  }
+
+  /* ════════════════ DASH (per-month stat-grid, ported from renderDash()) ════════════════ */
+
+  function renderSchedDashPage(page) {
+    page.innerHTML = '<h2 style="margin:0 0 10px;font-size:16px;">แดชบอร์ดตารางเวร — ' + monthLabel() + '</h2>' +
+      '<div class="stat-grid" id="schedStatGrid"></div>' +
+      '<div class="card"><div class="card-title"><i class="ti ti-chart-bar"></i>ภาระงานรายบุคคล</div><div id="schedWorkloadBars"></div></div>' +
+      '<div class="card"><div class="card-title"><i class="ti ti-users-group"></i>ภาพรวมตามบทบาท</div>' +
+      '<div class="stat-grid" id="schedRoleGrid" style="grid-template-columns:repeat(auto-fill,minmax(200px,1fr));"></div></div>' +
+      '<div class="card"><div class="card-title"><i class="ti ti-user"></i>ภาพรวมรายบุคคล</div>' +
+      '<div class="stat-grid" id="schedPersonGrid" style="grid-template-columns:repeat(auto-fill,minmax(220px,1fr));"></div></div>';
+
+    Promise.all([loadCalendarCached(), loadWorkloadCached()])
+      .then(function (res) {
+        var cal = res[0], workload = res[1];
+        var N = cal.N, nW = 0;
+        for (var d = 1; d <= N; d++) if (!isWknd(current.year, current.month, d) && !(cal.holidays || []).some(function (h) { return h.day === d; })) nW++;
+        var nC = 0;
+        for (var d2 = 1; d2 <= N; d2++) if (cal.clinicMt[d2] || cal.clinicLa[d2]) nC++;
+        var stats = [
+          { lbl: 'วันราชการ', val: nW }, { lbl: 'วันหยุด', val: N - nW },
+          { lbl: 'นักขัตฤกษ์', val: (cal.holidays || []).length }, { lbl: 'คลินิก (วัน)', val: nC },
+          { lbl: 'On Call', val: (cal.oncall || []).length }
+        ];
+        document.getElementById('schedStatGrid').innerHTML = stats.map(function (s) {
+          return '<div class="stat"><div class="val">' + s.val + '</div><div class="lbl">' + s.lbl + '</div></div>';
+        }).join('');
+
+        var maxDays = 1;
+        var rows = workload.people.map(function (p) {
+          var d = workload.byPerson[p.id];
+          var days = ['ch', 'b', 'b1', 'n', 'd'].reduce(function (s, k) { return s + (d[k] || []).length; }, 0);
+          maxDays = Math.max(maxDays, days);
+          return { p: p, days: days };
+        });
+        document.getElementById('schedWorkloadBars').innerHTML = rows.map(function (r) {
+          var pct = Math.round((r.days / maxDays) * 100);
+          return '<div class="progress-row"><div class="progress-lbl">' + fullN(r.p) + '</div>' +
+            '<div class="progress-track"><div class="progress-fill" style="width:' + pct + '%"></div></div>' +
+            '<div class="progress-val">' + r.days + ' วัน</div></div>';
+        }).join('');
+
+        /* การ์ดสรุปตามบทบาท — ใช้ grid auto-fill จึงขยายเต็มความกว้างจอเสมอ และ
+           เพิ่มบทบาทใหม่ได้อัตโนมัติถ้ามีคนบทบาทอื่นเข้ามา ไม่ต้องแก้โค้ด */
+        var roleGroups = {};
+        workload.people.forEach(function (p) {
+          var role = p.role || 'MT';
+          var g = roleGroups[role] || (roleGroups[role] = { ch: 0, b: 0, b1: 0, n: 0, d: 0, count: 0 });
+          var d3 = workload.byPerson[p.id] || {};
+          ['ch', 'b', 'b1', 'n', 'd'].forEach(function (k) { g[k] += (d3[k] || []).length; });
+          g.count++;
+        });
+        var oncallByRole = {};
+        (cal.oncall || []).forEach(function (o) {
+          var p = workload.people.filter(function (pp) { return pp.id === o.pid; })[0];
+          var role = p ? (p.role || 'MT') : '—';
+          oncallByRole[role] = (oncallByRole[role] || 0) + 1;
+        });
+        document.getElementById('schedRoleGrid').innerHTML = Object.keys(roleGroups).map(function (role) {
+          var g = roleGroups[role];
+          var total = g.ch + g.b + g.b1 + g.n + g.d;
+          var lines = [
+            'เวร ช จำนวน ' + g.ch + ' วัน',
+            'เวร บ จำนวน ' + g.b + ' วัน'
+          ];
+          if (g.b1) lines.push('เวร บ1 จำนวน ' + g.b1 + ' วัน');
+          if (g.n) lines.push('เวร น จำนวน ' + g.n + ' วัน');
+          lines.push('on call ' + (oncallByRole[role] || 0) + ' ครั้ง');
+          return '<div class="stat" style="text-align:left;padding:14px;">' +
+            '<div style="font-weight:700;font-size:13px;margin-bottom:6px;">' + role + ' (' + g.count + ' คน)</div>' +
+            '<div style="font-size:12px;color:var(--mut);line-height:1.8;">' + lines.join('<br>') + '</div>' +
+            '<div style="margin-top:8px;font-weight:700;color:var(--tl);">รวม ' + total + ' เวร</div></div>';
+        }).join('') || '<div style="color:var(--mut);font-size:13px;">ยังไม่มีบุคลากร</div>';
+
+        /* การ์ดรายบุคคล — รายละเอียดเวร/on call ของแต่ละคน เสริมจากกราฟแถบด้านบน */
+        var oncallByPid = {};
+        (cal.oncall || []).forEach(function (o) { oncallByPid[o.pid] = (oncallByPid[o.pid] || 0) + 1; });
+        document.getElementById('schedPersonGrid').innerHTML = workload.people.map(function (p) {
+          var d4 = workload.byPerson[p.id] || {};
+          var counts = { ch: (d4.ch || []).length, b: (d4.b || []).length, b1: (d4.b1 || []).length, n: (d4.n || []).length, d: (d4.d || []).length };
+          var total = counts.ch + counts.b + counts.b1 + counts.n + counts.d;
+          var lines = [
+            'เวร ช จำนวน ' + counts.ch + ' วัน',
+            'เวร บ จำนวน ' + counts.b + ' วัน'
+          ];
+          if (counts.b1) lines.push('เวร บ1 จำนวน ' + counts.b1 + ' วัน');
+          if (counts.n) lines.push('เวร น จำนวน ' + counts.n + ' วัน');
+          lines.push('on call ' + (oncallByPid[p.id] || 0) + ' ครั้ง');
+          return '<div class="stat" style="text-align:left;padding:14px;">' +
+            '<div style="font-weight:700;font-size:13px;margin-bottom:6px;">' + fullN(p) + ' <span style="font-weight:400;color:var(--mut);font-size:11px;">(' + (p.role || 'MT') + ')</span></div>' +
+            '<div style="font-size:12px;color:var(--mut);line-height:1.8;">' + lines.join('<br>') + '</div>' +
+            '<div style="margin-top:8px;font-weight:700;color:var(--tl);">รวม ' + total + ' เวร</div></div>';
+        }).join('') || '<div style="color:var(--mut);font-size:13px;">ยังไม่มีบุคลากร</div>';
+      });
+  }
+
+  /* ════════════════ COLLECT — leave/availability (ported from renderCollect()/addAvail()) ════════════════ */
+
+  function renderCollectPage(page) {
+    page.innerHTML = '<h2 style="margin:0 0 10px;font-size:16px;">เก็บวันลา / ความไม่สะดวกขึ้นเวร — ' + monthLabel() + '</h2>' +
+      '<div class="oc-form-grid">' +
+      '<label>เจ้าหน้าที่<select id="avPid"></select></label>' +
+      '<label>วันที่<input id="avDay" type="number" min="1" max="31"></label>' +
+      '<label>ประเภท<select id="avType"><option value="leave">ลาทั้งวัน</option><option value="noB">ไม่สะดวกเวร บ</option><option value="noD">ไม่สะดวกเวร ด</option><option value="noCh">ไม่สะดวกเวร ช (วันหยุด)</option></select></label>' +
+      '</div><button class="btn btn-primary" id="avAddBtn"><i class="ti ti-plus"></i> เพิ่มรายการ</button>' +
+      '<div class="card" style="margin-top:14px;"><div class="card-title"><i class="ti ti-list"></i>รายการที่แจ้งไว้</div><div class="tbl-wrap"><table class="tbl" id="avTable"></table></div></div>';
+
+    loadPeople().then(function (people) {
+      document.getElementById('avPid').innerHTML = people.map(function (p) { return '<option value="' + p.id + '">' + fullN(p) + '</option>'; }).join('');
+    });
+
+    document.getElementById('avAddBtn').onclick = function () {
+      var entry = { pid: document.getElementById('avPid').value, day: +document.getElementById('avDay').value, type: document.getElementById('avType').value, mon: current.month, yr: current.year };
+      if (!entry.day) return;
+      gsRun('api_addAvailability', Session.token, current.year, current.month, entry).then(function () {
+        toast('บันทึกแล้ว'); loadAvailTable();
+      });
+    };
+    loadAvailTable();
+  }
+
+  function loadAvailTable() {
+    Promise.all([gsRun('api_listAvailability', Session.token, current.year, current.month), loadPeople()]).then(function (res) {
+      var rows = res[0], people = res[1];
+      var byId = {}; people.forEach(function (p) { byId[p.id] = p; });
+      var TYPE_LABEL = { leave: 'ลาทั้งวัน', noB: 'ไม่สะดวก บ', noD: 'ไม่สะดวก ด', noCh: 'ไม่สะดวก ช' };
+      var body = rows.sort(function (a, b) { return a.day - b.day; }).map(function (r) {
+        var p = byId[r.pid];
+        return '<tr><td class="l">' + (p ? fullN(p) : r.pid) + '</td><td>' + r.day + '</td><td><span class="badge none">' + (TYPE_LABEL[r.type] || r.type) + '</span></td>' +
+          '<td><button class="btn btn-sm btn-danger" data-del="' + r.__txId + '"><i class="ti ti-trash"></i></button></td></tr>';
+      }).join('') || '<tr><td colspan="4" style="color:var(--mut)">ยังไม่มีรายการ</td></tr>';
+      var table = document.getElementById('avTable');
+      table.innerHTML = '<tr><th>เจ้าหน้าที่</th><th>วันที่</th><th>ประเภท</th><th></th></tr>' + body;
+      table.querySelectorAll('[data-del]').forEach(function (btn) {
+        btn.onclick = function () {
+          gsRun('api_deleteAvailability', Session.token, current.year, current.month, btn.dataset.del).then(function () {
+            toast('ลบแล้ว'); loadAvailTable();
+          });
+        };
+      });
+    });
+  }
+
+  /* ════════════════ ON-CALL (ported from renderOcForm()/addOC()/renderOcTbl()) ════════════════ */
+
+  function renderOncallPage(page) {
+    page.innerHTML =
+      '<h2 style="margin:0 0 10px;font-size:16px;">บันทึก On-call — ' + monthLabel() + '</h2>' +
+      '<div class="card" style="margin-bottom:14px;">' +
+      '<div class="card-title" id="ocFormTitle"><i class="ti ti-phone-plus"></i>เพิ่มบันทึก On-call</div>' +
+      '<div class="oc-form-grid">' +
+      '<label>เจ้าหน้าที่<select id="ocPid"></select></label>' +
+      '<label>วันที่<input id="ocDate" type="date"></label>' +
+      '<label>เวลา<input id="ocTime" type="time"></label>' +
+      '<label>HN<input id="ocHn"></label>' +
+      '<label>ชื่อผู้ป่วย<input id="ocName"></label>' +
+      '<label>หน่วยงาน<select id="ocUnit"></select></label>' +
+      '</div>' +
+      '<div style="margin-top:12px;">' +
+      '<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">' +
+      '<span style="font-size:12px;font-weight:600;color:var(--mut);">Lab ที่ส่งตรวจ</span>' +
+      '<label style="display:flex;align-items:center;gap:4px;font-size:11.5px;cursor:pointer;"><input type="checkbox" id="ocLabAll"> เลือกทั้งหมด</label>' +
+      '<button class="btn btn-sm" id="ocLabClear" type="button" style="padding:2px 8px;">ล้าง</button>' +
+      '</div>' +
+      '<div id="ocLabChks" style="display:flex;flex-wrap:wrap;gap:6px;"></div></div>' +
+      '<div style="margin-top:14px;display:flex;gap:8px;">' +
+      '<button class="btn btn-primary" id="ocAddBtn"><i class="ti ti-plus"></i> เพิ่มบันทึก</button>' +
+      '<button class="btn" id="ocCancelEditBtn" style="display:none;">ยกเลิกแก้ไข</button>' +
+      '</div></div>' +
+      '<div class="card"><div class="card-title"><i class="ti ti-list-details"></i>รายการ On-call</div><div class="tbl-wrap"><table class="tbl" id="ocTable"></table></div></div>';
+
+    var editingTxId = null;
+
+    cachedGsRun('boot', 60000, 'api_bootstrap', Session.token).then(function (boot) {
+      document.getElementById('ocPid').innerHTML = boot.people.map(function (p) { return '<option value="' + p.id + '">' + fullN(p) + '</option>'; }).join('');
+      /* ถ้าบัญชีที่ล็อกอินผูกกับเจ้าหน้าที่ไว้ ตั้งค่าเริ่มต้นเป็นคนนั้น (ผู้ใช้คีย์ on call ของตัวเองได้เลย) */
+      if (boot.user && boot.user.personId) document.getElementById('ocPid').value = boot.user.personId;
+      document.getElementById('ocUnit').innerHTML = (boot.settings.units || ['ER', 'IPD', 'OPD', 'LR']).map(function (u) { return '<option>' + u + '</option>'; }).join('');
+      document.getElementById('ocLabChks').innerHTML = (boot.settings.labs || []).map(function (l) {
+        return '<label class="oc-lab-chip"><input type="checkbox" data-oclab="' + l + '">' + l + '</label>';
+      }).join('') || '<span style="font-size:11px;color:var(--mut);">ยังไม่ได้ตั้งค่ารายการ LAB (ตั้งค่า &gt; LAB ที่ตรวจได้)</span>';
+      document.querySelectorAll('#ocLabChks [data-oclab]').forEach(function (cb) { cb.onchange = syncLabAll; });
+    });
+
+    function setAllLabs(on) { document.querySelectorAll('#ocLabChks [data-oclab]').forEach(function (cb) { cb.checked = on; }); }
+    function syncLabAll() {
+      var boxes = document.querySelectorAll('#ocLabChks [data-oclab]');
+      var allEl = document.getElementById('ocLabAll');
+      if (allEl) allEl.checked = boxes.length > 0 && Array.prototype.every.call(boxes, function (cb) { return cb.checked; });
+    }
+    document.getElementById('ocLabAll').onchange = function () { setAllLabs(this.checked); };
+    document.getElementById('ocLabClear').onclick = function () { setAllLabs(false); syncLabAll(); };
+
+    function resetOcForm() {
+      editingTxId = null;
+      document.getElementById('ocDate').value = ''; document.getElementById('ocTime').value = '';
+      document.getElementById('ocHn').value = ''; document.getElementById('ocName').value = '';
+      setAllLabs(false); syncLabAll();
+      document.getElementById('ocFormTitle').innerHTML = '<i class="ti ti-phone-plus"></i>เพิ่มบันทึก On-call';
+      document.getElementById('ocAddBtn').innerHTML = '<i class="ti ti-plus"></i> เพิ่มบันทึก';
+      document.getElementById('ocCancelEditBtn').style.display = 'none';
+    }
+
+    document.getElementById('ocCancelEditBtn').onclick = resetOcForm;
+
+    document.getElementById('ocAddBtn').onclick = function () {
+      var labs = Array.prototype.slice.call(document.querySelectorAll('#ocLabChks [data-oclab]')).filter(function (cb) { return cb.checked; }).map(function (cb) { return cb.dataset.oclab; });
+      var entry = {
+        pid: document.getElementById('ocPid').value,
+        date: document.getElementById('ocDate').value, time: document.getElementById('ocTime').value,
+        hn: document.getElementById('ocHn').value, name: document.getElementById('ocName').value,
+        unit: document.getElementById('ocUnit').value, labs: labs
+      };
+      var call = editingTxId
+        ? gsRun('api_updateOnCall', Session.token, current.year, current.month, editingTxId, entry)
+        : gsRun('api_addOnCall', Session.token, current.year, current.month, entry);
+      call.then(function () {
+        invalidateMonthCache();
+        toast(editingTxId ? 'แก้ไขบันทึก On-call แล้ว' : 'เพิ่มบันทึก On-call แล้ว');
+        resetOcForm();
+        loadOncallTable();
+      });
+    };
+    loadOncallTable();
+
+    function startEditOc(o) {
+      editingTxId = o.__txId;
+      document.getElementById('ocPid').value = o.pid || '';
+      document.getElementById('ocDate').value = o.date || '';
+      document.getElementById('ocTime').value = o.time || '';
+      document.getElementById('ocHn').value = o.hn || '';
+      document.getElementById('ocName').value = o.name || '';
+      document.getElementById('ocUnit').value = o.unit || '';
+      var labSet = {}; (o.labs || []).forEach(function (l) { labSet[l] = true; });
+      document.querySelectorAll('#ocLabChks [data-oclab]').forEach(function (cb) { cb.checked = !!labSet[cb.dataset.oclab]; });
+      syncLabAll();
+      document.getElementById('ocFormTitle').innerHTML = '<i class="ti ti-edit"></i>แก้ไขบันทึก On-call';
+      document.getElementById('ocAddBtn').innerHTML = '<i class="ti ti-check"></i> บันทึกการแก้ไข';
+      document.getElementById('ocCancelEditBtn').style.display = 'inline-block';
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    page._startEditOc = startEditOc; // เรียกจาก loadOncallTable() (อยู่นอกฟังก์ชันนี้)
+  }
+
+  /* ใช้ api_getOnCallList (เบากว่า loadCalendarCached มาก — อ่านแค่ on-call + people)
+     แทนการดึงทั้ง loadCalendar ทุกครั้งที่กดเพิ่ม/แก้/ลบ ทำให้หน้านี้ตอบสนองเร็วขึ้นมาก */
+  function loadOncallTable() {
+    gsRun('api_getOnCallList', Session.token, current.year, current.month).then(function (cal) {
+      var page = document.getElementById('schedInner');
+      var rows = cal.oncall.map(function (o) {
+        var p = cal.people.filter(function (x) { return x.id === o.pid; })[0];
+        return '<tr><td>' + o.date + '</td><td class="l">' + (p ? fullN(p) : o.pid) + '</td><td>' + (o.time || '') + '</td><td>' + (o.hn || '') + '</td><td class="l">' + (o.name || '') + '</td><td>' + (o.unit || '') + '</td><td class="l">' + (o.labs || []).join(', ') + '</td>' +
+          '<td><button class="btn btn-sm" data-edit="' + o.__txId + '"><i class="ti ti-edit"></i></button> <button class="btn btn-sm btn-danger" data-del="' + o.__txId + '"><i class="ti ti-trash"></i></button></td></tr>';
+      }).join('');
+      var table = document.getElementById('ocTable');
+      table.innerHTML = '<tr><th>วันที่</th><th>เจ้าหน้าที่</th><th>เวลา</th><th>HN</th><th>ผู้ป่วย</th><th>หน่วยงาน</th><th>Lab</th><th></th></tr>' + (rows || '<tr><td colspan="8" style="color:var(--mut)">ยังไม่มีข้อมูล</td></tr>');
+      table.querySelectorAll('[data-edit]').forEach(function (btn) {
+        btn.onclick = function () {
+          var o = cal.oncall.filter(function (x) { return x.__txId === btn.dataset.edit; })[0];
+          if (o && page._startEditOc) page._startEditOc(o);
+        };
+      });
+      table.querySelectorAll('[data-del]').forEach(function (btn) {
+        btn.onclick = function () {
+          gsRun('api_deleteOnCall', Session.token, current.year, current.month, btn.dataset.del).then(function () {
+            invalidateMonthCache();
+            toast('ลบแล้ว'); loadOncallTable();
+          });
+        };
+      });
+    });
+  }
+
+  /* ════════════════ BALANCE (ported from renderBalance(), lines ~4178-4517) ════════════════
+     Tolerance + group/swap math now lives server-side in BusinessService.calculateBalance —
+     avoids shipping rate tables to the browser and keeps this a single cached round trip. */
+
+  function bpMoney(n) { return Math.round(n).toLocaleString('th-TH') + ' ฿'; }
+  var _bpTol = 650;
+
+  function bpRoleBadge(role) {
+    if (role === 'HT') return '<span style="font-size:11px;padding:2px 7px;border-radius:6px;font-weight:600;background:var(--gold-l);color:var(--gold)">HT</span>';
+    if (role === 'LA') return '<span style="font-size:11px;padding:2px 7px;border-radius:6px;font-weight:600;background:var(--pur-l);color:var(--pur)">LA</span>';
+    return '<span style="font-size:11px;padding:2px 7px;border-radius:6px;font-weight:600;background:var(--tl-l);color:var(--tl-d)">MT</span>';
+  }
+
+  function renderBalancePage(page) {
+    page.innerHTML =
+      '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">' +
+      '<h2 style="margin:0;font-size:16px;">สมดุลเวร (ค่าตอบแทน) — ' + monthLabel() + '</h2>' +
+      '<label style="font-size:12.5px;font-weight:600;margin-left:8px;">Tolerance (บาท):</label>' +
+      '<select id="bpTolSel" style="border:1px solid var(--border);border-radius:7px;padding:5px 9px;font-size:13px;background:var(--surface);color:var(--ink);">' +
+      '<option value="0">0 — เท่าเทียมสูงสุด</option><option value="650" selected>≤ 650 บาท (≈1 เวร)</option><option value="1300">≤ 1,300 บาท (≈2 เวร)</option></select>' +
+      '<button class="btn btn-sm" id="bpRecalcBtn" style="margin-left:auto;"><i class="ti ti-refresh"></i> คำนวณใหม่</button>' +
+      '</div>' +
+      '<div id="balanceBody"><div style="padding:20px;text-align:center;color:var(--mut);">กำลังโหลด…</div></div>';
+
+    document.getElementById('bpTolSel').onchange = function () { _bpTol = +this.value; paintBalance(); };
+    document.getElementById('bpRecalcBtn').onclick = function () { invalidateMonthCache(); invalidateCache('bal_' + current.year + '_' + current.month); paintBalance(); };
+    paintBalance();
+  }
+
+  function paintBalance() {
+    var body = document.getElementById('balanceBody');
+    if (!body) return;
+    cachedGsRun('bal_' + current.year + '_' + current.month + '_' + _bpTol, 15000, 'api_getBalance', Session.token, current.year, current.month, _bpTol)
+      .then(function (b) { paintBalanceBody(body, b); });
+  }
+
+  function paintBalanceBody(body, b) {
+    var tol = b.tolerance;
+    var thM3 = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
+    /* แมป person id → ชื่อ เพื่อแสดงชื่อแทนรหัสในตารางปรับสมดุล/Block ข้ามเดือน */
+    var nameById = {};
+    b.mtStats.concat(b.laStats).forEach(function (x) { nameById[x.p.id] = fullN(x.p); });
+    var nm = function (id) { return nameById[id] || id; };
+
+    /* ── auto-balance pass card (เวรที่ปรับสมดุลอัตโนมัติช่วงสร้างตาราง) ── */
+    var crossHtml = '';
+    if (b.trailInfo && b.trailInfo.lastPid) {
+      var ti = b.trailInfo;
+      var nextM = (current.month + 1) % 12, nextY = current.year + Math.floor((current.month + 1) / 12);
+      var dowName = ['อา', 'จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส'][ti.lastDow] || '';
+      crossHtml += '<div class="bp-alert ok" style="margin-bottom:8px"><i class="ti ti-arrows-right-left"></i><span><strong>Block ข้ามเดือน → ' + thM3[nextM] + ' ' + nextY + '</strong> — วันสุดท้าย (' + dowName + '. ' + ti.lastDay + ') ขึ้นโดย <strong>' + nm(ti.lastPid) + '</strong> ติดต่อกัน ' + ti.trailingCount + ' วัน</span></div>';
+    }
+    if (b.autoUnlocks.length) {
+      crossHtml += '<div class="bp-alert warn" style="margin-bottom:8px"><i class="ti ti-lock-open"></i><span><strong>ปล่อย cross-month lock ' + b.autoUnlocks.length + ' วัน</strong> — lock ทำให้ไม่สมดุล ระบบเลือกคนใหม่อัตโนมัติ</span></div>';
+    }
+    var shiftName = function (sh) { return { b: 'บ่าย', ch: 'เช้า(วันหยุด)', b1: 'บ1', n: 'คลินิก', d: 'On call' }[sh] || sh; };
+    var autoBody;
+    if (b.autoSwaps.length) {
+      autoBody = crossHtml + '<div class="bp-alert ok" style="margin-bottom:10px"><i class="ti ti-check"></i><span><strong>ปรับสมดุล ' + b.autoSwaps.length + ' เวรอัตโนมัติ</strong> — บันทึกใน Override Log แล้ว เป็นส่วนหนึ่งของตารางเวร</span></div>' +
+        '<table class="tbl"><thead><tr><th>วันที่</th><th>เวรที่ย้าย</th><th>จาก</th><th>เป็น</th></tr></thead><tbody>' +
+        b.autoSwaps.map(function (s) { return '<tr><td>วันที่ ' + s.day + '</td><td style="font-weight:600">' + shiftName(s.shift) + '</td><td style="color:var(--mut)">' + (s.from ? nm(s.from) : '—') + '</td><td><strong style="color:var(--tl)">' + (s.to ? nm(s.to) : '—') + '</strong></td></tr>'; }).join('') +
+        '</tbody></table>';
+    } else {
+      autoBody = crossHtml + '<div class="bp-alert ok"><i class="ti ti-circle-check"></i><span><strong>ตารางสมดุลแล้ว</strong> — ไม่จำเป็นต้องปรับก่อนบันทึก</span></div>';
+    }
+
+    /* ── rule violations card ── */
+    var ruleBody;
+    if (b.ruleViolations.length) {
+      ruleBody = '<table class="tbl"><thead><tr><th>ประเภท</th><th style="min-width:320px;text-align:left">รายละเอียด</th><th>วันที่</th></tr></thead><tbody>' +
+        b.ruleViolations.map(function (v) {
+          var icon = v.severity === 'warn' ? '<i class="ti ti-alert-triangle" style="color:var(--amber)"></i>' : '<i class="ti ti-info-circle" style="color:var(--tl)"></i>';
+          return '<tr><td style="white-space:nowrap;font-size:12px">' + icon + ' ' + (VIOLATION_LABEL[v.type] || v.type) + '</td><td class="l" style="font-size:12px">' + v.msg + '</td><td style="font-size:11px;color:var(--mut)">' + (v.days || []).join(', ') + '</td></tr>';
+        }).join('') + '</tbody></table>' +
+        '<div style="font-size:11px;color:var(--mut);margin-top:8px">กฎเหล่านี้ไม่ได้บล็อกตาราง — หัวหน้าพิจารณาปรับผ่าน Override ได้ตามสถานการณ์จริง</div>';
+    } else {
+      ruleBody = '<div class="bp-alert ok"><i class="ti ti-circle-check"></i><span><strong>ผ่านทุกกฎ</strong> — ไม่พบการติดต่อเกิน maxC, ด+น ซ้อนทับ หรือ ศ/ส/อา แยกก้อน</span></div>';
+    }
+
+    /* ── KPI row, แยก 2 กลุ่ม ── */
+    var kpiHtml =
+      '<div class="kpi" style="border-top:3px solid var(--tl)"><div class="kpi-lbl" style="color:var(--tl);font-weight:600">MT/HT — เฉลี่ย</div><div class="kpi-val" style="color:var(--tl);font-size:16px">' + bpMoney(b.mtAvg) + '</div><div class="kpi-sub" style="color:' + (b.unbalMT ? 'var(--amber)' : 'var(--jade)') + '">เกิน tol: ' + b.unbalMT + '/' + b.mtStats.length + ' คน</div></div>' +
+      '<div class="kpi" style="border-top:3px solid var(--tl)"><div class="kpi-lbl" style="color:var(--tl)">ช่วงห่าง MT/HT</div><div class="kpi-val" style="color:' + (b.gapMT > tol ? 'var(--amber)' : 'var(--jade)') + ';font-size:16px">' + bpMoney(b.gapMT) + '</div></div>' +
+      '<div class="kpi" style="border-top:3px solid var(--pur)"><div class="kpi-lbl" style="color:var(--pur);font-weight:600">LA — เฉลี่ย</div><div class="kpi-val" style="color:var(--pur);font-size:16px">' + bpMoney(b.laAvg) + '</div><div class="kpi-sub" style="color:' + (b.unbalLA ? 'var(--amber)' : 'var(--jade)') + '">เกิน tol: ' + b.unbalLA + '/' + b.laStats.length + ' คน</div></div>' +
+      '<div class="kpi" style="border-top:3px solid var(--pur)"><div class="kpi-lbl" style="color:var(--pur)">ช่วงห่าง LA</div><div class="kpi-val" style="color:' + (b.gapLA > tol ? 'var(--amber)' : 'var(--jade)') + ';font-size:16px">' + bpMoney(b.gapLA) + '</div></div>';
+
+    /* ── alert ── */
+    var alertHtml;
+    if (!b.hasSchedule) alertHtml = '<div class="bp-alert warn"><i class="ti ti-alert-triangle"></i><span><strong>ยังไม่มีตารางเวร</strong> — ไปที่ "ตารางเวร" กด สร้าง/สร้างใหม่ ก่อน</span></div>';
+    else if (!b.unbalMT && !b.unbalLA) alertHtml = '<div class="bp-alert ok"><i class="ti ti-circle-check"></i><span><strong>สมดุลดี</strong> — ทั้ง MT/HT และ LA อยู่ใน tolerance</span></div>';
+    else {
+      var parts = [];
+      if (b.unbalMT) parts.push('MT/HT: ' + b.unbalMT + ' คนเกิน');
+      if (b.unbalLA) parts.push('LA: ' + b.unbalLA + ' คนเกิน');
+      alertHtml = '<div class="bp-alert warn"><i class="ti ti-alert-triangle"></i><span><strong>พบความไม่สมดุล</strong> — ' + parts.join(' · ') + '</span></div>';
+    }
+
+    /* ── staff table, แยก section MT vs LA ── */
+    function renderRows(grp, groupAvg) {
+      var maxG = Math.max.apply(null, grp.map(function (x) { return x.money; }).concat([1]));
+      var avgPct = (groupAvg / maxG * 100).toFixed(1);
+      return grp.map(function (x, i) {
+        var pct = (x.money / maxG * 100).toFixed(1);
+        var over = Math.abs(x.diff) <= tol ? 'ok' : (x.diff > 0 ? 'over' : 'under');
+        var fillC = over === 'ok' ? 'var(--tl)' : (over === 'over' ? 'var(--coral)' : 'var(--amber)');
+        var dlbl = over === 'ok' ? '✓ สมดุล' : (over === 'over' ? '+' + bpMoney(x.diff) : bpMoney(x.diff));
+        var sb = over === 'ok' ? '<span style="font-size:11px;padding:2px 8px;border-radius:20px;background:var(--jade-l);color:var(--jade);font-weight:600">✓ ปกติ</span>'
+          : over === 'over' ? '<span style="font-size:11px;padding:2px 8px;border-radius:20px;background:var(--coral-l);color:var(--coral);font-weight:600">สูงเกิน</span>'
+          : '<span style="font-size:11px;padding:2px 8px;border-radius:20px;background:var(--amber-l);color:var(--amber);font-weight:600">ต่ำกว่า</span>';
+        return '<tr><td style="color:var(--mut);font-weight:600">' + (i + 1) + '</td><td style="font-weight:600">' + fullN(x.p) + '</td><td>' + bpRoleBadge(x.role) + '</td>' +
+          '<td style="text-align:center">' + (x.shifts.ch || []).length + '</td><td style="text-align:center">' + (x.shifts.b || []).length + '</td>' +
+          '<td style="text-align:center">' + (x.shifts.n || []).length + '</td><td style="text-align:center">' + (x.shifts.b1 || []).length + '</td>' +
+          '<td style="font-weight:700">' + bpMoney(x.money) + '</td>' +
+          '<td><div class="bp-bar-track"><div class="bp-bar-fill" style="width:' + pct + '%;background:' + fillC + '"></div><div class="bp-avg-line" style="left:' + avgPct + '%" title="เฉลี่ยกลุ่ม ' + bpMoney(groupAvg) + '"></div></div></td>' +
+          '<td><span class="bp-diff ' + over + '">' + dlbl + '</span></td><td>' + sb + '</td></tr>';
+      }).join('');
+    }
+    var thead = '<thead><tr><th>#</th><th>ชื่อ</th><th>บทบาท</th><th title="เวรเช้า(วันหยุด)">ช</th><th title="เวรบ่าย">บ</th><th title="คลินิก">น</th><th title="ผู้ช่วย บ1">บ1</th><th>เงินรวม</th><th style="min-width:140px">เทียบเฉลี่ยกลุ่ม</th><th>ส่วนต่าง</th><th>สถานะ</th></tr></thead>';
+    function secHdr(label, color, avg) { return '<tr><td colspan="11" style="padding:6px 10px;background:' + color + '22;color:' + color + ';font-size:12px;font-weight:700;border-left:3px solid ' + color + '">' + label + ' — ค่าเฉลี่ย ' + bpMoney(avg) + '</td></tr>'; }
+    var tblBody = secHdr('กลุ่ม MT / HT', 'var(--tl)', b.mtAvg) +
+      (b.mtStats.length ? renderRows(b.mtStats, b.mtAvg) : '<tr><td colspan="11" style="text-align:center;color:var(--mut);padding:8px">ไม่มีข้อมูล</td></tr>') +
+      secHdr('กลุ่ม LA', 'var(--pur)', b.laAvg) +
+      (b.laStats.length ? renderRows(b.laStats, b.laAvg) : '<tr><td colspan="11" style="text-align:center;color:var(--mut);padding:8px">ไม่มีข้อมูล</td></tr>');
+
+    /* ── swap suggestions ── */
+    function explainDiff(pair) {
+      var rate = pair.sRate || pair.uRate || 0;
+      var sLbl = { b: 'เวรบ่าย', ch: 'เวรเช้า(วันหยุด)', b1: 'เวรบ1', n: 'คลินิก' }[pair.bestShift] || pair.bestShift;
+      return pair.ovName + ' มี' + sLbl + 'มากกว่า · มูลค่าประมาณ ' + bpMoney(rate) + '/วัน';
+    }
+    function buildSwaps(pairs, label) {
+      if (!pairs.length) return '<div class="bp-alert ok" style="margin:4px 0"><i class="ti ti-circle-check"></i><span><strong>' + label + '</strong> — สมดุลในเกณฑ์แล้ว หรือมีคนเดียวในกลุ่ม</span></div>';
+      var hdr = '<div style="font-size:11px;font-weight:700;color:var(--mut);padding:6px 0 4px">' + label + '</div>';
+      return hdr + pairs.map(function (p, idx) {
+        var imp = p.impact > 0 ? 'ลด ' + bpMoney(p.impact) : 'ผลเล็กน้อย';
+        var rs = p.reasons.map(function (r) { return '<span class="ctag-bp ' + (r.ok ? 'good' : 'bad') + '"><i class="ti ' + (r.ok ? 'ti-check' : 'ti-alert-circle') + '" style="font-size:11px"></i>' + r.label + '</span>'; }).join(' ');
+        var why = explainDiff(p);
+        var shLbl = { b: 'บ่าย', ch: 'เช้า(วันหยุด)', b1: 'บ1', n: 'คลินิก' }[p.bestShift] || p.bestShift;
+        return '<div class="swap-card-bp" id="bpSwap_' + label.replace(/\s/g, '') + idx + '">' +
+          '<div class="swap-head-bp"><span class="swap-person-bp over"><i class="ti ti-arrow-up" style="font-size:12px"></i>' + p.ovName + ' <small>' + bpMoney(p.ovMoney) + '</small></span>' +
+          '<i class="ti ti-arrows-exchange" style="color:var(--mut);font-size:16px"></i>' +
+          '<span class="swap-person-bp under"><i class="ti ti-arrow-down" style="font-size:12px"></i>' + p.unName + ' <small>' + bpMoney(p.unMoney) + '</small></span>' +
+          '<span style="margin-left:auto;font-size:11px;color:var(--mut)">ช่วงห่างจะ <strong style="color:var(--tl)">' + imp + '</strong></span></div>' +
+          '<div class="swap-body-bp"><div style="font-size:12px;margin-bottom:5px"><strong>สาเหตุที่ต่าง:</strong> <span style="color:var(--mut)">' + why + '</span></div>' +
+          '<div style="font-size:12px;margin-bottom:7px">แนะนำสลับ <strong>เวร' + shLbl + '</strong> 1 วัน &nbsp;·&nbsp; ' + p.ovName + ': ' + bpMoney(p.ovMoney) + ' → <strong style="color:var(--tl)">' + bpMoney(p.newOvM) + '</strong> &nbsp;·&nbsp; ' + p.unName + ': ' + bpMoney(p.unMoney) + ' → <strong style="color:var(--tl)">' + bpMoney(p.newUnM) + '</strong></div>' +
+          '<div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px">' + rs + '</div>' +
+          '<div style="display:flex;justify-content:flex-end;gap:7px"><button class="btn btn-sm" data-dismiss="1">ข้าม</button>' +
+          '<button class="btn btn-sm btn-primary" data-approve-ov="' + p.ovId + '" data-approve-un="' + p.unId + '" data-approve-shift="' + p.bestShift + '">✓ อนุมัติสลับ</button></div></div></div>';
+      }).join('');
+    }
+    var swapHtml = !b.hasSchedule ? '<div style="padding:12px;color:var(--mut);font-size:13px">ต้องมีตารางเวรก่อน</div>'
+      : buildSwaps(b.swapPairsMT, 'กลุ่ม MT/HT') + buildSwaps(b.swapPairsLA, 'กลุ่ม LA');
+
+    body.innerHTML =
+      '<div class="bp-kpi-row">' + kpiHtml + '</div>' + alertHtml +
+      '<div class="card"><div class="card-title"><i class="ti ti-wand"></i>ผลการปรับสมดุลอัตโนมัติ — หลังสร้างตาราง</div><div>' + autoBody + '</div></div>' +
+      '<div class="card"><div class="card-title"><i class="ti ti-alert-triangle"></i>กฎที่ควรตรวจสอบ</div><div>' + ruleBody + '</div></div>' +
+      '<div class="card"><div class="card-title"><i class="ti ti-users"></i>ยอดเงินค่าตอบแทน — เรียงตามลำดับในตาราง</div><div class="tbl-wrap"><table class="tbl">' + thead + '<tbody>' + tblBody + '</tbody></table></div></div>' +
+      '<div class="card"><div class="card-title"><i class="ti ti-arrows-exchange"></i>คำแนะนำการสลับ — อนุมัติทีละคู่</div><div>' + swapHtml + '</div></div>';
+
+    body.querySelectorAll('[data-dismiss]').forEach(function (btn) {
+      btn.onclick = function () { var c = btn.closest('.swap-card-bp'); c.style.opacity = '.4'; c.style.pointerEvents = 'none'; };
+    });
+    body.querySelectorAll('[data-approve-ov]').forEach(function (btn) {
+      btn.onclick = function () {
+        var ovId = btn.dataset.approveOv, unId = btn.dataset.approveUn, shift = btn.dataset.approveShift;
+        gsRun('api_approveBalanceSwap', Session.token, current.year, current.month, ovId, unId, shift).then(function () {
+          toast('สลับสมดุลแล้ว');
+          invalidateMonthCache(); invalidateCache('bal_' + current.year + '_' + current.month);
+          paintBalance();
+        });
+      };
+    });
+  }
+
+  /* ════════════════ REPORTS (ported from renderRep() dispatcher) ════════════════ */
+
+  function renderReportsPage(page) {
+    page.innerHTML =
+      '<div class="rtabs" id="repTabs"></div>' +
+      '<div style="display:flex;justify-content:space-between;margin-bottom:10px;align-items:center;flex-wrap:wrap;gap:8px;">' +
+      '<select id="repPersonSel" style="display:none;padding:6px 9px;border:1px solid var(--border);border-radius:7px;background:var(--surface);color:var(--ink);"></select>' +
+      '<div style="display:flex;gap:6px;margin-left:auto;">' +
+      '<button class="btn btn-sm" id="repExcelBtn"><i class="ti ti-file-spreadsheet"></i> exportExcel()</button>' +
+      '<button class="btn btn-sm" id="repWordBtn"><i class="ti ti-file-text"></i> exportWord()</button>' +
+      '<button class="btn btn-sm" id="repPrintBtn"><i class="ti ti-printer"></i> print</button>' +
+      '</div></div>' +
+      '<div class="doc" id="repBody"></div>';
+
+    var tabsEl = document.getElementById('repTabs');
+    var curKind = 'otsheet';
+    function paintTabs() {
+      tabsEl.innerHTML = REPORT_TABS.map(function (t) {
+        return '<div class="rtab' + (t.id === curKind ? ' active' : '') + '" data-k="' + t.id + '">' + t.label + '</div>';
+      }).join('');
+      tabsEl.querySelectorAll('[data-k]').forEach(function (el) {
+        el.onclick = function () { curKind = el.dataset.k; paintTabs(); loadReport(curKind); };
+      });
+    }
+    function personOptionsNeeded(kind) { return ['payperson', 'shiftsummary', 'ocrec', 'occlaim'].indexOf(kind) > -1; }
+
+    function loadReport(kind) {
+      var sel = document.getElementById('repPersonSel');
+      sel.style.display = personOptionsNeeded(kind) ? 'inline-block' : 'none';
+      if (personOptionsNeeded(kind) && sel.dataset.loadedFor !== kind) {
+        loadPeople().then(function (people) {
+          var opts = people.map(function (p) { return '<option value="' + p.id + '">' + fullN(p) + '</option>'; }).join('');
+          if (kind === 'ocrec') opts = '<option value="all">ทุกคน</option>' + opts;
+          sel.innerHTML = opts; sel.dataset.loadedFor = kind;
+          sel.onchange = function () { loadReport(curKind); };
+        });
+      }
+      var pid = sel.value || null;
+      gsRun('api_getReport', Session.token, kind, current.year, current.month, pid).then(function (rep) {
+        document.getElementById('repBody').innerHTML = rep.html;
+        var titleEl = document.getElementById('repTit');
+        if (titleEl) titleEl.textContent = rep.title || '';
+      });
+    }
+
+    document.getElementById('repExcelBtn').onclick = function () {
+      var pid = document.getElementById('repPersonSel').value || null;
+      gsRun('api_exportExcel', Session.token, curKind, current.year, current.month, pid).then(downloadBase64);
+    };
+    document.getElementById('repWordBtn').onclick = function () {
+      var pid = document.getElementById('repPersonSel').value || null;
+      gsRun('api_exportExcel', Session.token, curKind, current.year, current.month, pid).then(downloadBase64);
+    };
+    document.getElementById('repPrintBtn').onclick = function () {
+      var landscapeKinds = ['payLandscape', 'ocrec'];
+      printWithPageSize(landscapeKinds.indexOf(curKind) > -1 ? 'size:A4 landscape;margin:6mm' : 'size:A4 portrait;margin:9mm');
+    };
+
+    paintTabs();
+    loadReport(curKind);
+  }
+
+  function downloadBase64(file) {
+    var byteChars = atob(file.base64);
+    var bytes = new Uint8Array(byteChars.length);
+    for (var i = 0; i < byteChars.length; i++) bytes[i] = byteChars.charCodeAt(i);
+    var blob = new Blob([bytes], { type: file.mimeType });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url; a.download = file.filename; a.click();
+    setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+    toast('ดาวน์โหลดแล้ว', file.filename);
+  }
+
+  /* ════════════════ SETUP — full config UI, ported from bindCFG() in the original
+     (org/theme · people · stations · shifts · rules · rates · holidays · signers ·
+     labs/units · notifications · permission matrix). All sections save through the
+     existing api_saveSettings/api_crud/api_setPermission/api_addHoliday endpoints. ════════════════ */
+
+  var MONTH_SHORT = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
+  var PERM_ACTIONS = ['publish', 'override', 'viewAllPay', 'editPay', 'manageSettings', 'collect'];
+  var PERM_LABEL = { publish: 'ประกาศใช้ตาราง', override: 'แก้ไข/override', viewAllPay: 'ดูค่าตอบแทนทุกคน', editPay: 'แก้ไขค่าตอบแทน', manageSettings: 'จัดการตั้งค่า', collect: 'เก็บวันลา/on-call' };
+
+  function renderSetupPage(page) {
+    page.innerHTML = '<h2 style="margin:0 0 4px;font-size:16px;">ตั้งค่า</h2>' +
+      '<div class="alert alert-blue" style="background:var(--sky-l);border-color:var(--sky);color:var(--sky);"><i class="ti ti-info-circle"></i> ทุกการตั้งค่าบันทึกอัตโนมัติ — ไม่ต้องแก้โค้ด หน่วยงานอื่นเปลี่ยนชื่อ-บุคลากร-อัตราได้ทันที</div>' +
+      '<details class="acc" open><summary><i class="ti ti-building"></i> หน่วยงาน &amp; ทีม</summary><div class="acc-body" id="accOrg"></div></details>' +
+      '<details class="acc"><summary><i class="ti ti-users"></i> บุคลากร · จุดปฏิบัติงาน · Priority · สิทธิ์รายบุคคล</summary><div class="acc-body" id="accPeople"></div></details>' +
+      '<details class="acc"><summary><i class="ti ti-map-pin"></i> จุดปฏิบัติงาน (Work Stations)</summary><div class="acc-body" id="accStations"></div></details>' +
+      '<details class="acc"><summary><i class="ti ti-refresh"></i> ประเภทเวร (Shift Types)</summary><div class="acc-body" id="accShifts"></div></details>' +
+      '<details class="acc"><summary><i class="ti ti-scale"></i> กฎการจัดเวร</summary><div class="acc-body" id="accRules"></div></details>' +
+      '<details class="acc"><summary><i class="ti ti-coin"></i> อัตราค่าตอบแทน (รองรับไม่เท่ากันราย วัน/เดือน/บุคคล)</summary><div class="acc-body" id="accRates"></div></details>' +
+      '<details class="acc"><summary><i class="ti ti-calendar-event"></i> วันหยุดราชการ — ' + monthLabel() + '</summary><div class="acc-body" id="accHolidays"></div></details>' +
+      '<details class="acc"><summary><i class="ti ti-signature"></i> ผู้ลงนามในเอกสาร</summary><div class="acc-body" id="accSign"></div></details>' +
+      '<details class="acc"><summary><i class="ti ti-flask"></i> Master Data (LAB · หน่วยงาน)</summary><div class="acc-body" id="accMaster"></div></details>' +
+      '<details class="acc"><summary><i class="ti ti-bell"></i> การแจ้งเตือน &amp; กำหนดการ</summary><div class="acc-body" id="accNotif"></div></details>' +
+      '<details class="acc"><summary><i class="ti ti-shield-lock"></i> สิทธิ์การใช้งาน (รายบุคคล)</summary><div class="acc-body" id="accPerms"></div></details>';
+
+    gsRun('api_getSetupBundle', Session.token, current.year, current.month).then(function (bundle) {
+      peopleCache = bundle.people;
+      rolePermsCache = bundle.permissions;
+      renderOrgSection(bundle.settings);
+      renderPeopleSection(bundle.people);
+      renderStationsSection(bundle.stations, bundle.people);
+      renderShiftsSection(bundle.shifts, bundle.settings.shiftDisabled || {});
+      renderRulesSection(bundle.settings, bundle.people);
+      renderRatesSection(bundle.settings.rates || {}, bundle.rateOvr, bundle.people);
+      renderHolidaysSection(bundle.holidays);
+      renderSignSection(bundle.settings);
+      renderMasterSection(bundle.settings);
+      renderNotifSection(bundle.settings);
+      renderPermsSection(bundle.permissions);
+    });
+  }
+
+  function saveField(btn, fn) {
+    btn.disabled = true;
+    fn().then(function () { toast('บันทึกแล้ว'); btn.disabled = false; }).catch(function () { btn.disabled = false; });
+  }
+
+  function renderOrgSection(s) {
+    document.getElementById('accOrg').innerHTML =
+      '<div class="frm-grid">' +
+      '<label>ชื่อกลุ่มงาน<input id="cfOrg" value="' + (s.org || '') + '"></label>' +
+      '<label>ชื่อโรงพยาบาล<input id="cfHosp" value="' + (s.hosp || '') + '"></label>' +
+      '<label>ที่อยู่<input id="cfProv" value="' + (s.prov || '') + '"></label>' +
+      '<label>อักษรย่อโลโก้<input id="cfLogo" value="' + (s.logo || '') + '"></label>' +
+      '</div><div style="margin-top:10px;display:flex;align-items:center;gap:10px;">' +
+      '<label style="font-size:11.5px;color:var(--mut);">สีหลัก</label><input type="color" id="cfTheme" value="' + (s.themeColor || '#0E6158') + '">' +
+      '<label style="font-size:11.5px;color:var(--mut);">สีเสริม</label><input type="color" id="cfAcc" value="' + (s.themeAcc || '#B8862E') + '">' +
+      '<button class="btn btn-primary btn-sm" id="orgSaveBtn" style="margin-left:auto;">บันทึก</button></div>';
+    document.getElementById('orgSaveBtn').onclick = function (e) {
+      saveField(e.target, function () {
+        var fields = {
+          org: val('cfOrg'), hosp: val('cfHosp'), prov: val('cfProv'), logo: val('cfLogo'),
+          themeColor: val('cfTheme'), themeAcc: val('cfAcc')
+        };
+        return gsRun('api_saveSettings', Session.token, fields).then(function (res) {
+          applyBranding(Object.assign({}, Session.settings, fields));
+          return res;
+        });
+      });
+    };
+  }
+  function val(id) { return document.getElementById(id).value; }
+
+  function renderPeopleSection(people) {
+    var body = document.getElementById('accPeople');
+    body.innerHTML = '<div style="display:flex;justify-content:flex-end;margin-bottom:8px;"><button class="btn btn-primary btn-sm" id="addPersonBtn"><i class="ti ti-plus"></i> เพิ่มบุคลากร</button></div>' +
+      '<div class="tbl-wrap"><table class="tbl" id="peopleTbl"></table></div>';
+    paintPeople(people);
+    document.getElementById('addPersonBtn').onclick = function () { openPersonForm(null); };
+  }
+  function paintPeople(people) {
+    document.getElementById('peopleTbl').innerHTML = '<tr><th>ชื่อ</th><th>บทบาท</th><th>Priority</th><th>Active</th><th></th></tr>' +
+      people.map(function (p) {
+        return '<tr><td class="l">' + fullN(p) + '<div style="font-size:10.5px;color:var(--mut);">' + (p.title || '') + '</div></td><td>' + p.role + '</td><td>' + (p.priority || '') + '</td>' +
+          '<td>' + (p.active !== false ? '<span class="badge ok">Active</span>' : '<span class="badge none">ปิด</span>') + '</td>' +
+          '<td><button class="btn btn-sm" data-edit="' + p.id + '"><i class="ti ti-edit"></i></button></td></tr>';
+      }).join('') + '<tr data-row-end style="display:none;"></tr>';
+    document.querySelectorAll('#peopleTbl [data-edit]').forEach(function (btn) {
+      btn.onclick = function () { openPersonForm(people.filter(function (p) { return p.id === btn.dataset.edit; })[0]); };
+    });
+  }
+  function roleDefaultAllowed_(role, action) {
+    var hit = (rolePermsCache || []).filter(function (p) { return p.roleId === role && p.action === action; })[0];
+    return !!(hit && (hit.allowed === true || hit.allowed === 'true' || hit.allowed === 'TRUE'));
+  }
+  function permOptionsHtml_(role, action, cur) {
+    var defLabel = '(ค่าเริ่มต้น: ' + (roleDefaultAllowed_(role, action) ? 'มีสิทธิ์' : 'ไม่มีสิทธิ์') + ')';
+    return '<option value="">' + defLabel + '</option><option value="true"' + (cur === true ? ' selected' : '') + '>มีสิทธิ์</option><option value="false"' + (cur === false ? ' selected' : '') + '>ไม่มีสิทธิ์</option>';
+  }
+  function openPersonForm(record) {
+    var body = document.createElement('div');
+    body.innerHTML = '<div class="frm-grid">' +
+      ['pfx', 'name', 'short', 'title', 'phone', 'email', 'priority'].map(function (f) {
+        return '<label>' + f + '<input data-f="' + f + '" value="' + (record && record[f] !== undefined ? record[f] : '') + '"></label>';
+      }).join('') +
+      '<label>บทบาท<select data-f="role"><option value="HT">HT — หัวหน้า</option><option value="MT">MT — นักเทคนิค</option><option value="LA">LA — ผู้ช่วย</option></select></label>' +
+      '<label style="display:flex;flex-direction:row;align-items:center;gap:6px;">Active<input type="checkbox" data-f="active" ' + (!record || record.active !== false ? 'checked' : '') + '></label>' +
+      '</div><div class="card-title" style="margin-top:14px;">สิทธิ์รายบุคคล (เว้นว่าง = ใช้ค่าเริ่มต้นตามบทบาท)</div><div class="frm-grid">' +
+      PERM_ACTIONS.map(function (a) {
+        var cur = record && record.perms && record.perms[a];
+        return '<label style="display:flex;flex-direction:row;align-items:center;gap:6px;">' + PERM_LABEL[a] +
+          '<select data-perm="' + a + '">' + permOptionsHtml_(record ? record.role : 'MT', a, cur) + '</select></label>';
+      }).join('') + '</div>';
+    if (record) body.querySelector('[data-f="role"]').value = record.role;
+    body.querySelector('[data-f="role"]').onchange = function () {
+      var role = this.value;
+      PERM_ACTIONS.forEach(function (a) {
+        var sel = body.querySelector('[data-perm="' + a + '"]');
+        var cur = sel.value === '' ? undefined : sel.value === 'true';
+        sel.innerHTML = permOptionsHtml_(role, a, cur);
+      });
+    };
+    showModal((record ? 'แก้ไข' : 'เพิ่ม') + 'บุคลากร', body, 'บันทึก', function () {
+      var payload = record ? Object.assign({}, record) : {};
+      ['pfx', 'name', 'short', 'title', 'phone', 'email', 'priority', 'role'].forEach(function (f) { payload[f] = body.querySelector('[data-f="' + f + '"]').value; });
+      payload.active = body.querySelector('[data-f="active"]').checked;
+      var perms = {};
+      PERM_ACTIONS.forEach(function (a) {
+        var v = body.querySelector('[data-perm="' + a + '"]').value;
+        if (v !== '') perms[a] = v === 'true';
+      });
+      payload.perms = perms;
+      gsRun('api_crud', Session.token, 'people', record ? 'update' : 'create', payload).then(function () {
+        closeModal(); toast('บันทึกแล้ว'); peopleCache = null;
+        loadPeople().then(renderPeopleSection);
+      });
+    });
+  }
+
+  function renderStationsSection(stations, people) {
+    var body = document.getElementById('accStations');
+    body.innerHTML = '<div style="display:flex;justify-content:flex-end;margin-bottom:8px;"><button class="btn btn-primary btn-sm" id="addStationBtn"><i class="ti ti-plus"></i> เพิ่มจุดปฏิบัติงาน</button></div>' +
+      '<div class="tbl-wrap"><table class="tbl" id="stationTbl"></table></div>';
+    var byId = {}; people.forEach(function (p) { byId[p.id] = p; });
+    function paint() {
+      var stById = {}; stations.forEach(function (st) { stById[st.id] = st; });
+      document.getElementById('stationTbl').innerHTML = '<tr><th>ชื่อจุด</th><th>ผู้รับผิดชอบ</th><th>สลับกับ</th><th></th></tr>' +
+        stations.map(function (s) {
+          var names = (s.assigned || []).map(function (pid) { return byId[pid] ? fullN(byId[pid]) : pid; }).join(', ');
+          var rotName = s.rotateWith && stById[s.rotateWith] ? stById[s.rotateWith].name : '—';
+          return '<tr><td class="l">' + s.name + '</td><td class="l">' + names + '</td><td>' + rotName + '</td><td><button class="btn btn-sm" data-edit="' + s.id + '"><i class="ti ti-edit"></i></button> <button class="btn btn-sm btn-danger" data-del="' + s.id + '"><i class="ti ti-trash"></i></button></td></tr>';
+        }).join('');
+      document.querySelectorAll('#stationTbl [data-edit]').forEach(function (b) { b.onclick = function () { openStationForm(stations.filter(function (s) { return s.id === b.dataset.edit; })[0]); }; });
+      document.querySelectorAll('#stationTbl [data-del]').forEach(function (b) {
+        b.onclick = function () {
+          if (!confirm('ยืนยันการลบ?')) return;
+          gsRun('api_crud', Session.token, 'station', 'delete', { id: b.dataset.del }).then(function () {
+            stations = stations.filter(function (s) { return s.id !== b.dataset.del; });
+            paint();
+          });
+        };
+      });
+    }
+    function openStationForm(record) {
+      var assignedSet = {};
+      (record && record.assigned || []).forEach(function (pid) { assignedSet[pid] = true; });
+      var body2 = document.createElement('div');
+      body2.innerHTML = '<div class="frm-grid">' +
+        '<label>ชื่อจุด<input data-f="name" value="' + (record ? record.name : '') + '"></label>' +
+        '<label>สลับกับจุด<select data-f="rotateWith"><option value="">— ไม่สลับ —</option>' +
+        stations.filter(function (st) { return !record || st.id !== record.id; }).map(function (st) {
+          return '<option value="' + st.id + '"' + (record && record.rotateWith === st.id ? ' selected' : '') + '>' + st.name + '</option>';
+        }).join('') + '</select></label>' +
+        '<label style="display:flex;flex-direction:row;gap:6px;align-items:center;">หมุนเวียน<input type="checkbox" data-f="rotate" ' + (record && record.rotate ? 'checked' : '') + '></label></div>' +
+        '<div style="margin-top:10px;"><label style="font-weight:600;font-size:12.5px;">ผู้รับผิดชอบ</label>' +
+        '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:6px;">' +
+        people.map(function (p) {
+          return '<label style="display:flex;align-items:center;gap:5px;font-size:12.5px;border:1px solid var(--border);border-radius:7px;padding:5px 9px;">' +
+            '<input type="checkbox" data-assign-pid="' + p.id + '" ' + (assignedSet[p.id] ? 'checked' : '') + '>' + fullN(p) + '</label>';
+        }).join('') + '</div></div>';
+      showModal((record ? 'แก้ไข' : 'เพิ่ม') + 'จุดปฏิบัติงาน', body2, 'บันทึก', function () {
+        var payload = record ? Object.assign({}, record) : {};
+        payload.name = body2.querySelector('[data-f="name"]').value;
+        payload.assigned = Array.prototype.slice.call(body2.querySelectorAll('[data-assign-pid]')).filter(function (cb) { return cb.checked; }).map(function (cb) { return cb.dataset.assignPid; });
+        payload.rotateWith = body2.querySelector('[data-f="rotateWith"]').value;
+        payload.rotate = body2.querySelector('[data-f="rotate"]').checked;
+        gsRun('api_crud', Session.token, 'station', record ? 'update' : 'create', payload).then(function (r) {
+          closeModal(); toast('บันทึกแล้ว');
+          if (record) {
+            stations = stations.map(function (s) { return s.id === record.id ? Object.assign({}, s, payload) : s; });
+          } else {
+            stations.push(r);
+          }
+          paint();
+        });
+      });
+    }
+    document.getElementById('addStationBtn').onclick = function () { openStationForm(null); };
+    paint();
+  }
+
+  function renderShiftsSection(shifts, shiftDisabled) {
+    var body = document.getElementById('accShifts');
+    var rowsHtml = shifts.map(function (s) {
+      var monthRow = function (key, label) {
+        var disabled = shiftDisabled[key] || [];
+        return (label ? '<div style="font-size:10.5px;color:var(--mut);margin-top:4px;">' + label + '</div>' : '') +
+          MONTH_SHORT.map(function (m, i) {
+            var mn = i + 1, on = disabled.indexOf(mn) === -1;
+            return '<span class="mo-chip ' + (on ? 'on' : 'off') + '" data-skey="' + key + '" data-mon="' + mn + '">' + m + '</span>';
+          }).join('');
+      };
+      var disableCell = s.id === 'n' ? (monthRow('n_mt', 'คลินิก MT') + monthRow('n_la', 'ผู้ช่วย LA')) : monthRow(s.id, '');
+      return '<tr><td>' + s.id + '</td>' +
+        '<td><input data-sf="name" data-sid="' + s.id + '" value="' + (s.name || '') + '"></td>' +
+        '<td><input data-sf="short" data-sid="' + s.id + '" value="' + (s.short || '') + '" style="width:48px;text-align:center;"></td>' +
+        '<td><input type="color" data-sf="color" data-sid="' + s.id + '" value="' + (s.color || '#000000') + '"></td>' +
+        '<td><input type="color" data-sf="bg" data-sid="' + s.id + '" value="' + (s.bg || '#ffffff') + '"></td>' +
+        '<td><span class="tok" style="background:' + s.bg + ';color:' + s.color + '">' + (s.short || '') + '</span></td>' +
+        '<td style="text-align:left;white-space:normal;">' + disableCell + '<div style="font-size:9.5px;color:var(--mut);margin-top:3px;">คลิกเดือนเพื่อเปิด/ปิด · สีเด่น = เปิดใช้เดือนนั้น</div></td></tr>';
+    }).join('');
+    body.innerHTML = '<p style="font-size:12px;color:var(--mut);margin-bottom:10px;">กำหนดชื่อเต็ม ชื่อย่อ และสีของแต่ละเวร</p>' +
+      '<div class="tbl-wrap"><table class="tbl"><tr><th>ID</th><th>ชื่อเต็ม</th><th>ชื่อย่อ</th><th>สีตัวอักษร</th><th>สีพื้นหลัง</th><th>ตัวอย่าง</th><th>ปิดใช้เดือน</th></tr>' + rowsHtml + '</table></div>' +
+      '<button class="btn btn-primary btn-sm" id="shiftsSaveBtn" style="margin-top:10px;">บันทึกประเภทเวรทั้งหมด</button>';
+
+    var disabledState = JSON.parse(JSON.stringify(shiftDisabled));
+    body.querySelectorAll('.mo-chip').forEach(function (chip) {
+      chip.onclick = function () {
+        var key = chip.dataset.skey, mon = +chip.dataset.mon;
+        disabledState[key] = disabledState[key] || [];
+        var idx = disabledState[key].indexOf(mon);
+        if (idx > -1) { disabledState[key].splice(idx, 1); chip.classList.add('on'); chip.classList.remove('off'); }
+        else { disabledState[key].push(mon); chip.classList.remove('on'); chip.classList.add('off'); }
+      };
+    });
+    document.getElementById('shiftsSaveBtn').onclick = function (e) {
+      var payloads = shifts.map(function (s) {
+        var payload = Object.assign({}, s);
+        ['name', 'short', 'color', 'bg'].forEach(function (f) {
+          var input = body.querySelector('[data-sf="' + f + '"][data-sid="' + s.id + '"]');
+          if (input) payload[f] = input.value;
+        });
+        return payload;
+      });
+      gsRun('api_updateShifts', Session.token, payloads)
+        .then(function () { return gsRun('api_saveSettings', Session.token, { shiftDisabled: disabledState }); })
+        .then(function () { toast('บันทึกประเภทเวรแล้ว'); });
+    };
+  }
+
+  function renderRulesSection(s, people) {
+    var mtla = people.filter(function (p) { return p.role !== 'HT'; });
+    function sel(id, opts, cur) {
+      return '<select id="' + id + '">' + opts.map(function (o) { return '<option value="' + o[0] + '"' + (String(cur) === String(o[0]) ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') + '</select>';
+    }
+    document.getElementById('accRules').innerHTML = '<div class="frm-grid">' +
+      '<label>การกระจายเวร' + sel('cfDist', [['equal', 'สมดุลที่สุด (พักผ่อนมากสุด)'], ['priority', 'ตาม Priority']], s.dist) + '</label>' +
+      '<label>วันติดต่อกันสูงสุด<input id="cfMaxC" type="number" min="1" value="' + (s.maxC || 4) + '"></label>' +
+      '<label>เวร บ1 เวรเสริมบ่าย — สลับสัปดาห์' + sel('cfLaB', [['A', 'A: จ-อ · B: พ-พฤ'], ['B', 'A: พ-พฤ · B: จ-อ']], s.laB) + '</label>' +
+      '<label>ผู้ช่วย A (เวร บ1)' + sel('cfLaA', [['no', '(ไม่กำหนด)']].concat(mtla.map(function (p) { return [p.id, fullN(p)]; })), s.laA) + '</label>' +
+      '<label>ผู้ช่วย B (เวร บ1)' + sel('cfLaB2', [['no', '(ไม่กำหนด)']].concat(mtla.map(function (p) { return [p.id, fullN(p)]; })), s.laB2) + '</label>' +
+      '<label>ผู้ช่วยประจำคลินิก (น)' + sel('cfClinicLa', [['auto', 'เลือกอัตโนมัติ (เท่ากันไม่ซ้อนบ1)'], ['', 'ไม่จัด']].concat(mtla.filter(function (p) { return p.role === 'LA'; }).map(function (p) { return [p.id, fullN(p)]; })), s.clinicLa) + '</label>' +
+      '</div><button class="btn btn-primary btn-sm" id="rulesSaveBtn" style="margin-top:10px;">บันทึกกฎ</button>' +
+      '<div style="margin-top:18px;border-top:1px solid var(--border);padding-top:14px;">' +
+      '<div style="font-weight:600;font-size:13px;margin-bottom:6px;">เจ้าหน้าที่ขึ้นเวร ช/บ/ด เดือน ' + monthLabel() + '</div>' +
+      '<div style="font-size:11.5px;color:var(--mut);margin-bottom:8px;">ติ๊กเฉพาะคนที่จะให้ระบบจัดเวร ช/บ/ด ให้ในเดือนนี้ — ไม่ติ๊กไว้ทุกคน = ใช้ทุกคน MT/HT ที่ active (เหมือนเดิม) ค่านี้แยกเก็บรายเดือน ไม่กระทบเดือนอื่น</div>' +
+      '<div id="dutyRosterBox" style="font-size:12.5px;color:var(--mut);margin-bottom:16px;">กำลังโหลด...</div>' +
+      '<div style="font-weight:600;font-size:13px;margin-bottom:6px;">เจ้าหน้าที่ขึ้นเวร น คลินิก เดือน ' + monthLabel() + '</div>' +
+      '<div style="font-size:11.5px;color:var(--mut);margin-bottom:8px;">แยกจากชุด ช/บ/ด ด้านบน — บางคนอาจขึ้น น แต่ไม่ขึ้น ช/บ/ด หรือกลับกันก็ได้</div>' +
+      '<div id="dutyRosterClinicBox" style="font-size:12.5px;color:var(--mut);">กำลังโหลด...</div></div>';
+    document.getElementById('rulesSaveBtn').onclick = function (e) {
+      saveField(e.target, function () {
+        return gsRun('api_saveSettings', Session.token, {
+          dist: val('cfDist'), maxC: +val('cfMaxC'),
+          laB: val('cfLaB'), laA: val('cfLaA'), laB2: val('cfLaB2'), clinicLa: val('cfClinicLa')
+        });
+      });
+    };
+    renderDutyRoster(s, people, 'chbd', 'dutyRosterBox', 'included');
+    renderDutyRoster(s, people, 'clinic', 'dutyRosterClinicBox', 'includedClinic');
+  }
+
+  /** เจ้าหน้าที่ MT/HT ที่ขึ้นเวรของเดือนนี้ — แยก 2 ชุด (ช/บ/ด กับ น คลินิก) เก็บรายเดือน (ดู api_getDutyRoster/api_setDutyRoster) */
+  function renderDutyRoster(s, people, type, boxId, key) {
+    var eligible = people.filter(function (p) { return p.active && (p.role === 'MT' || p.role === 'HT'); });
+    gsRun('api_getDutyRoster', Session.token, current.year, current.month).then(function (roster) {
+      var included = roster && roster[key];
+      document.getElementById(boxId).innerHTML = eligible.map(function (p) {
+        var on = !included || included.indexOf(p.id) > -1;
+        return '<label style="display:inline-flex;align-items:center;gap:5px;margin:0 14px 8px 0;">' +
+          '<input type="checkbox" data-duty-pid="' + p.id + '" ' + (on ? 'checked' : '') + '>' + fullN(p) + '</label>';
+      }).join('') || '<span>ไม่มีเจ้าหน้าที่ MT/HT ที่ใช้งานอยู่</span>';
+      document.querySelectorAll('#' + boxId + ' [data-duty-pid]').forEach(function (cb) {
+        cb.onchange = function () {
+          var checkedIds = Array.prototype.map.call(
+            document.querySelectorAll('#' + boxId + ' [data-duty-pid]:checked'),
+            function (c) { return c.dataset.dutyPid; }
+          );
+          gsRun('api_setDutyRoster', Session.token, current.year, current.month, type, checkedIds).then(function () {
+            toast('อัปเดตเจ้าหน้าที่ขึ้นเวรเดือนนี้แล้ว');
+          });
+        };
+      });
+    });
+  }
+
+  function renderRatesSection(rates, rateOvr, people) {
+    var body = document.getElementById('accRates');
+    var SH = ['ch', 'b', 'd0', 'd1', 'n', 'b1'];
+    var rateRow = function (role, label) {
+      return '<tr><td class="l">' + label + '</td>' + SH.map(function (sh) {
+        var applicable = (role === 'MT' && sh !== 'b1') || (role === 'LA' && (sh === 'ch' || sh === 'b1' || sh === 'n'));
+        if (!applicable) return '<td style="color:#ccc;">—</td>';
+        return '<td><input type="number" data-rate-role="' + role + '" data-rate-sh="' + sh + '" value="' + ((rates[role] || {})[sh] || 0) + '" style="width:64px;text-align:center;"></td>';
+      }).join('') + '</tr>';
+    };
+    body.innerHTML = '<div class="card-title" style="margin-top:0;">อัตรามาตรฐาน</div>' +
+      '<p style="font-size:11px;color:var(--mut);margin:-4px 0 8px;">เวร ด (on call) แยก 2 อัตราตามช่วงเวลา — ใครมี on call หลายเวลาในช่วงเดียวกันของวันเดียวกัน นับเป็น 1 ครั้งของช่วงนั้น</p>' +
+      '<table class="tbl"><tr><th>กลุ่ม</th><th>ช</th><th>บ</th><th>ด (00.00-04.00)</th><th>ด (04.00-08.00)</th><th>น</th><th>บ1</th></tr>' + rateRow('MT', 'MT/HT') + rateRow('LA', 'ผู้ช่วย (LA)') + '</table>' +
+      '<button class="btn btn-primary btn-sm" id="ratesSaveBtn" style="margin-top:10px;">บันทึกอัตรา</button>' +
+      '<div class="card-title" style="margin-top:18px;">อัตราพิเศษ (Override)</div>' +
+      '<p style="font-size:11.5px;color:var(--mut);margin-bottom:8px;">เจาะจงมากกว่า = ใช้ก่อน: บุคคล &gt; ช่วงวันที่ &gt; อัตรามาตรฐาน</p>' +
+      '<div style="display:flex;justify-content:flex-end;margin-bottom:8px;"><button class="btn btn-sm" id="addRateOvrBtn"><i class="ti ti-plus"></i> เพิ่มอัตราพิเศษ</button></div>' +
+      '<div class="tbl-wrap"><table class="tbl" id="rateOvrTbl"></table></div>';
+
+    document.getElementById('ratesSaveBtn').onclick = function (e) {
+      var newRates = { MT: {}, LA: {} };
+      body.querySelectorAll('[data-rate-role]').forEach(function (inp) { newRates[inp.dataset.rateRole][inp.dataset.rateSh] = +inp.value; });
+      saveField(e.target, function () { return gsRun('api_saveSettings', Session.token, { rates: newRates }); });
+    };
+
+    var byId = {}; people.forEach(function (p) { byId[p.id] = p; });
+    function paintOvr() {
+      document.getElementById('rateOvrTbl').innerHTML = '<tr><th>เวร</th><th>บุคคล</th><th>ช่วงวันที่</th><th>จำนวน</th><th></th></tr>' +
+        rateOvr.map(function (o) {
+          return '<tr><td>' + o.shift + '</td><td class="l">' + (o.pid ? (byId[o.pid] ? fullN(byId[o.pid]) : o.pid) : 'ทุกคน') + '</td><td>' + (o.from ? (o.from + '-' + (o.to || '')) : 'ทั้งเดือน') + '</td><td>' + o.amount + '</td>' +
+            '<td><button class="btn btn-sm btn-danger" data-del="' + o.id + '"><i class="ti ti-trash"></i></button></td></tr>';
+        }).join('') || '<tr><td colspan="5" style="color:var(--mut)">ไม่มีอัตราพิเศษ</td></tr>';
+      document.querySelectorAll('#rateOvrTbl [data-del]').forEach(function (b) {
+        b.onclick = function () { gsRun('api_crud', Session.token, 'rateOvr', 'delete', { id: b.dataset.del }).then(function () { rateOvr = rateOvr.filter(function (o) { return o.id !== b.dataset.del; }); paintOvr(); }); };
+      });
+    }
+    document.getElementById('addRateOvrBtn').onclick = function () {
+      var f = document.createElement('div');
+      f.innerHTML = '<div class="frm-grid">' +
+        '<label>เวร<select data-f="shift">' + SH.map(function (s) { return '<option value="' + s + '">' + s + '</option>'; }).join('') + '</select></label>' +
+        '<label>บุคคล (เว้นว่าง=ทุกคน)<select data-f="pid"><option value="">ทุกคน</option>' + people.map(function (p) { return '<option value="' + p.id + '">' + fullN(p) + '</option>'; }).join('') + '</select></label>' +
+        '<label>วันที่เริ่ม<input data-f="from" type="number"></label><label>ถึงวันที่<input data-f="to" type="number"></label>' +
+        '<label>จำนวน (บาท)<input data-f="amount" type="number"></label></div>';
+      showModal('เพิ่มอัตราพิเศษ', f, 'บันทึก', function () {
+        var payload = {};
+        ['shift', 'pid', 'from', 'to', 'amount'].forEach(function (k) { payload[k] = f.querySelector('[data-f="' + k + '"]').value; });
+        payload.from = payload.from ? +payload.from : null; payload.to = payload.to ? +payload.to : null; payload.amount = +payload.amount;
+        gsRun('api_crud', Session.token, 'rateOvr', 'create', payload).then(function (r) { closeModal(); toast('บันทึกแล้ว'); rateOvr.push(r); paintOvr(); });
+      });
+    };
+    paintOvr();
+  }
+
+  function renderHolidaysSection(holidays) {
+    var body = document.getElementById('accHolidays');
+    body.innerHTML = '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px;">' +
+      '<button class="btn btn-sm" id="seedHolBtn"><i class="ti ti-calendar-plus"></i> เติมวันหยุดราชการอัตโนมัติ (ปี ' + current.year + ')</button>' +
+      '<span style="font-size:11px;color:var(--mut);">เติมวันหยุดประจำปีให้ทั้งปี ไม่ทับวันที่เพิ่มไว้แล้ว ยังแก้ไข/ลบทีละรายการได้ตามปกติ</span></div>' +
+      '<div class="frm-grid" style="margin-bottom:10px;">' +
+      '<label>วันที่<input id="hDay" type="number" min="1" max="31"></label>' +
+      '<label>ชื่อวันหยุด<input id="hName" placeholder="เช่น วันแม่"></label></div>' +
+      '<button class="btn btn-primary btn-sm" id="addHolBtn"><i class="ti ti-plus"></i> เพิ่มวันหยุด</button>' +
+      '<div class="tbl-wrap" style="margin-top:10px;"><table class="tbl" id="holTbl"></table></div>';
+    document.getElementById('seedHolBtn').onclick = function () {
+      gsRun('api_seedThaiHolidays', Session.token, current.year).then(function (r) {
+        if (!r.hasLunarTable) {
+          toast('เติมวันหยุดราชการแล้ว ' + r.added + ' วัน', 'วันหยุดที่อิงปฏิทินจันทรคติ (มาฆบูชา/วิสาขบูชา/อาสาฬหบูชา) ของปีนี้ยังไม่มีในระบบ กรุณาเพิ่มเองตามประกาศราชการ');
+        } else {
+          toast('เติมวันหยุดราชการแล้ว', r.added + ' วัน');
+        }
+        invalidateMonthCache();
+        gsRun('api_getSetupBundle', Session.token, current.year, current.month).then(function (bundle) { renderHolidaysSection(bundle.holidays); });
+      });
+    };
+    function paint() {
+      document.getElementById('holTbl').innerHTML = '<tr><th>วันที่</th><th>ชื่อวันหยุด</th><th></th></tr>' +
+        holidays.sort(function (a, b) { return a.day - b.day; }).map(function (h) {
+          return '<tr><td>' + h.day + '</td><td class="l">' + h.name + '</td><td><button class="btn btn-sm btn-danger" data-del="' + h.id + '"><i class="ti ti-trash"></i></button></td></tr>';
+        }).join('') || '<tr><td colspan="3" style="color:var(--mut)">ยังไม่มีวันหยุดในเดือนนี้</td></tr>';
+      document.querySelectorAll('#holTbl [data-del]').forEach(function (b) {
+        b.onclick = function () { gsRun('api_deleteHoliday', Session.token, current.year, current.month, b.dataset.del).then(function () { holidays = holidays.filter(function (h) { return h.id !== b.dataset.del; }); paint(); }); };
+      });
+    }
+    document.getElementById('addHolBtn').onclick = function () {
+      var day = +val('hDay'), name = val('hName') || 'วันหยุด';
+      if (!day) return;
+      gsRun('api_addHoliday', Session.token, current.year, current.month, { day: day, name: name }).then(function (r) {
+        holidays.push(r); paint(); document.getElementById('hDay').value = ''; document.getElementById('hName').value = ''; toast('เพิ่มวันหยุดแล้ว');
+      });
+    };
+    paint();
+  }
+
+  function renderSignSection(s) {
+    document.getElementById('accSign').innerHTML = '<div class="frm-grid">' +
+      ['signH', 'signHT', 'signD', 'signDT', 'signPay', 'signPayT'].map(function (f) {
+        var labels = { signH: 'ชื่อหัวหน้าหน่วย', signHT: 'ตำแหน่งหัวหน้าหน่วย', signD: 'ชื่อผู้อำนวยการ', signDT: 'ตำแหน่งผู้อำนวยการ', signPay: 'ชื่อผู้จ่ายเงิน', signPayT: 'ตำแหน่งผู้จ่ายเงิน' };
+        return '<label>' + labels[f] + '<input id="cf_' + f + '" value="' + (s[f] || '') + '"></label>';
+      }).join('') + '</div>' +
+      '<div style="font-size:11.5px;color:var(--mut);margin-top:6px;">ผู้จ่ายเงินใช้เป็นผู้ลงนามคนที่ 2 ในรายงาน "ใบเบิกเงินรวม" (แทนที่ผู้อำนวยการ)</div>' +
+      '<button class="btn btn-primary btn-sm" id="signSaveBtn" style="margin-top:10px;">บันทึก</button>';
+    document.getElementById('signSaveBtn').onclick = function (e) {
+      saveField(e.target, function () {
+        return gsRun('api_saveSettings', Session.token, {
+          signH: val('cf_signH'), signHT: val('cf_signHT'), signD: val('cf_signD'), signDT: val('cf_signDT'),
+          signPay: val('cf_signPay'), signPayT: val('cf_signPayT')
+        });
+      });
+    };
+  }
+
+  function tagEditor(id, items) {
+    return '<div id="' + id + '" data-items=\'' + JSON.stringify(items || []) + '\'>' +
+      (items || []).map(function (t, i) { return '<span class="mo-chip on" data-i="' + i + '">' + t + ' <i class="ti ti-x" style="font-size:10px;"></i></span>'; }).join('') +
+      '<input style="border:none;background:none;font-size:12px;width:90px;outline:none;" placeholder="+ เพิ่ม แล้ว Enter">' + '</div>';
+  }
+
+  function renderMasterSection(s) {
+    var body = document.getElementById('accMaster');
+    body.innerHTML = '<div class="card-title" style="margin-top:0;">LAB ที่ตรวจได้</div>' + tagEditor('labsTags', s.labs || []) +
+      '<div class="card-title" style="margin-top:16px;">หน่วยงานที่ขอ On-call</div>' + tagEditor('unitsTags', s.units || []) +
+      '<button class="btn btn-primary btn-sm" id="masterSaveBtn" style="margin-top:12px;">บันทึก</button>';
+    [['labsTags'], ['unitsTags']].forEach(function (a) {
+      var wrap = document.getElementById(a[0]);
+      var input = wrap.querySelector('input');
+      input.addEventListener('keydown', function (e) {
+        if (e.key !== 'Enter' || !input.value.trim()) return;
+        var items = JSON.parse(wrap.dataset.items); items.push(input.value.trim()); wrap.dataset.items = JSON.stringify(items);
+        var chip = document.createElement('span'); chip.className = 'mo-chip on'; chip.textContent = input.value.trim();
+        wrap.insertBefore(chip, input); input.value = '';
+      });
+    });
+    document.getElementById('masterSaveBtn').onclick = function (e) {
+      saveField(e.target, function () {
+        return gsRun('api_saveSettings', Session.token, {
+          labs: JSON.parse(document.getElementById('labsTags').dataset.items),
+          units: JSON.parse(document.getElementById('unitsTags').dataset.items)
+        });
+      });
+    };
+  }
+
+  function renderNotifSection(s) {
+    document.getElementById('accNotif').innerHTML = '<div class="frm-grid">' +
+      '<label>วันเก็บข้อมูลวันลา (ของเดือน)<input id="cfColDay" type="number" value="' + (s.colDay || 25) + '"></label>' +
+      '<label>วันประกาศใช้ตาราง<input id="cfPubDay" type="number" value="' + (s.pubDay || 28) + '"></label>' +
+      '<label>LINE Notify token<input id="cfLineToken" value="' + (s.lineToken || '') + '"></label>' +
+      '<label>Google Calendar ID<input id="cfCalId" value="' + (s.calId || '') + '"></label>' +
+      '</div><div style="display:flex;gap:18px;margin-top:10px;">' +
+      ['chEmail:Email', 'chLine:LINE', 'chCal:Google Calendar'].map(function (kv) {
+        var k = kv.split(':')[0], lbl = kv.split(':')[1];
+        return '<label style="display:flex;align-items:center;gap:6px;font-size:12.5px;"><input type="checkbox" id="cf_' + k + '" ' + (s[k] ? 'checked' : '') + '> ' + lbl + '</label>';
+      }).join('') + '</div><button class="btn btn-primary btn-sm" id="notifSaveBtn" style="margin-top:10px;">บันทึก</button>';
+    document.getElementById('notifSaveBtn').onclick = function (e) {
+      saveField(e.target, function () {
+        return gsRun('api_saveSettings', Session.token, {
+          colDay: +val('cfColDay'), pubDay: +val('cfPubDay'), lineToken: val('cfLineToken'), calId: val('cfCalId'),
+          chEmail: document.getElementById('cf_chEmail').checked, chLine: document.getElementById('cf_chLine').checked, chCal: document.getElementById('cf_chCal').checked
+        });
+      });
+    };
+  }
+
+  function renderPermsSection(perms) {
+    var byRoleAction = {};
+    perms.forEach(function (p) { byRoleAction[p.roleId + '.' + p.action] = (p.allowed === true || p.allowed === 'true' || p.allowed === 'TRUE'); });
+    var roles = ['HT', 'MT', 'LA'];
+    var body = document.getElementById('accPerms');
+    body.innerHTML = '<table class="tbl perm-ind"><tr><th>สิทธิ์</th>' + roles.map(function (r) { return '<th>' + r + '</th>'; }).join('') + '</tr>' +
+      PERM_ACTIONS.map(function (a) {
+        return '<tr><td class="l">' + PERM_LABEL[a] + '</td>' + roles.map(function (r) {
+          var on = !!byRoleAction[r + '.' + a];
+          return '<td><span class="mo-chip ' + (on ? 'on' : 'off') + '" data-role="' + r + '" data-action="' + a + '">' + (on ? 'มีสิทธิ์' : 'ไม่มีสิทธิ์') + '</span></td>';
+        }).join('') + '</tr>';
+      }).join('') + '</table>';
+    body.querySelectorAll('.mo-chip').forEach(function (chip) {
+      chip.onclick = function () {
+        var on = chip.classList.contains('on');
+        gsRun('api_setPermission', Session.token, chip.dataset.role, chip.dataset.action, !on).then(function () {
+          chip.classList.toggle('on'); chip.classList.toggle('off'); chip.textContent = on ? 'ไม่มีสิทธิ์' : 'มีสิทธิ์';
+          toast('อัปเดตสิทธิ์แล้ว');
+        });
+      };
+    });
+  }
+
+  return { render: render, setMonthYear: setMonthYear };
+})();
+</script>

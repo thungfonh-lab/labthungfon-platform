@@ -1,0 +1,342 @@
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* ══ Ported 1:1 from labthungfon-platform-v4_43.html <style> block (lines ~12-564). ══
+   Only the data-binding (DOM ids/JS) changed for the Apps Script web app — all
+   tokens, classes, and the .sched/.tok grid styling are unchanged from the original. */
+:root {
+  --tl:#0E6158; --tl-d:#094940; --tl-m:#138577; --tl-l:#C8E6E2; --tl-vl:#EBF5F3;
+  --gold:#B8862E; --gold-l:#F5EDD6;
+  --coral:#C0432B; --coral-l:#F8E8E5;
+  --sky:#2059A8; --sky-l:#E4ECF7;
+  --jade:#1E7D4F; --jade-l:#DDF0E7;
+  --amber:#9B6410; --amber-l:#FDF0D5;
+  --pur:#6845AA; --pur-l:#EEE7FA;
+  --ink:#111E1B; --ink2:#2E423D; --mut:#637069;
+  --bg:#F0EDE7; --surface:#FFFFFF; --surface2:#F5F3EE;
+  --border:#DDD9D1; --border2:#CAC6BE;
+  --shadow:0 1px 3px rgba(14,97,88,.06),0 4px 18px rgba(14,97,88,.08);
+  --shadow-lg:0 8px 32px rgba(14,97,88,.14);
+  --sb:72px; --sb-open:240px;
+  --hdr:56px; --r:10px; --r2:14px;
+  --tr:.18s ease;
+}
+[data-theme=dark]{
+  --tl:#3BBDAA; --tl-d:#2EA897; --tl-m:#50CDB9; --tl-l:#0D3630; --tl-vl:#0A2A26;
+  --gold:#D4A84C; --gold-l:#2A1F08;
+  --coral:#E8735A; --coral-l:#2A100B;
+  --sky:#5A8FDC; --sky-l:#0C1E3C;
+  --jade:#4DB87A; --jade-l:#0C2418;
+  --amber:#D4924A; --amber-l:#261807;
+  --pur:#9E7FD4; --pur-l:#1C1035;
+  --ink:#E4E0D8; --ink2:#B8B4AC; --mut:#7A827D;
+  --bg:#0E1512; --surface:#161F1C; --surface2:#1C2823;
+  --border:#273530; --border2:#374740;
+  --shadow:0 1px 3px rgba(0,0,0,.3),0 4px 18px rgba(0,0,0,.35);
+  --shadow-lg:0 8px 32px rgba(0,0,0,.5);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;font-family:'Sarabun',sans-serif;font-size:14px;background:var(--bg);color:var(--ink);overflow:hidden}
+h1,h2,h3,h4,h5{font-family:'IBM Plex Sans Thai','Sarabun',sans-serif;font-weight:600;line-height:1.25}
+button,input,select,textarea{font-family:inherit;font-size:inherit}
+button{cursor:pointer}
+a{color:var(--tl);text-decoration:none}
+#app{display:flex;height:100vh;overflow:hidden}
+/* ── sidebar ── */
+#sb{width:var(--sb);flex-shrink:0;background:var(--ink);color:#fff;display:flex;flex-direction:column;overflow:hidden;transition:width var(--tr);z-index:50;position:relative}
+#sb.open{width:var(--sb-open)}
+.sb-logo{height:var(--hdr);display:flex;align-items:center;padding:0 18px;gap:12px;border-bottom:1px solid rgba(255,255,255,.08);flex-shrink:0;cursor:pointer}
+.sb-logo .mark{width:36px;height:36px;border-radius:9px;background:linear-gradient(135deg,var(--tl-m),var(--tl-d));display:flex;align-items:center;justify-content:center;font-size:18px;color:#fff;font-family:'IBM Plex Sans Thai';font-weight:700;flex-shrink:0;transition:transform var(--tr)}
+#sb.open .sb-logo .mark{transform:scale(1.04)}
+.sb-logo .brand{opacity:0;width:0;overflow:hidden;white-space:nowrap;transition:opacity var(--tr),width var(--tr)}
+#sb.open .sb-logo .brand{opacity:1;width:auto}
+.brand-name{font-size:13px;font-weight:700;letter-spacing:.3px;color:#fff;font-family:'IBM Plex Sans Thai'}
+.brand-sub{font-size:10px;color:rgba(255,255,255,.5);margin-top:1px}
+.sb-nav{flex:1;overflow-y:auto;overflow-x:hidden;padding:10px 0;scrollbar-width:none}
+.sb-nav::-webkit-scrollbar{display:none}
+.sb-section{padding:0 8px;margin-bottom:4px}
+.sb-sect-label{font-size:9.5px;font-weight:700;letter-spacing:.9px;text-transform:uppercase;color:rgba(255,255,255,.3);padding:10px 10px 4px;white-space:nowrap;opacity:0;height:0;overflow:hidden;transition:opacity var(--tr),height var(--tr)}
+#sb.open .sb-sect-label{opacity:1;height:26px}
+.sb-item{display:flex;align-items:center;gap:11px;padding:9px 10px;border-radius:8px;cursor:pointer;color:rgba(255,255,255,.6);font-size:12.5px;font-weight:500;white-space:nowrap;transition:background var(--tr),color var(--tr);position:relative;margin-bottom:1px;overflow:hidden}
+.sb-item i{font-size:18px;flex-shrink:0;transition:color var(--tr)}
+.sb-item .lbl{opacity:0;width:0;overflow:hidden;transition:opacity var(--tr),width var(--tr);white-space:nowrap}
+#sb.open .sb-item .lbl{opacity:1;width:auto}
+.sb-item:hover{background:rgba(255,255,255,.07);color:rgba(255,255,255,.9)}
+.sb-item.active{background:var(--tl);color:#fff;font-weight:600}
+.sb-item.active i{color:#fff}
+.sb-badge{margin-left:auto;background:var(--coral);color:#fff;font-size:9px;font-weight:700;padding:1px 5px;border-radius:10px;flex-shrink:0}
+#sb:not(.open) .sb-badge{display:none}
+.sb-sub{display:none;padding-left:0}
+#sb.open .sb-sub{display:block}
+.sb-sub .sb-item{padding-left:20px;font-size:12px;color:rgba(255,255,255,.5)}
+.sb-sub .sb-item.active{background:rgba(255,255,255,.12);color:#fff}
+.sb-bottom{padding:10px 8px;border-top:1px solid rgba(255,255,255,.08)}
+/* ── topbar ── */
+#topbar{height:var(--hdr);background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;padding:0 16px;flex-shrink:0}
+.topbar-title{font-size:14px;font-weight:600;color:var(--ink);white-space:nowrap}
+.topbar-sub{font-size:11px;color:var(--mut);margin-top:1px}
+.topbar-search{margin-left:12px;display:flex;align-items:center;gap:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:0 10px;height:34px;flex:0 1 260px;min-width:0}
+.topbar-search i{color:var(--mut);font-size:15px;flex-shrink:0}
+.topbar-search input{border:none;background:none;outline:none;font-size:12.5px;color:var(--ink);width:100%}
+.topbar-search input::placeholder{color:var(--mut)}
+.tb-spacer{flex:1}
+.icon-btn{width:34px;height:34px;border:1px solid var(--border);background:var(--surface);border-radius:8px;display:flex;align-items:center;justify-content:center;color:var(--mut);font-size:17px;cursor:pointer;transition:background var(--tr),color var(--tr);flex-shrink:0}
+.icon-btn:hover{background:var(--surface2);color:var(--ink)}
+/* ── main / frames ── */
+#main{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
+#content{flex:1;overflow:auto;position:relative}
+.frame{display:none;height:100%;overflow:auto;padding:18px}
+.frame.active{display:block}
+/* ── cards / kpi ── */
+.kpi-row{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;margin-bottom:14px}
+.kpi{background:var(--surface);border:1px solid var(--border);border-radius:var(--r2);padding:13px 14px}
+.kpi-lbl{font-size:11px;color:var(--mut);margin-bottom:5px}
+.kpi-val{font-size:22px;font-weight:700;line-height:1;font-family:'IBM Plex Sans Thai'}
+.kpi-sub{font-size:11px;color:var(--mut);margin-top:3px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r2);padding:16px;margin-bottom:12px}
+.card-title{font-size:13px;font-weight:600;display:flex;align-items:center;gap:7px;margin-bottom:12px;color:var(--ink)}
+.card-title i{color:var(--mut);font-size:16px}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+/* ── balance panel (สมดุลเวร), ported from original .bp-* rules ── */
+.bp-kpi-row{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:9px;margin-bottom:12px}
+.bp-alert{display:flex;align-items:flex-start;gap:9px;padding:9px 13px;border-radius:9px;border-left:3px solid;font-size:12.5px;margin-bottom:12px}
+.bp-alert.ok{background:var(--jade-l);border-color:var(--jade);color:var(--jade)}
+.bp-alert.warn{background:var(--amber-l);border-color:var(--amber);color:var(--amber)}
+.bp-alert i{flex-shrink:0;margin-top:1px}
+.bp-bar-track{flex:1;height:7px;background:var(--surface2);border-radius:4px;overflow:hidden;position:relative}
+.bp-bar-fill{height:100%;border-radius:4px;transition:width .6s}
+.bp-avg-line{position:absolute;top:-2px;bottom:-2px;width:2px;background:var(--tl);border-radius:1px;opacity:.65}
+.bp-diff{display:inline-flex;align-items:center;gap:3px;padding:2px 7px;border-radius:20px;font-size:11px;font-weight:600}
+.bp-diff.over{background:var(--coral-l);color:var(--coral)}
+.bp-diff.under{background:var(--amber-l);color:var(--amber)}
+.bp-diff.ok{background:var(--jade-l);color:var(--jade)}
+.swap-card-bp{border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:9px;transition:border-color .15s}
+.swap-card-bp:hover{border-color:var(--tl)}
+.swap-head-bp{display:flex;align-items:center;gap:8px;padding:9px 12px;background:var(--surface2);flex-wrap:wrap}
+.swap-body-bp{padding:10px 12px}
+.swap-person-bp{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:20px;font-size:12px;font-weight:600;background:var(--surface);border:1px solid var(--border)}
+.swap-person-bp.over{border-color:var(--coral);color:var(--coral)}
+.swap-person-bp.under{border-color:var(--amber);color:var(--amber)}
+.ctag-bp{display:inline-flex;align-items:center;gap:3px;padding:1px 7px;border-radius:4px;font-size:10.5px;font-weight:500;background:var(--surface2);color:var(--mut);border:1px solid var(--border)}
+.ctag-bp.bad{background:var(--coral-l);color:var(--coral);border-color:transparent}
+.ctag-bp.good{background:var(--jade-l);color:var(--jade);border-color:transparent}
+.bp-log-item{display:flex;align-items:center;gap:8px;padding:6px 10px;border-radius:7px;background:var(--jade-l);margin-bottom:4px;font-size:12px;color:var(--jade)}
+/* ── table ── */
+.tbl-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:12.5px;white-space:nowrap}
+thead th{text-align:left;font-weight:600;font-size:11.5px;color:var(--mut);padding:7px 10px;border-bottom:1px solid var(--border);background:var(--surface2)}
+tbody tr:hover{background:var(--surface2)}
+tbody td{padding:8px 10px;border-bottom:1px solid var(--border);color:var(--ink);vertical-align:middle}
+tbody tr:last-child td{border-bottom:none}
+.tbl{border-collapse:collapse;font-size:11.5px;width:100%}
+.tbl th,.tbl td{border:1px solid var(--border);padding:5px 6px;text-align:center}
+.tbl th{background:var(--surface2);font-weight:600;color:var(--mut);font-size:11px}
+.tbl td.name,.tbl td.l{text-align:left}
+/* ── badge ── */
+.badge{display:inline-flex;align-items:center;gap:4px;font-size:11px;padding:2px 8px;border-radius:20px;font-weight:600;white-space:nowrap}
+.badge.draft{background:var(--gold-l);color:var(--gold)}
+.badge.pub,.badge.ok{background:var(--jade-l);color:var(--jade)}
+.badge.none{background:var(--surface2);color:var(--mut)}
+.badge.warn{background:var(--gold-l);color:var(--gold)}
+.badge.crit,.badge.danger{background:var(--coral-l);color:var(--coral)}
+/* ── btn ── */
+.btn{display:inline-flex;align-items:center;gap:5px;padding:6px 13px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--ink);font-size:12.5px;font-weight:500;cursor:pointer;transition:all var(--tr);white-space:nowrap}
+.btn:hover{background:var(--surface2)}
+.btn-primary{background:var(--tl);color:#fff;border-color:var(--tl)}
+.btn-primary:hover{background:var(--tl-d);border-color:var(--tl-d)}
+.btn-sm{padding:4px 10px;font-size:11.5px}
+.btn-danger{background:var(--coral-l);color:var(--coral);border-color:var(--coral-l)}
+.btn[disabled]{opacity:.45;cursor:not-allowed}
+/* ── schedule grid (ported from .sched/.tok in original) ── */
+.sched-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:var(--r);background:var(--surface);-webkit-overflow-scrolling:touch}
+.sched{border-collapse:collapse;font-size:11px;min-width:900px}
+.sched th,.sched td{border:1px solid var(--border);text-align:center;padding:0;min-width:30px}
+.sched thead th{background:var(--tl-vl);color:var(--tl-d);font-weight:600;position:sticky;top:0;z-index:4}
+.sched th.dnum{height:20px;font-size:11px;font-weight:700}
+.sched th.dow{height:16px;font-size:10px;color:var(--ink2)}
+.sched td.wknd,.sched th.wknd{background:var(--coral-l)}
+.sched td.holi,.sched th.holi{background:var(--coral-l)}
+.sched .nm{text-align:left;white-space:nowrap;padding:4px 8px;font-weight:600;font-size:12px;position:sticky;left:0;background:var(--surface);z-index:3;border-right:2px solid var(--border);min-width:120px;max-width:160px}
+.sched .sumcol{font-weight:700;background:var(--tl-vl);color:var(--tl-d);font-size:11px;min-width:26px;white-space:nowrap}
+.sched .cell{cursor:pointer;height:30px;display:flex;align-items:center;justify-content:center;gap:1px;flex-wrap:wrap;padding:1px;position:relative}
+.sched .cell:hover{outline:2px solid var(--tl);outline-offset:-2px;z-index:2}
+.sched .cell.ovrd{box-shadow:inset 0 0 0 1.5px var(--coral)}
+.sched tr.sum-row td{background:var(--surface2);font-weight:700;font-size:11px;border-top:2px solid var(--tl-l)}
+.tok{font-size:9.5px;font-weight:700;padding:1px 3px;border-radius:3px;line-height:1.4;white-space:nowrap}
+.legend{display:flex;gap:12px;flex-wrap:wrap;margin:9px 2px;font-size:12px;color:var(--ink2);align-items:center}
+.legend span{display:inline-flex;align-items:center;gap:5px}
+/* ── contact cards ── */
+.contact-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px}
+.contact{border:1px solid var(--border);border-radius:var(--r);padding:11px 13px;background:var(--tl-vl)}
+.contact .cn{font-weight:600;font-size:13px}
+.contact .cp{font-size:12px;color:var(--ink2);margin-top:2px}
+.contact .cc{font-size:12px;margin-top:4px;color:var(--tl-d);font-weight:500}
+/* ── reports tabs/doc ── */
+.rtabs{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:12px}
+.rtab{padding:5px 12px;border:1px solid var(--border);background:var(--surface);border-radius:8px;font-size:12px;font-weight:500;color:var(--mut);cursor:pointer;white-space:nowrap;transition:all var(--tr)}
+.rtab.active{background:var(--tl-d);color:#fff;border-color:var(--tl-d)}
+.doc{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:22px;overflow-x:auto;font-size:12.5px}
+.dtitle{text-align:center;font-weight:700;font-size:15px;margin-bottom:4px}
+.dline{text-align:center;font-size:12.5px;color:var(--mut);margin-bottom:2px}
+.rep-tbl{border-collapse:collapse;width:100%;font-size:12px}
+.rep-tbl th,.rep-tbl td{border:1px solid var(--border);padding:6px 9px}
+.rep-tbl th{background:var(--surface2);font-weight:600;text-align:center}
+.rep-tbl td.l{text-align:left}.rep-tbl td.c{text-align:center}.rep-tbl td.r{text-align:right}
+.rep-tbl tr.tot td{background:var(--tl-vl);font-weight:700}
+/* บัญชีลงเวลา OT/เวรคลินิก(น) — กำหนดสัดส่วนทุกคอลัมน์ (ไม่ใช่แค่ลายมือชื่อ) ป้องกันคอลัมน์
+   ชื่อ-สกุล/ตำแหน่ง ถูกบีบจนข้อความทับคอลัมน์ข้างเคียงเมื่อ table-layout:fixed คำนวณความกว้าง
+   จากหัวตารางอย่างเดียว */
+.rep-tbl-sig{table-layout:fixed}
+.rep-tbl-sig th:nth-child(1),.rep-tbl-sig td:nth-child(1){width:10%}
+.rep-tbl-sig th:nth-child(2),.rep-tbl-sig td:nth-child(2){width:18%}
+.rep-tbl-sig th:nth-child(3),.rep-tbl-sig td:nth-child(3){width:13%}
+.rep-tbl-sig th:nth-child(4),.rep-tbl-sig td:nth-child(4){width:9%}
+.rep-tbl-sig th:nth-child(5),.rep-tbl-sig td:nth-child(5){width:7%}
+.rep-tbl-sig th:nth-child(7),.rep-tbl-sig td:nth-child(7){width:7%}
+.rep-tbl-sig th:nth-child(9),.rep-tbl-sig td:nth-child(9){width:10%}
+.rep-tbl-sig .sig-col{width:13%}
+.sig-row{display:flex;justify-content:space-between;margin-top:18px;gap:20px;flex-wrap:wrap}
+.sig{text-align:center;font-size:12px;flex:1;border-top:1px solid var(--border);padding-top:8px;min-width:180px;line-height:1.7}
+/* ── stat grid (schedule dashboard) ── */
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px;margin-bottom:14px}
+.stat{background:var(--surface2);border-radius:var(--r);padding:12px;text-align:center}
+.stat .val{font-size:26px;font-weight:700;color:var(--tl-d);font-family:'IBM Plex Sans Thai'}
+.stat .lbl{font-size:11px;color:var(--mut);margin-top:2px}
+.progress-row{display:flex;align-items:center;gap:10px;margin-bottom:7px}
+.progress-lbl{font-size:12px;color:var(--ink2);width:160px;text-align:right;flex-shrink:0;font-weight:600;white-space:nowrap;overflow:visible;text-overflow:initial}
+.progress-track{flex:1;height:8px;background:var(--surface2);border-radius:4px;overflow:hidden}
+.progress-fill{height:100%;border-radius:4px;background:var(--tl);transition:width .6s ease}
+.progress-val{font-size:12px;font-weight:600;width:64px;text-align:right;flex-shrink:0}
+/* ── oncall / collect form ── */
+.oc-form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;background:var(--tl-vl);border:1px solid var(--border);border-radius:var(--r);padding:14px;margin-bottom:12px}
+.oc-form-grid label{font-size:12px;color:var(--mut);display:flex;flex-direction:column;gap:4px}
+.oc-form-grid input,.oc-form-grid select{padding:6px 9px;border:1px solid var(--border);border-radius:7px;background:var(--surface);color:var(--ink);font-size:12.5px;outline:none}
+.oc-lab-chip{display:flex;align-items:center;gap:5px;font-size:12px;border:1px solid var(--border);border-radius:7px;padding:5px 10px;cursor:pointer;background:var(--surface);transition:background .12s,border-color .12s}
+.oc-lab-chip:hover{border-color:var(--tl)}
+.oc-lab-chip:has(input:checked){background:var(--tl-vl);border-color:var(--tl);color:var(--tl-d);font-weight:600}
+/* ── home hero / module grid ── */
+.home-hero{background:linear-gradient(135deg,var(--tl-d) 0%,var(--tl) 60%,var(--tl-m) 100%);border-radius:var(--r2);padding:24px 28px;color:#fff;margin-bottom:16px;display:flex;align-items:center;gap:20px;flex-wrap:wrap}
+.hero-icon{width:56px;height:56px;border-radius:14px;background:rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;font-size:28px;flex-shrink:0}
+.hero-text h1{font-size:20px;font-weight:700;font-family:'IBM Plex Sans Thai';margin-bottom:3px}
+.hero-text p{font-size:12.5px;opacity:.8}
+/* ── modal ── */
+.modal-overlay{position:fixed;inset:0;background:rgba(9,28,24,.55);display:none;align-items:center;justify-content:center;z-index:200}
+.modal-overlay.open{display:flex}
+.modal{background:var(--surface);border-radius:var(--r2);max-width:640px;width:92%;max-height:86vh;overflow:auto;box-shadow:var(--shadow-lg)}
+.modal-head{display:flex;justify-content:space-between;align-items:center;padding:16px 18px;border-bottom:1px solid var(--border)}
+.modal-body{padding:18px}
+.modal-foot{display:flex;justify-content:flex-end;gap:8px;padding:14px 18px;border-top:1px solid var(--border)}
+/* ── toast ── */
+#toastWrap{position:fixed;bottom:20px;right:20px;z-index:500;display:flex;flex-direction:column;gap:6px;pointer-events:none}
+.toast{background:var(--ink);color:#fff;padding:10px 15px;border-radius:10px;font-size:12.5px;display:flex;align-items:center;gap:8px;box-shadow:var(--shadow-lg);max-width:320px;pointer-events:auto}
+.toast.err{background:var(--coral)}
+/* ── loading overlay ── */
+.loading-overlay{position:fixed;inset:0;background:rgba(0,0,0,.15);display:none;align-items:center;justify-content:center;z-index:400}
+.loading-overlay.open{display:flex}
+.spinner{width:32px;height:32px;border:3px solid var(--border);border-top-color:var(--tl);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+@media (max-width:768px){
+  #sb{position:fixed;left:0;top:0;height:100vh;z-index:150;transform:translateX(-100%)}
+  #sb.mob-open{transform:translateX(0);width:var(--sb-open)}
+  /* ฉากหลังคลุมจอเมื่อเปิดเมนูบนมือถือ — แตะเพื่อปิด (จัดการใน toggleSidebar) */
+  #sb.mob-open::after{content:'';position:fixed;top:0;left:var(--sb-open);right:0;bottom:0;background:rgba(0,0,0,.4)}
+  .frame{padding:12px}
+}
+/* ── accordion (ตั้งค่า sections, ported visual style from original bindCFG() cfg-section) ── */
+.acc{margin-bottom:10px;border:1px solid var(--border);border-radius:var(--r2);overflow:hidden;background:var(--surface)}
+.acc>summary{cursor:pointer;background:var(--tl-vl);color:var(--tl-d);padding:11px 16px;font-weight:600;font-size:13px;list-style:none;display:flex;align-items:center;gap:8px}
+.acc>summary::-webkit-details-marker{display:none}
+.acc[open]>summary{border-bottom:1px solid var(--border)}
+.acc-body{padding:16px}
+.frm-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px}
+.frm-grid label{font-size:11.5px;color:var(--mut);display:flex;flex-direction:column;gap:4px}
+.frm-grid input,.frm-grid select,.frm-grid textarea{padding:6px 9px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--ink);font-size:12.5px;outline:none}
+.mo-chip{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:6px;font-size:10.5px;font-weight:600;cursor:pointer;margin:2px;border:1px solid var(--border)}
+.mo-chip.off{background:var(--surface2);color:var(--mut)}
+.mo-chip.on{background:var(--tl-l);color:var(--tl-d);border-color:var(--tl)}
+/* ── print: hide chrome, keep only report/sched content (fixes "ไม่ต้องพิมพ์เมนู") ── */
+.print-sign{display:none}
+@media print{
+  /* ตารางเวร = แนวนอน (กว้าง 31 วัน) · รายงาน (.doc) = แนวตั้ง (แถวเยอะ)
+     หมายเหตุ: เคยใช้ named page (@page repPage + .doc{page:repPage}) แต่ Chrome จะแทรกหน้าเปล่าหน้าแรก
+     เมื่อสลับ named page กลางเอกสาร — เปลี่ยนมาตั้งขนาดกระดาษแบบไดนามิกด้วย #printPageSize (ดู printWithPageSize() ใน script-schedule.html) */
+  @page{size:A4 landscape;margin:6mm}
+  /* ค่าเริ่มต้น = พิมพ์ขาวดำ (กดปุ่ม "พิมพ์") — กดปุ่ม "พิมพ์สี" จะเติม class print-color ที่ <html> ก่อนสั่งพิมพ์
+     เพื่อข้ามฟิลเตอร์ grayscale และคืนสีจริงของโทเค็นเวร/หัวตาราง (ดู printColorBtn ใน script-schedule.html) */
+  html:not(.print-color){filter:grayscale(1)}
+  #sb,#topbar,.btn,.legend,.rtabs,#violationsPanel,#ovrLogCard,.modal-overlay,#toastWrap,.loading-overlay,#repPersonSel{display:none!important}
+  .contact i{display:none!important}
+  .print-only{display:block!important}
+  #content{overflow:visible}
+  .frame{padding:0}
+  .sched-wrap{overflow:visible;border:none;width:100%;page-break-inside:avoid}
+  /* ตารางเวรคือตัวหลักของรายงาน — ให้ฟอนต์/ระยะใหญ่กว่าส่วนอื่น ส่วนข้อมูลรองบีบให้เล็กลงแทน */
+  .sched{font-size:7.8px;width:100%;min-width:0;table-layout:fixed}
+  .sched th,.sched td{padding:1.5px 2px;min-width:0;width:auto}
+  .sched .nm{min-width:0;max-width:none;width:11%;font-size:8.8px;position:static}
+  .sched .sumcol{min-width:0;width:3%}
+  .sched .cell{height:auto;min-height:20px;gap:2px}
+  .sched .cell.ovrd{box-shadow:none}
+  /* โทเค็นเวรเป็นตัวอักษรล้วน ไม่มีกรอบครอบ (ตัดกรอบออกตามฟีดแบ็ก — มีกรอบอ่านยาก)
+     ขนาดตัวอักษรเท่ากับตัวเลขสรุปท้ายแถว (.sumcol = 11px) ตามฟีดแบ็ก (เดิม 7px เล็กกว่ามาก)
+     โหมดพิมพ์สี (html.print-color) ข้ามการบังคับขาวดำนี้ ให้ใช้สีจริงตาม inline style ของแต่ละโทเค็นแทน */
+  .tok{font-size:11px;padding:0 1px;font-weight:700;border:none!important;line-height:1.3}
+  html:not(.print-color) .tok{background:none!important;color:#000!important}
+  html:not(.print-color) .sched th,html:not(.print-color) .sched td{color:#000!important}
+  html:not(.print-color) .sched .sumcol{background:#fff!important;color:#000!important}
+  html.print-color .tok,html.print-color .sched .sumcol{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;color-adjust:exact!important}
+  /* วันหยุด/นักขัตฤกษ์ — สีเดิม (--coral-l) จางมากจนแทบขาวล้วนหลังผ่าน grayscale filter ตอนพิมพ์
+     ใส่สีเทาอ่อนชัดเจนแทน ให้แยกจากวันราชการได้ตอนพิมพ์ขาวดำ
+     -webkit-print-color-adjust/print-color-adjust:exact บังคับให้พิมพ์พื้นหลังจริง แม้ผู้ใช้ไม่ติ๊ก "Background graphics" ใน Chrome print dialog */
+  .sched td.wknd,.sched th.wknd,.sched td.holi,.sched th.holi{
+    background:#d4d4d4!important;
+    -webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;color-adjust:exact!important;
+  }
+  /* วันราชการ/วันหยุด/นักขัตฤกษ์ ใต้หัวตารางเวร — เดิมสีเทาอ่อนตาม --mut อ่านยากเมื่อพิมพ์ ปรับเป็นสีดำ */
+  #gridSub{color:#000!important;font-weight:600}
+  .doc{border:none;padding:0;overflow:visible!important}
+  .tbl-wrap{overflow:visible!important}
+  /* รายงาน (.rep-tbl) ใช้ฟอนต์ TH Saraban (Sarabun) ขนาด 10px — ลด line-height ลงจาก 1.7 เพื่อให้พอดี A4 */
+  .rep-tbl,.doc{font-family:'Sarabun','TH Sarabun New',sans-serif}
+  .rep-tbl{font-size:10px;width:100%;table-layout:auto;line-height:1.35}
+  .rep-tbl th,.rep-tbl td{padding:3px 6px}
+  .rep-tbl tr.grp td{font-size:10px;padding-top:5px}
+  .rep-tbl-sig .sig-col{height:22px}
+  .dtitle{font-size:13px;margin-bottom:3px}.dline{font-size:10px;line-height:1.4}
+  /* ใบเบิกเงินรวม (แนวตั้ง) — เพิ่ม line-height เฉพาะรายงานนี้ตามฟีดแบ็ก (ยังชิดกันอยู่ที่ 1.35) */
+  .pay-portrait .rep-tbl{line-height:1.5}
+  body,html{overflow:visible!important;height:auto!important}
+  #app{display:block!important;height:auto!important}
+  #main{overflow:visible!important}
+  /* ข้อมูลติดต่อ + เวลาปฏิบัติงาน = ส่วนรอง วางคู่กันแบบ 2 คอลัมน์บีบให้ใช้พื้นที่กระดาษน้อยที่สุด
+     เพื่อให้ตารางเวรเป็นจุดสนใจหลักของหน้าและกินพื้นที่ส่วนใหญ่ */
+  #contactCard,#workHoursPrint{float:left;width:48.5%;margin-top:5px!important;box-sizing:border-box;page-break-inside:avoid}
+  #contactCard{margin-right:3%}
+  #contactGrid,.contact-grid{grid-template-columns:repeat(2,1fr)!important;gap:3px!important}
+  .contact{font-size:7.5px;padding:3px 5px;line-height:1.3}
+  .contact b{font-size:7.8px}
+  #workHoursPrint .tbl td,#workHoursPrint .tbl th{padding:3px 5px;font-size:9.5px;line-height:1.5}
+  .card-title{margin-bottom:2px!important;font-size:9.5px!important}
+  /* เลื่อนลงนามลงไปด้านล่างของหน้า — ใช้ position:fixed ยึดกับขอบล่างกระดาษจริง
+     ไม่พึ่ง margin-top (ซึ่งระยะที่เห็นผลขึ้นกับความสูงเนื้อหาก่อนหน้า ไม่แน่นอน) */
+  .print-sign{position:fixed;bottom:10mm;left:6mm;right:6mm;clear:both;display:flex!important;justify-content:space-around;gap:24px;font-size:10px;text-align:center}
+  .print-sign .ln{margin-top:14px;border-top:1px dotted #000;padding-top:3px;min-width:150px}
+  /* รายงาน .doc (เช่น หลักฐานการจ่ายเงิน) ใช้ .sig-row แยกจาก .print-sign ของตารางเวร — เลื่อนลงนามลงด้านล่างหน้าเช่นกัน */
+  .sig-row{margin-top:140px!important}
+  /* ตัดเส้นคั่นเหนือช่องลงนามออกตามฟีดแบ็ก (ใบเบิกเงินรวม/รายบุคคล) */
+  .sig{border-top:none!important}
+  /* ตารางเวร: ตัดไอคอนหัวกล่อง + กรอบนอกของกล่องข้อมูลติดต่อ/เวลาปฏิบัติงาน ออกตามฟีดแบ็ก */
+  #contactCard .card-title i,#workHoursPrint .card-title i{display:none!important}
+  #contactCard,#workHoursPrint{border:none!important}
+  /* ใบเบิกเงินรวม (แนวนอน A4) — ตามฟีดแบ็กล่าสุดให้ใช้ฟอนต์/ระยะเท่ารายงานอื่น (16px, line-height สูง)
+     แม้จะไม่พอ 1 หน้าเสมอไป อ่านง่ายสำคัญกว่า */
+  .pay-landscape .sig-row{margin-top:20px!important}
+  /* Chrome เวลาพิมพ์ตาราง border-collapse:collapse ที่กว้าง/สูงพอดีขอบกระดาษ มักตัดเส้นขอบขวา-ล่างหายไป
+     เปลี่ยนเป็น separate + border-spacing:0 ให้ทุกเซลล์มีกรอบของตัวเอง ไม่หายแม้ชิดขอบกระดาษ */
+  .sched,.tbl,.rep-tbl{border-collapse:separate!important;border-spacing:0!important;border:1px solid #000!important}
+  .sched th,.sched td,.tbl th,.tbl td,.rep-tbl th,.rep-tbl td{border:1px solid #000!important}
+  /* บันทึก on-call (รายละเอียด) — ตัดหัวรายงานย่อยออก เพิ่มระยะห่างระหว่างบรรทัดให้อ่านง่าย */
+  .oc-claim-blk{line-height:2;padding:10px 0!important}
+  .oc-claim-blk>div{margin-bottom:3px}
+}
+</style>

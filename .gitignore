@@ -1,0 +1,9 @@
+node_modules/
+.env
+.env.*
+!.env.example
+labthungfon-platform-b32d2fe81fd5.json
+*.json.key
+.vercel
+npm-debug.log*
+.DS_Store

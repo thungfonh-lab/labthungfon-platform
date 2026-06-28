@@ -1,0 +1,14 @@
+<!-- Generic modal shell, ported from #modalOverlay/.modal in the original (showModal()/closeModal()). -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <div class="modal-head">
+      <h3 id="modalTitle">แจ้งเตือน</h3>
+      <button class="icon-btn" onclick="closeModal()"><i class="ti ti-x"></i></button>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+    <div class="modal-foot">
+      <button class="btn" onclick="closeModal()">ยกเลิก</button>
+      <button class="btn btn-primary" id="modalConfirm">ตกลง</button>
+    </div>
+  </div>
+</div>

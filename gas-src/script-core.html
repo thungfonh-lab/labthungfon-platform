@@ -1,0 +1,541 @@
+<script>
+/* script-core.html — session handling, router, RBAC sidebar, toast/loading,
+   google.script.run wrappers. Ported entry points (same names/behaviour as the
+   original labthungfon-platform-v4_43.html): toggleSidebar()/toggleDark()/navTo()/
+   toast()/showModal()/closeModal()/handleGSearch()/pRefresh()/fillMY()/openMyPerms(). */
+
+var Session = { token: null, user: null, permissions: {}, settings: {} };
+
+var TH_M = ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน', 'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'];
+
+var BUILTIN_MODULES = [
+  { id: 'dashboard', label: 'แดชบอร์ด', icon: 'ti-layout-dashboard', removable: false },
+  { id: 'schedule', label: 'ตารางเวร', icon: 'ti-calendar-event', removable: false, subnav: [
+    { id: 'setup', label: 'ตั้งค่า', icon: 'ti-settings' },
+    { id: 'dash', label: 'แดชบอร์ด', icon: 'ti-chart-bar' },
+    { id: 'collect', label: 'เก็บวันลา', icon: 'ti-calendar-off' },
+    { id: 'grid', label: 'ตารางเวร', icon: 'ti-table' },
+    { id: 'reports', label: 'รายงาน', icon: 'ti-report' },
+    { id: 'oncall', label: 'On Call', icon: 'ti-phone' },
+    { id: 'balance', label: 'สมดุลเวร', icon: 'ti-scale' }
+  ] },
+  { id: 'admin', label: 'ผู้ดูแลระบบ', icon: 'ti-shield-lock', permission: 'manageSettings', removable: false, essential: true },
+  { id: 'guide', label: 'คู่มือการใช้งาน', icon: 'ti-book', removable: false }
+];
+/* MODULE_REGISTRY = builtins + any user-added URL modules (kind:'url'), persisted in
+   Settings.moduleRegistry (ported from MODULE_REGISTRY/loadRegistry() in the original —
+   see Admin > โมดูล for the management UI that restores "จัดการโมดูล"). */
+var MODULE_REGISTRY = BUILTIN_MODULES.slice();
+
+/* getSettings() ฝั่งเซิร์ฟเวอร์แปลง JSON string เป็น array/object ให้แล้ว ค่าที่ได้จึงอาจเป็น
+   array อยู่แล้ว — ต้องรองรับทั้ง array และ string กัน JSON.parse ซ้ำแล้ว throw (เคยทำให้
+   การเปิด/ปิดโมดูลและโมดูล URL ไม่ถูกโหลด) */
+function asArray_(v) {
+  if (Array.isArray(v)) return v;
+  if (typeof v === 'string') { try { var p = JSON.parse(v); return Array.isArray(p) ? p : []; } catch (e) { return []; } }
+  return [];
+}
+/* moduleLabels = ชื่อเมนู/โมดูลที่ผู้ดูแลระบบแก้ไขเอง — เก็บแบบ {moduleId: label} สำหรับเมนูหลัก
+   และ {parentId+'.'+subId: label} สำหรับเมนูย่อย (เช่น subnav ของตารางเวร) */
+var ModuleLabels = {};
+function asObj_(v) {
+  if (v && typeof v === 'object' && !Array.isArray(v)) return v;
+  if (typeof v === 'string') { try { var p = JSON.parse(v); return (p && typeof p === 'object') ? p : {}; } catch (e) { return {}; } }
+  return {};
+}
+function loadModuleRegistry(settings) {
+  var saved = asArray_(settings.moduleRegistry);
+  var urlMods = saved.filter(function (m) { return m.kind === 'url'; });
+  var disabled = asArray_(settings.moduleDisabled);
+  ModuleLabels = asObj_(settings.moduleLabels);
+  /* clone builtins so toggling enabled doesn't mutate the shared BUILTIN_MODULES defs,
+     and apply the persisted disabled-state from Settings (fixes toggle ไม่ถูกบันทึก) */
+  MODULE_REGISTRY = BUILTIN_MODULES.map(function (m) {
+    var copy = Object.assign({}, m, { enabled: disabled.indexOf(m.id) === -1 });
+    if (ModuleLabels[m.id]) copy.label = ModuleLabels[m.id];
+    if (copy.subnav) {
+      copy.subnav = copy.subnav.map(function (s) {
+        var key = m.id + '.' + s.id;
+        return ModuleLabels[key] ? Object.assign({}, s, { label: ModuleLabels[key] }) : s;
+      });
+    }
+    return copy;
+  }).concat(urlMods.map(function (m) { return ModuleLabels[m.id] ? Object.assign({}, m, { label: ModuleLabels[m.id] }) : m; }));
+}
+function saveModuleRegistry() {
+  var urlMods = MODULE_REGISTRY.filter(function (m) { return m.kind === 'url'; });
+  var disabled = MODULE_REGISTRY.filter(function (m) { return m.kind !== 'url' && m.enabled === false; }).map(function (m) { return m.id; });
+  return gsRun('api_saveSettings', Session.token, { moduleRegistry: JSON.stringify(urlMods), moduleDisabled: JSON.stringify(disabled) });
+}
+/** บันทึกชื่อเมนูที่แก้ไข — key คือ moduleId เฉยๆ (เมนูหลัก/โมดูล URL) หรือ "moduleId.subId" (เมนูย่อย) */
+function saveModuleLabel(key, label) {
+  if (label && label.trim()) ModuleLabels[key] = label.trim(); else delete ModuleLabels[key];
+  return gsRun('api_saveSettings', Session.token, { moduleLabels: JSON.stringify(ModuleLabels) }).then(function () {
+    return gsRun('api_bootstrap', Session.token);
+  }).then(function (boot) {
+    loadModuleRegistry(boot.settings || {});
+  });
+}
+function moduleLabel(id, fallback) {
+  var m = MODULE_REGISTRY.filter(function (x) { return x.id === id; })[0];
+  return m ? m.label : (fallback || id);
+}
+
+var _activeMod = 'dashboard', _schedActiveTab = 'grid';
+
+/* ---------------- loading overlay / toast (ported from toast()) ---------------- */
+
+function showLoading(on) {
+  document.getElementById('loadingOverlay').classList.toggle('open', on !== false);
+}
+
+function toast(title, body, isError) {
+  var host = document.getElementById('toastWrap');
+  var el = document.createElement('div');
+  el.className = 'toast' + (isError ? ' err' : '');
+  el.innerHTML = '<i class="ti ' + (isError ? 'ti-alert-circle' : 'ti-check') + '"></i><div><div>' + title + '</div>' +
+    (body ? '<div style="opacity:.75;font-size:11px;margin-top:1px;">' + body + '</div>' : '') + '</div>';
+  host.appendChild(el);
+  setTimeout(function () { el.remove(); }, 4500);
+}
+
+/* ---------------- generic modal (ported from showModal()/closeModal()) ---------------- */
+
+var _modalConfirmHandler = null;
+
+function showModal(title, bodyHtml, confirmTxt, onConfirm) {
+  document.getElementById('modalTitle').textContent = title;
+  var body = document.getElementById('modalBody');
+  body.innerHTML = '';
+  if (typeof bodyHtml === 'string') body.innerHTML = bodyHtml;
+  else body.appendChild(bodyHtml);
+  var btn = document.getElementById('modalConfirm');
+  btn.textContent = confirmTxt || 'ตกลง';
+  _modalConfirmHandler = onConfirm || null;
+  btn.onclick = function () { if (_modalConfirmHandler) _modalConfirmHandler(); };
+  document.getElementById('modalOverlay').classList.add('open');
+}
+function closeModal() {
+  document.getElementById('modalOverlay').classList.remove('open');
+}
+
+/* ---------------- google.script.run wrapper with loading + error toast ---------------- */
+
+/* Short-lived client cache to avoid re-fetching the same month's data on every tab
+   switch (grid/dash/balance/setup all read loadCalendar/calculateWorkload/bootstrap).
+   Each Apps Script round trip has ~1-2s fixed cold-start overhead regardless of
+   server-side caching, so cutting the NUMBER of round trips is what actually
+   speeds up "clicking into a menu". Call invalidateCache(prefix) after any mutation. */
+var _gsCache = {};
+function cachedGsRun(cacheKey, ttlMs, fnName) {
+  var args = Array.prototype.slice.call(arguments, 3);
+  var hit = _gsCache[cacheKey];
+  if (hit && (Date.now() - hit.t) < ttlMs) return Promise.resolve(hit.v);
+  return gsRun.apply(null, [fnName].concat(args)).then(function (v) { _gsCache[cacheKey] = { v: v, t: Date.now() }; return v; });
+}
+function invalidateCache(prefix) {
+  Object.keys(_gsCache).forEach(function (k) { if (k.indexOf(prefix) === 0) delete _gsCache[k]; });
+}
+
+/* page-load performance tracking: navTo() marks _pageLoadStart/_pageLoadMod, every
+   gsRun() bumps _pendingGs while in flight; when it drains back to 0 we know all the
+   round trips a page's render() kicked off have settled, so log how long the page
+   actually took to load (round trips dominate cost, not client rendering). */
+var _pendingGs = 0, _pageLoadStart = null, _pageLoadMod = null;
+function _gsSettled() {
+  _pendingGs--;
+  if (_pendingGs <= 0 && _pageLoadStart) {
+    _pendingGs = 0;
+    var ms = Math.round(performance.now() - _pageLoadStart);
+    console.log('[perf] หน้า "' + _pageLoadMod + '" โหลดเสร็จใน ' + ms + ' ms');
+    _pageLoadStart = null;
+  }
+}
+
+/* ---------------- REST API base URL + fetch-based apiCall() ----------------
+   Migrated from google.script.run to a Node/Express REST backend. API_URL points
+   at localhost during local dev, or the deployed Vercel URL otherwise — set via
+   a <meta name="api-url" content="https://..."> tag in index.html for production
+   builds (falls back to same-origin '' if no meta tag is present, e.g. when the
+   API is reverse-proxied under the same host as the static frontend). */
+var API_URL = (function () {
+  if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') return 'http://localhost:3000';
+  var meta = document.querySelector('meta[name="api-url"]');
+  return meta ? meta.content : '';
+})();
+
+async function apiCall(path, method, body) {
+  var opts = { method: method, headers: { 'Content-Type': 'application/json' } };
+  if (body !== undefined && method !== 'GET') opts.body = JSON.stringify(body);
+  var res = await fetch(API_URL + path, opts);
+  var json;
+  try { json = await res.json(); } catch (e) { throw new Error('เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์'); }
+  if (!json.success) {
+    var err = new Error(json.error || 'เกิดข้อผิดพลาด');
+    err.statusCode = json.statusCode;
+    throw err;
+  }
+  return json.data;
+}
+
+function qs(params) {
+  var parts = [];
+  Object.keys(params).forEach(function (k) {
+    if (params[k] !== undefined && params[k] !== null) parts.push(encodeURIComponent(k) + '=' + encodeURIComponent(params[k]));
+  });
+  return parts.length ? '?' + parts.join('&') : '';
+}
+
+/* ---------------- gsRun() — REST dispatch table, ported names ----------------
+   Every call site across script-*.html still calls gsRun('api_xxx', Session.token, ...args)
+   exactly as before (google.script.run style) — only this function's internals changed
+   to route to the REST API instead. Keeps every other file's call sites untouched. */
+function gsRun(fnName) {
+  var args = Array.prototype.slice.call(arguments, 1);
+  var token = args[0];
+  var rest = args.slice(1);
+  _pendingGs++;
+  showLoading(true);
+  var p;
+  try {
+    p = Promise.resolve(_dispatchApi(fnName, token, rest));
+  } catch (e) {
+    p = Promise.reject(e);
+  }
+  return p.then(function (res) {
+    showLoading(false); _gsSettled(); return res;
+  }).catch(function (err) {
+    showLoading(false); _gsSettled();
+    toast('เกิดข้อผิดพลาด', err.message || String(err), true);
+    throw err;
+  });
+}
+
+function _dispatchApi(fnName, token, args) {
+  switch (fnName) {
+    case 'api_login': return apiCall('/api/auth/login', 'POST', { email: args[0], password: args[1] });
+    case 'api_logout': return apiCall('/api/auth/logout', 'POST', { token: token });
+    case 'api_bootstrap': return apiCall('/api/bootstrap' + qs({ token: token }), 'GET');
+
+    case 'api_generateSchedule': return apiCall('/api/schedule/generate', 'POST', { token: token, year: args[0], month: args[1] });
+    case 'api_saveSchedule': return apiCall('/api/schedule/save', 'POST', { token: token, year: args[0], month: args[1], assignments: args[2], status: args[3] });
+    case 'api_publishSchedule': return apiCall('/api/schedule/publish', 'POST', { token: token, year: args[0], month: args[1] });
+    case 'api_getDutyRoster': return apiCall('/api/schedule/duty-roster' + qs({ token: token, year: args[0], month: args[1] }), 'GET');
+    case 'api_setDutyRoster': return apiCall('/api/schedule/duty-roster', 'POST', { token: token, year: args[0], month: args[1], type: args[2], includedIds: args[3] });
+    case 'api_loadCalendar': return apiCall('/api/schedule/calendar' + qs({ token: token, year: args[0], month: args[1] }), 'GET');
+    case 'api_calculateWorkload': return apiCall('/api/schedule/workload' + qs({ token: token, year: args[0], month: args[1] }), 'GET');
+    case 'api_getBalance': return apiCall('/api/schedule/balance' + qs({ token: token, year: args[0], month: args[1], tolerance: args[2] }), 'GET');
+    case 'api_approveBalanceSwap': return apiCall('/api/schedule/balance/approve-swap', 'POST', { token: token, year: args[0], month: args[1], ovId: args[2], unId: args[3], shift: args[4] });
+    case 'api_getStationsForMonth': return apiCall('/api/stations' + qs({ token: token, year: args[0], month: args[1] }), 'GET');
+
+    case 'api_getReport': return apiCall('/api/reports/' + encodeURIComponent(args[0]) + qs({ token: token, year: args[1], month: args[2], pid: args[3] }), 'GET');
+    case 'api_exportExcel': return apiCall('/api/reports/' + encodeURIComponent(args[0]) + '/export' + qs({ token: token, year: args[1], month: args[2], pid: args[3] }), 'GET');
+
+    case 'api_addOnCall': return apiCall('/api/oncall', 'POST', { token: token, year: args[0], month: args[1], entry: args[2] });
+    case 'api_updateOnCall': return apiCall('/api/oncall/' + encodeURIComponent(args[2]), 'PUT', { token: token, year: args[0], month: args[1], entry: args[3] });
+    case 'api_deleteOnCall': return apiCall('/api/oncall/' + encodeURIComponent(args[2]) + qs({ token: token, year: args[0], month: args[1] }), 'DELETE');
+    case 'api_getOnCallList': return apiCall('/api/oncall' + qs({ token: token, year: args[0], month: args[1] }), 'GET');
+
+    case 'api_addAvailability': return apiCall('/api/availability', 'POST', { token: token, year: args[0], month: args[1], entry: args[2] });
+    case 'api_listAvailability': return apiCall('/api/availability' + qs({ token: token, year: args[0], month: args[1] }), 'GET');
+    case 'api_deleteAvailability': return apiCall('/api/availability/' + encodeURIComponent(args[2]) + qs({ token: token, year: args[0], month: args[1] }), 'DELETE');
+
+    case 'api_listHolidays': return apiCall('/api/holidays' + qs({ token: token, year: args[0], month: args[1] }), 'GET');
+    case 'api_addHoliday': return apiCall('/api/holidays', 'POST', { token: token, year: args[0], month: args[1], entry: args[2] });
+    case 'api_seedThaiHolidays': return apiCall('/api/holidays/seed-thai', 'POST', { token: token, year: args[0] });
+    case 'api_deleteHoliday': return apiCall('/api/holidays/' + encodeURIComponent(args[2]) + qs({ token: token, year: args[0], month: args[1] }), 'DELETE');
+
+    case 'api_addOverride': return apiCall('/api/overrides', 'POST', { token: token, year: args[0], month: args[1], entry: args[2] });
+
+    case 'api_listMaster': return apiCall('/api/master/' + encodeURIComponent(args[0]) + qs({ token: token }), 'GET');
+    case 'api_saveSettings': return apiCall('/api/settings', 'POST', { token: token, patch: args[0] });
+    case 'api_updateShifts': return apiCall('/api/shifts', 'POST', { token: token, shifts: args[0] });
+    case 'api_crud': return apiCall('/api/crud', 'POST', { token: token, entity: args[0], op: args[1], payload: args[2] });
+    case 'api_getSetupBundle': return apiCall('/api/setup-bundle' + qs({ token: token, year: args[0], month: args[1] }), 'GET');
+
+    case 'api_listPermissions': return apiCall('/api/permissions' + qs({ token: token }), 'GET');
+    case 'api_setPermission': return apiCall('/api/permissions', 'POST', { token: token, role: args[0], action: args[1], allowed: args[2] });
+
+    case 'api_listUsers': return apiCall('/api/users' + qs({ token: token }), 'GET');
+    case 'api_setUserPerson': return apiCall('/api/users/' + encodeURIComponent(args[0]) + '/set-person', 'POST', { token: token, personId: args[1] });
+    case 'api_createUser': return apiCall('/api/users', 'POST', { token: token, name: args[0], email: args[1], role: args[2], plainPassword: args[3] });
+    case 'api_setUserActive': return apiCall('/api/users/' + encodeURIComponent(args[0]) + '/set-active', 'POST', { token: token, active: args[1] });
+    case 'api_resetUserPassword': return apiCall('/api/users/' + encodeURIComponent(args[0]) + '/reset-password', 'POST', { token: token, newPlainPassword: args[1] });
+
+    case 'api_getAuditLogs': return apiCall('/api/audit-logs' + qs(Object.assign({ token: token }, args[0] || {})), 'GET');
+
+    default:
+      return Promise.reject(new Error('ไม่รู้จัก API: ' + fnName));
+  }
+}
+
+/* ---------------- auth (ported from doLogin()/logout()/enterApp()) ---------------- */
+
+document.getElementById('loginBtn').addEventListener('click', doLogin);
+document.getElementById('loginPassword').addEventListener('keydown', function (e) { if (e.key === 'Enter') doLogin(); });
+
+function doLogin() {
+  var email = document.getElementById('loginEmail').value.trim();
+  var password = document.getElementById('loginPassword').value;
+  if (!email || !password) return;
+  gsRun('api_login', email, password).then(function (res) {
+    Session.token = res.token;
+    Session.user = res.user;
+    sessionStorage.setItem('lo_token', res.token);
+    enterApp(res.bootstrap); /* ใช้ bootstrap ที่มากับผลล็อกอิน เลี่ยง round trip ที่ 2 */
+  }).catch(function (err) {
+    var el = document.getElementById('loginError');
+    el.style.display = 'block';
+    el.textContent = err.message || 'เข้าสู่ระบบไม่สำเร็จ';
+  });
+}
+
+document.getElementById('logoutBtn').addEventListener('click', logout);
+function logout() {
+  gsRun('api_logout', Session.token).then(function () {
+    sessionStorage.removeItem('lo_token');
+    sessionStorage.removeItem('lo_last_page');
+    location.reload();
+  });
+}
+
+function brandSub() {
+  var s = Session.settings || {};
+  return s.org || s.hosp ? [s.org, s.hosp].filter(Boolean).join(' · ') : 'Platform · เทคนิคการแพทย์';
+}
+
+function applyBranding(settings) {
+  if (settings) Session.settings = settings;
+  var s = Session.settings || {};
+  document.getElementById('sbMark').textContent = (s.logo || (s.org || 'L').charAt(0)).toUpperCase();
+  document.getElementById('sbBrandName').textContent = s.org || 'labthungfon';
+  document.getElementById('sbBrandSub').textContent = brandSub();
+  if (_activeMod) document.getElementById('tbSub').textContent = brandSub();
+  applyThemeColors_(s.themeColor, s.themeAcc);
+}
+
+/* ---------------- theme color (--tl/--gold token families) ---------------- */
+
+function mixHex_(hex, withHex, ratio) {
+  var a = hexToRgb_(hex), b = hexToRgb_(withHex);
+  var mix = a.map(function (c, i) { return Math.round(c + (b[i] - c) * ratio); });
+  return rgbToHex_(mix);
+}
+function hexToRgb_(hex) {
+  hex = hex.replace('#', '');
+  if (hex.length === 3) hex = hex.split('').map(function (c) { return c + c; }).join('');
+  var n = parseInt(hex, 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
+function rgbToHex_(rgb) {
+  return '#' + rgb.map(function (c) { return Math.max(0, Math.min(255, c)).toString(16).padStart(2, '0'); }).join('');
+}
+function applyThemeColors_(themeColor, themeAcc) {
+  var root = document.documentElement.style;
+  if (themeColor) {
+    root.setProperty('--tl', themeColor);
+    root.setProperty('--tl-d', mixHex_(themeColor, '#000000', 0.22));
+    root.setProperty('--tl-m', mixHex_(themeColor, '#ffffff', 0.18));
+    root.setProperty('--tl-l', mixHex_(themeColor, '#ffffff', 0.78));
+    root.setProperty('--tl-vl', mixHex_(themeColor, '#ffffff', 0.92));
+  }
+  if (themeAcc) {
+    root.setProperty('--gold', themeAcc);
+    root.setProperty('--gold-l', mixHex_(themeAcc, '#ffffff', 0.88));
+  }
+}
+
+function enterApp(prefetchedBoot) {
+  /* prefetchedBoot = bootstrap ที่มากับ api_login (ล็อกอินใหม่) — ถ้ามีใช้เลย ไม่ต้องเรียก api_bootstrap ซ้ำ
+     กรณี resume (มี token เดิมใน sessionStorage) จะไม่มี prefetch จึง fetch ตามปกติ */
+  var bootP = prefetchedBoot ? Promise.resolve(prefetchedBoot) : gsRun('api_bootstrap', Session.token);
+  bootP.then(function (boot) {
+    Session.user = boot.user;
+    Session.permissions = boot.permissions;
+    Session.settings = boot.settings || {};
+    document.getElementById('loginScr').style.display = 'none';
+    document.getElementById('app').style.display = 'flex';
+    document.getElementById('avatarInitial').textContent = (boot.user.name || 'A').charAt(0).toUpperCase();
+    document.getElementById('avatarName').textContent = boot.user.name + ' (' + boot.user.role + ')';
+    if (localStorage.getItem('lo_theme') === 'dark') document.documentElement.dataset.theme = 'dark';
+    if (localStorage.getItem('lo_sb_open') !== '0') document.getElementById('sb').classList.add('open');
+    applyBranding(boot.settings);
+    loadModuleRegistry(boot.settings);
+    fillMY();
+    renderSidebar();
+    /* รีเฟรชหน้าแล้วอยู่หน้าเดิม ไม่ต้องกลับไปแดชบอร์ดทุกครั้ง */
+    var lastPage = null;
+    try { lastPage = JSON.parse(sessionStorage.getItem('lo_last_page') || 'null'); } catch (e) {}
+    if (lastPage && lastPage.mod) {
+      if (lastPage.mod === 'schedule' && lastPage.sub) _schedActiveTab = lastPage.sub;
+      navTo(lastPage.mod);
+    } else {
+      navTo('dashboard');
+    }
+  }).catch(function () {
+    sessionStorage.removeItem('lo_token');
+  });
+}
+
+(function tryResume() {
+  var token = sessionStorage.getItem('lo_token');
+  if (token) { Session.token = token; enterApp(); }
+})();
+
+/* ---------------- sidebar / navigation (ported from renderSidebar()/navTo()) ---------------- */
+
+function moduleAllowed(mod) {
+  if (mod.enabled === false) return false;
+  if (!mod.permission) return true;
+  return !!Session.permissions[mod.permission];
+}
+
+function renderSidebar() {
+  var nav = document.getElementById('sbNav');
+  var html = '';
+  var mains = MODULE_REGISTRY.filter(moduleAllowed);
+  html += '<div class="sb-section">';
+  mains.forEach(function (m) {
+    html += '<div class="sb-item' + (m.id === _activeMod ? ' active' : '') + '" data-mod="' + m.id + '">' +
+      '<i class="ti ' + m.icon + '" aria-hidden="true"></i><span class="lbl">' + m.label + '</span></div>';
+  });
+  html += '</div>';
+  var activeMod = MODULE_REGISTRY.filter(function (m) { return m.id === _activeMod; })[0];
+  if (activeMod && activeMod.subnav) {
+    html += '<div class="sb-sub" id="modSubNav"><div class="sb-sect-label">' + activeMod.label + '</div>';
+    activeMod.subnav.forEach(function (s) {
+      html += '<div class="sb-item' + (s.id === _schedActiveTab ? ' active' : '') + '" data-sub="' + s.id + '">' +
+        '<i class="ti ' + s.icon + '" aria-hidden="true"></i><span class="lbl">' + s.label + '</span></div>';
+    });
+    html += '</div>';
+  }
+  nav.innerHTML = html;
+  nav.querySelectorAll('[data-mod]').forEach(function (el) { el.onclick = function () { navTo(el.dataset.mod); }; });
+  nav.querySelectorAll('[data-sub]').forEach(function (el) { el.onclick = function () { schedSwitchTab(el.dataset.sub); }; });
+}
+
+function navTo(modId) {
+  _activeMod = modId;
+  var m = MODULE_REGISTRY.filter(function (x) { return x.id === modId; })[0];
+  if (modId === 'schedule') _schedActiveTab = _schedActiveTab || 'grid';
+  sessionStorage.setItem('lo_last_page', JSON.stringify({ mod: modId, sub: modId === 'schedule' ? _schedActiveTab : null }));
+  _pageLoadStart = performance.now();
+  _pageLoadMod = m ? m.label : modId;
+  _pendingGs = 0;
+  document.querySelectorAll('#content .frame').forEach(function (f) { f.classList.remove('active'); });
+
+  if (m && m.kind === 'url') {
+    document.getElementById('frame-ext').classList.add('active');
+    document.getElementById('extUrlLabel').textContent = m.label;
+    document.getElementById('extFrame').src = m.url;
+    document.getElementById('extOpenNewTab').href = m.url;
+    document.getElementById('tbTitle').textContent = m.label;
+    document.getElementById('tbSub').textContent = brandSub() + ' · โมดูลภายนอก';
+    document.getElementById('tbSchedMY').style.display = 'none';
+    renderSidebar();
+    _pageLoadStart = null; /* โมดูล URL โหลดผ่าน iframe ของตัวเอง ไม่ผ่าน gsRun จึงไม่นับเวลาที่นี่ */
+    if (window.innerWidth <= 768) document.getElementById('sb').classList.remove('mob-open');
+    return;
+  }
+
+  var frame = document.getElementById('frame-' + modId);
+  if (frame) frame.classList.add('active');
+  document.getElementById('tbTitle').textContent = m ? m.label : modId;
+  document.getElementById('tbSub').textContent = brandSub();
+  document.getElementById('tbSchedMY').style.display = modId === 'schedule' ? 'flex' : 'none';
+  renderSidebar();
+
+  if (modId === 'dashboard' && window.Dashboard) Dashboard.render();
+  if (modId === 'schedule' && window.Schedule) Schedule.render(_schedActiveTab);
+  if (modId === 'admin' && window.Admin) Admin.render();
+  if (modId === 'guide' && window.Guide) Guide.render();
+
+  if (window.innerWidth <= 768) document.getElementById('sb').classList.remove('mob-open');
+}
+
+function schedSwitchTab(subId) {
+  _schedActiveTab = subId;
+  if (_activeMod !== 'schedule') { navTo('schedule'); return; }
+  sessionStorage.setItem('lo_last_page', JSON.stringify({ mod: 'schedule', sub: subId }));
+  _pageLoadStart = performance.now();
+  _pageLoadMod = 'ตารางเวร > ' + subId;
+  _pendingGs = 0;
+  renderSidebar();
+  if (window.Schedule) Schedule.render(subId);
+}
+
+/* ---------------- sidebar collapse / dark mode (ported 1:1) ---------------- */
+
+document.getElementById('sbLogo').addEventListener('click', toggleSidebar);
+document.getElementById('sbToggle').addEventListener('click', toggleSidebar);
+function toggleSidebar() {
+  var sb = document.getElementById('sb');
+  /* บนมือถือ sidebar ถูกซ่อนนอกจอ (translateX) — ปุ่มเมนูต้องสลับ .mob-open เพื่อเลื่อนเข้ามา
+     และต้องมี .open ด้วยเพื่อให้แสดงป้ายชื่อเมนูเต็ม (เดิมสลับแค่ .open เลยกดเปลี่ยนเมนูไม่ได้) */
+  if (window.innerWidth <= 768) {
+    var shown = sb.classList.toggle('mob-open');
+    if (shown) sb.classList.add('open');
+    return;
+  }
+  var open = sb.classList.toggle('open');
+  localStorage.setItem('lo_sb_open', open ? '1' : '0');
+}
+
+/* แตะนอกแถบเมนู (พื้นที่ทางขวา) เพื่อปิดเมนูบนมือถือ — ใช้พิกัด clientX เทียบขอบขวาของ
+   sidebar จึงเชื่อถือได้ทุกเบราว์เซอร์ (ปุ่มสลับ/เลือกเมนูก็ปิดได้เช่นกันผ่าน navTo) */
+document.addEventListener('click', function (e) {
+  if (window.innerWidth > 768) return;
+  var sb = document.getElementById('sb');
+  if (!sb.classList.contains('mob-open')) return;
+  if (e.target.closest('#sbToggle, #sbLogo')) return;
+  if (e.clientX > sb.getBoundingClientRect().right) sb.classList.remove('mob-open');
+}, true);
+
+document.getElementById('darkBtn').addEventListener('click', toggleDark);
+function toggleDark() {
+  var isDark = document.documentElement.dataset.theme === 'dark';
+  if (isDark) { delete document.documentElement.dataset.theme; localStorage.setItem('lo_theme', 'light'); }
+  else { document.documentElement.dataset.theme = 'dark'; localStorage.setItem('lo_theme', 'dark'); }
+}
+
+/* ---------------- month/year selector for the schedule module (ported from fillMY()) ---------------- */
+
+function fillMY() {
+  var selM = document.getElementById('selM'), selY = document.getElementById('selY');
+  var now = new Date();
+  selM.innerHTML = TH_M.map(function (name, i) { return '<option value="' + i + '">' + name + '</option>'; }).join('');
+  var curYear = now.getFullYear() + 543;
+  var years = [];
+  for (var y = curYear - 1; y <= curYear + 1; y++) years.push(y);
+  selY.innerHTML = years.map(function (y) { return '<option value="' + y + '">' + y + '</option>'; }).join('');
+  selM.value = now.getMonth();
+  selY.value = curYear;
+  selM.onchange = selY.onchange = function () {
+    if (window.Schedule) Schedule.setMonthYear(+selY.value, +selM.value);
+  };
+}
+
+/* ---------------- search / refresh / my-permissions (ported names) ---------------- */
+
+document.getElementById('gSearch').addEventListener('input', function (e) { handleGSearch(e.target.value); });
+function handleGSearch(q) {
+  if (!q) return;
+  toast('ค้นหา', 'พิมพ์ "' + q + '" — ฟีเจอร์ค้นหาข้ามโมดูลกำลังพัฒนา');
+}
+
+document.getElementById('refreshBtn').addEventListener('click', pRefresh);
+function pRefresh() {
+  if (_activeMod === 'dashboard' && window.Dashboard) Dashboard.render();
+  else if (_activeMod === 'schedule' && window.Schedule) Schedule.render(_schedActiveTab);
+  else if (_activeMod === 'admin' && window.Admin) Admin.render();
+  toast('รีเฟรชแล้ว');
+}
+
+document.getElementById('avatarBtn').addEventListener('click', openMyPerms);
+function openMyPerms() {
+  var rows = Object.keys(Session.permissions).map(function (k) {
+    return '<tr><td class="l">' + k + '</td><td class="c">' + (Session.permissions[k] ? '<span class="badge ok">มีสิทธิ์</span>' : '<span class="badge none">ไม่มีสิทธิ์</span>') + '</td></tr>';
+  }).join('');
+  showModal('สิทธิ์ของฉัน — ' + Session.user.name, '<table class="tbl"><tr><th>การกระทำ</th><th>สิทธิ์</th></tr>' + rows + '</table>', 'ปิด', closeModal);
+}
+</script>

@@ -1,0 +1,203 @@
+<script>
+/* script-admin.html — ผู้ดูแลระบบ: บัญชีผู้ใช้ + จัดการโมดูล (module manager, ported from the
+   original's separate frame-modmgr / renderModList()/addUrlModule()). Staff/stations/shifts/rates/holidays/
+   permissions now live under จัดเวร > ตั้งค่า (script-schedule.html renderSetupPage). */
+
+var Admin = (function () {
+  var ADMIN_TABS = [
+    { id: 'users', label: 'บัญชีผู้ใช้' },
+    { id: 'modules', label: 'โมดูล' }
+  ];
+  var curTab = 'modules';
+
+  function render() {
+    var page = document.getElementById('frame-admin');
+    page.innerHTML = '<h2 style="margin:0 0 10px;font-size:16px;">' + moduleLabel('admin', 'ผู้ดูแลระบบ') + '</h2>' +
+      '<div class="rtabs" id="adminTabs"></div>' +
+      '<div id="adminBody"></div>';
+    paintTabs();
+    renderTab(curTab);
+  }
+
+  function paintTabs() {
+    var el = document.getElementById('adminTabs');
+    el.innerHTML = ADMIN_TABS.map(function (t) {
+      return '<div class="rtab' + (t.id === curTab ? ' active' : '') + '" data-t="' + t.id + '">' + t.label + '</div>';
+    }).join('');
+    el.querySelectorAll('[data-t]').forEach(function (e) {
+      e.onclick = function () { curTab = e.dataset.t; paintTabs(); renderTab(curTab); };
+    });
+  }
+
+  function renderTab(tabId) {
+    if (tabId === 'users') return renderUsersTab();
+    return renderModulesTab();
+  }
+
+  /* ---------------- User accounts (เพิ่ม/ปิดใช้งาน/รีเซ็ตรหัสผ่าน login) ---------------- */
+
+  var USER_ROLES = [['admin', 'admin'], ['HT', 'HT (หัวหน้าหน่วย)'], ['MT', 'MT'], ['LA', 'LA']];
+  var usersPeople = [];
+
+  function personOptions(selectedId) {
+    return '<option value="">— ไม่ผูก —</option>' + usersPeople.map(function (p) {
+      var nm = (p.pfx || '') + p.name;
+      return '<option value="' + p.id + '"' + (p.id === selectedId ? ' selected' : '') + '>' + nm + '</option>';
+    }).join('');
+  }
+
+  function renderUsersTab() {
+    var body = document.getElementById('adminBody');
+    body.innerHTML =
+      '<div class="card" style="margin-bottom:14px;">' +
+      '<div class="card-title"><i class="ti ti-users"></i>บัญชีผู้ใช้ทั้งหมด</div>' +
+      '<div class="tbl-wrap"><table class="tbl" id="userTbl"></table></div></div>' +
+      '<div class="card">' +
+      '<div class="card-title"><i class="ti ti-user-plus"></i>เพิ่มบัญชีผู้ใช้ใหม่</div>' +
+      '<div class="frm-grid">' +
+      '<label>ชื่อ-สกุล<input id="uNewName"></label>' +
+      '<label>อีเมล<input id="uNewEmail" type="email"></label>' +
+      '<label>บทบาท<select id="uNewRole">' + USER_ROLES.map(function (r) { return '<option value="' + r[0] + '">' + r[1] + '</option>'; }).join('') + '</select></label>' +
+      '<label>รหัสผ่านชั่วคราว<input id="uNewPw" value="ChangeMe123!"></label>' +
+      '</div><button class="btn btn-primary btn-sm" id="addUserBtn" style="margin-top:10px;"><i class="ti ti-plus"></i> สร้างบัญชี</button>' +
+      '<p style="font-size:11.5px;color:var(--mut);margin-top:8px;">แจ้งอีเมล+รหัสผ่านชั่วคราวนี้ให้เจ้าหน้าที่ไปเข้าสู่ระบบเอง ยังไม่มีหน้าเปลี่ยนรหัสผ่านด้วยตนเอง หากต้องการเปลี่ยน ให้ผู้ดูแลระบบกดปุ่ม "รีเซ็ตรหัสผ่าน" ในตารางด้านบนแทน</p></div>';
+
+    /* listMaster และ listUsers ไม่ได้ขึ้นกับกันและกัน ยิงคู่กันได้เลย — เดิมรอ listMaster
+       จบก่อนค่อยเรียก loadUsers() (ซึ่งเรียก listUsers) ทำให้เสียเวลา round trip เพิ่มโดยไม่จำเป็น */
+    gsRun('api_listMaster', Session.token, 'people').then(function (people) { usersPeople = people || []; });
+    loadUsers();
+    document.getElementById('addUserBtn').onclick = function () {
+      var name = document.getElementById('uNewName').value.trim();
+      var email = document.getElementById('uNewEmail').value.trim();
+      var role = document.getElementById('uNewRole').value;
+      var pw = document.getElementById('uNewPw').value;
+      if (!name || !email || !pw) { toast('กรุณากรอกชื่อ อีเมล และรหัสผ่าน', '', true); return; }
+      gsRun('api_createUser', Session.token, name, email, role, pw).then(function () {
+        toast('สร้างบัญชีแล้ว', email);
+        document.getElementById('uNewName').value = ''; document.getElementById('uNewEmail').value = '';
+        loadUsers();
+      });
+    };
+  }
+
+  function loadUsers() {
+    gsRun('api_listUsers', Session.token).then(function (users) {
+      document.getElementById('userTbl').innerHTML = '<tr><th>ชื่อ</th><th>อีเมล</th><th>บทบาท</th><th>เจ้าหน้าที่ (เชื่อมโยง)</th><th>สถานะ</th><th></th></tr>' +
+        users.map(function (u) {
+          return '<tr><td class="l">' + u.name + '</td><td class="l">' + u.email + '</td><td>' + u.role + '</td>' +
+            '<td><select data-person="' + u.userId + '" style="padding:4px 6px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--ink);font-size:12px;">' + personOptions(u.personId) + '</select></td>' +
+            '<td>' + (u.active ? '<span class="badge ok">ใช้งานได้</span>' : '<span class="badge none">ปิดใช้งาน</span>') + '</td>' +
+            '<td style="display:flex;gap:4px;">' +
+            '<button class="btn btn-sm" data-reset="' + u.userId + '" title="รีเซ็ตรหัสผ่าน"><i class="ti ti-key"></i></button>' +
+            '<button class="btn btn-sm ' + (u.active ? 'btn-danger' : '') + '" data-toggle="' + u.userId + '" data-active="' + u.active + '">' + (u.active ? 'ปิดใช้งาน' : 'เปิดใช้งาน') + '</button>' +
+            '</td></tr>';
+        }).join('');
+      document.querySelectorAll('#userTbl [data-person]').forEach(function (sel) {
+        sel.onchange = function () {
+          gsRun('api_setUserPerson', Session.token, sel.dataset.person, sel.value).then(function () { toast('ผูกเจ้าหน้าที่แล้ว'); });
+        };
+      });
+      document.querySelectorAll('#userTbl [data-toggle]').forEach(function (b) {
+        b.onclick = function () {
+          gsRun('api_setUserActive', Session.token, b.dataset.toggle, b.dataset.active !== 'true').then(function () { toast('อัปเดตแล้ว'); loadUsers(); });
+        };
+      });
+      document.querySelectorAll('#userTbl [data-reset]').forEach(function (b) {
+        b.onclick = function () {
+          var pw = prompt('รหัสผ่านใหม่สำหรับบัญชีนี้:', 'ChangeMe123!');
+          if (!pw) return;
+          gsRun('api_resetUserPassword', Session.token, b.dataset.reset, pw).then(function () { toast('รีเซ็ตรหัสผ่านแล้ว', 'แจ้งรหัสใหม่ให้เจ้าหน้าที่: ' + pw); });
+        };
+      });
+    });
+  }
+
+  /* ---------------- Module manager (ported from renderModList()/addUrlModule()/toggleModule()) ---------------- */
+
+  function renderModulesTab() {
+    var body = document.getElementById('adminBody');
+    body.innerHTML =
+      '<div class="card" style="margin-bottom:14px;">' +
+      '<div class="card-title"><i class="ti ti-apps"></i>รายการโมดูลทั้งหมด</div>' +
+      '<div id="modList"></div></div>' +
+      '<div class="card">' +
+      '<div class="card-title"><i class="ti ti-plus"></i>เพิ่มโมดูลใหม่ผ่าน URL</div>' +
+      '<div class="frm-grid">' +
+      '<label>ชื่อโมดูล<input id="modNewLabel" placeholder="เช่น คลังน้ำยา/วัสดุ"></label>' +
+      '<label>URL<input id="modNewUrl" placeholder="https://... (Google Sheets/เว็บภายนอก)"></label>' +
+      '<label>ไอคอน (Tabler)<input id="modNewIcon" placeholder="ti-package" value="ti-package"></label>' +
+      '<label>สิทธิ์ขั้นต่ำ<select id="modNewPerm"><option value="">ทุกคนเข้าถึงได้</option><option value="manageSettings">ผู้มีสิทธิ์ตั้งค่าเท่านั้น</option></select></label>' +
+      '</div><button class="btn btn-primary btn-sm" id="addUrlModBtn" style="margin-top:10px;"><i class="ti ti-plus"></i> เพิ่มโมดูล</button></div>';
+
+    paintModList();
+    document.getElementById('addUrlModBtn').onclick = function () {
+      var label = document.getElementById('modNewLabel').value.trim();
+      var url = document.getElementById('modNewUrl').value.trim();
+      if (!label || !url) { toast('กรุณากรอกชื่อและ URL', '', true); return; }
+      MODULE_REGISTRY.push({
+        id: 'url_' + Date.now(), label: label, url: url, kind: 'url', enabled: true, removable: true,
+        icon: document.getElementById('modNewIcon').value.trim() || 'ti-package',
+        permission: document.getElementById('modNewPerm').value
+      });
+      saveModuleRegistry().then(function () {
+        toast('เพิ่มโมดูลแล้ว', label);
+        document.getElementById('modNewLabel').value = ''; document.getElementById('modNewUrl').value = '';
+        paintModList(); renderSidebar();
+      });
+    };
+  }
+
+  function paintModList() {
+    document.getElementById('modList').innerHTML = MODULE_REGISTRY.map(function (m) {
+      var subRows = (m.subnav || []).map(function (s) {
+        return '<div style="display:flex;align-items:center;gap:8px;padding:6px 0 6px 32px;border-bottom:1px solid var(--border);">' +
+          '<i class="ti ' + s.icon + '" style="font-size:14px;color:var(--mut);"></i>' +
+          '<div style="flex:1;font-size:12.5px;">' + s.label + '</div>' +
+          '<button class="btn btn-sm" data-rename-sub="' + m.id + '.' + s.id + '" data-cur="' + s.label + '" title="แก้ไขชื่อเมนูย่อย"><i class="ti ti-pencil"></i></button>' +
+          '</div>';
+      }).join('');
+      return '<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);">' +
+        '<i class="ti ' + m.icon + '" style="font-size:18px;color:var(--tl);"></i>' +
+        '<div style="flex:1;"><div style="font-weight:600;font-size:13px;">' + m.label + (m.kind === 'url' ? ' <span class="badge none">URL</span>' : '') + '</div>' +
+        (m.url ? '<div style="font-size:11px;color:var(--mut);">' + m.url + '</div>' : '') + '</div>' +
+        '<button class="btn btn-sm" data-rename="' + m.id + '" data-cur="' + m.label + '" title="แก้ไขชื่อเมนู"><i class="ti ti-pencil"></i></button>' +
+        (m.essential
+          ? '<span class="badge ok" title="โมดูลหลัก ปิดไม่ได้">จำเป็น</span>'
+          : '<label class="toggle" style="position:relative;width:36px;height:20px;"><input type="checkbox" data-toggle="' + m.id + '" ' + (m.enabled !== false ? 'checked' : '') + ' style="opacity:0;"><span style="position:absolute;inset:0;background:' + (m.enabled !== false ? 'var(--tl)' : 'var(--border2)') + ';border-radius:20px;"></span></label>') +
+        (m.removable ? '<button class="btn btn-sm btn-danger" data-remove="' + m.id + '"><i class="ti ti-trash"></i></button>' : '') +
+        '</div>' + subRows;
+    }).join('');
+    document.querySelectorAll('#modList [data-toggle]').forEach(function (cb) {
+      cb.onchange = function () {
+        var m = MODULE_REGISTRY.filter(function (x) { return x.id === cb.dataset.toggle; })[0];
+        m.enabled = cb.checked;
+        /* บันทึกสถานะเปิด/ปิดทุกชนิด (รวม builtin) ลง Settings เพื่อให้คงอยู่หลังรีเฟรช */
+        saveModuleRegistry().then(function () { toast(cb.checked ? 'เปิดโมดูลแล้ว' : 'ปิดโมดูลแล้ว', m.label); renderSidebar(); paintModList(); });
+      };
+    });
+    document.querySelectorAll('#modList [data-remove]').forEach(function (btn) {
+      btn.onclick = function () {
+        if (!confirm('ยืนยันการลบโมดูลนี้?')) return;
+        MODULE_REGISTRY = MODULE_REGISTRY.filter(function (m) { return m.id !== btn.dataset.remove; });
+        saveModuleRegistry().then(function () { toast('ลบโมดูลแล้ว'); paintModList(); renderSidebar(); });
+      };
+    });
+    document.querySelectorAll('#modList [data-rename]').forEach(function (btn) {
+      btn.onclick = function () {
+        var v = prompt('ชื่อเมนูใหม่:', btn.dataset.cur);
+        if (v === null) return;
+        saveModuleLabel(btn.dataset.rename, v).then(function () { toast('เปลี่ยนชื่อเมนูแล้ว'); renderSidebar(); paintModList(); });
+      };
+    });
+    document.querySelectorAll('#modList [data-rename-sub]').forEach(function (btn) {
+      btn.onclick = function () {
+        var v = prompt('ชื่อเมนูย่อยใหม่:', btn.dataset.cur);
+        if (v === null) return;
+        saveModuleLabel(btn.dataset.renameSub, v).then(function () { toast('เปลี่ยนชื่อเมนูย่อยแล้ว'); renderSidebar(); paintModList(); });
+      };
+    });
+  }
+
+  return { render: render };
+})();
+</script>
