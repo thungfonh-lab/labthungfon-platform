@@ -2275,12 +2275,15 @@ var Schedule = (function () {
       return '<tr><td class="l">' + label + '</td>' + SH.map(function (sh) {
         var applicable = (role === 'MT' && sh !== 'b1') || (role === 'LA' && (sh === 'ch' || sh === 'b1' || sh === 'n'));
         if (!applicable) return '<td style="color:#ccc;">—</td>';
-        return '<td><input type="number" data-rate-role="' + role + '" data-rate-sh="' + sh + '" value="' + ((rates[role] || {})[sh] || 0) + '" style="width:64px;text-align:center;"></td>';
+        var v = (rates[role] || {})[sh];
+        v = (v === undefined || v === null || v === '') ? '0.00' : Number(v).toFixed(2);
+        return '<td style="padding:4px 6px;"><input type="number" step="0.01" min="0" inputmode="decimal" data-rate-role="' + role + '" data-rate-sh="' + sh + '" value="' + v + '" ' +
+          'style="width:100%;min-width:64px;max-width:96px;box-sizing:border-box;padding:6px 7px;text-align:center;font-size:12px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--ink);outline:none;"></td>';
       }).join('') + '</tr>';
     };
     body.innerHTML = '<div class="card-title" style="margin-top:0;">อัตรามาตรฐาน</div>' +
-      '<p style="font-size:11px;color:var(--mut);margin:-4px 0 8px;">เวร ด (on call) แยก 2 อัตราตามช่วงเวลา — ใครมี on call หลายเวลาในช่วงเดียวกันของวันเดียวกัน นับเป็น 1 ครั้งของช่วงนั้น</p>' +
-      '<table class="tbl"><tr><th>กลุ่ม</th><th>ช</th><th>บ</th><th>ด (00.00-04.00)</th><th>ด (04.00-08.00)</th><th>น</th><th>บ1</th></tr>' + rateRow('MT', 'MT/HT') + rateRow('LA', 'ผู้ช่วย (LA)') + '</table>' +
+      '<p style="font-size:11px;color:var(--mut);margin:-4px 0 8px;">เวร ด (on call) แยก 2 อัตราตามช่วงเวลา — ใครมี on call หลายเวลาในช่วงเดียวกันของวันเดียวกัน นับเป็น 1 ครั้งของช่วงนั้น · กรอกได้ทศนิยม 2 ตำแหน่ง (เช่น 41.25)</p>' +
+      '<div class="tbl-wrap"><table class="tbl" style="table-layout:fixed;"><tr><th style="width:18%;">กลุ่ม</th><th>ช</th><th>บ</th><th>ด (00.00-04.00)</th><th>ด (04.00-08.00)</th><th>น</th><th>บ1</th></tr>' + rateRow('MT', 'MT/HT') + rateRow('LA', 'ผู้ช่วย (LA)') + '</table></div>' +
       '<button class="btn btn-primary btn-sm" id="ratesSaveBtn" style="margin-top:10px;">บันทึกอัตรา</button>' +
       '<div class="card-title" style="margin-top:18px;">อัตราพิเศษ (Override)</div>' +
       '<p style="font-size:11.5px;color:var(--mut);margin-bottom:8px;">เจาะจงมากกว่า = ใช้ก่อน: บุคคล &gt; ช่วงวันที่ &gt; อัตรามาตรฐาน</p>' +
@@ -2289,7 +2292,7 @@ var Schedule = (function () {
 
     document.getElementById('ratesSaveBtn').onclick = function (e) {
       var newRates = { MT: {}, LA: {} };
-      body.querySelectorAll('[data-rate-role]').forEach(function (inp) { newRates[inp.dataset.rateRole][inp.dataset.rateSh] = +inp.value; });
+      body.querySelectorAll('[data-rate-role]').forEach(function (inp) { newRates[inp.dataset.rateRole][inp.dataset.rateSh] = Math.round((+inp.value || 0) * 100) / 100; });
       saveField(e.target, function () { return gsRun('api_saveSettings', Session.token, { rates: newRates }); });
     };
 
@@ -2310,11 +2313,11 @@ var Schedule = (function () {
         '<label>เวร<select data-f="shift">' + SH.map(function (s) { return '<option value="' + s + '">' + s + '</option>'; }).join('') + '</select></label>' +
         '<label>บุคคล (เว้นว่าง=ทุกคน)<select data-f="pid"><option value="">ทุกคน</option>' + people.map(function (p) { return '<option value="' + p.id + '">' + fullN(p) + '</option>'; }).join('') + '</select></label>' +
         '<label>วันที่เริ่ม<input data-f="from" type="number"></label><label>ถึงวันที่<input data-f="to" type="number"></label>' +
-        '<label>จำนวน (บาท)<input data-f="amount" type="number"></label></div>';
+        '<label>จำนวน (บาท)<input data-f="amount" type="number" step="0.01" min="0" inputmode="decimal"></label></div>';
       showModal('เพิ่มอัตราพิเศษ', f, 'บันทึก', function () {
         var payload = {};
         ['shift', 'pid', 'from', 'to', 'amount'].forEach(function (k) { payload[k] = f.querySelector('[data-f="' + k + '"]').value; });
-        payload.from = payload.from ? +payload.from : null; payload.to = payload.to ? +payload.to : null; payload.amount = +payload.amount;
+        payload.from = payload.from ? +payload.from : null; payload.to = payload.to ? +payload.to : null; payload.amount = Math.round((+payload.amount || 0) * 100) / 100;
         gsRun('api_crud', Session.token, 'rateOvr', 'create', payload).then(function (r) { closeModal(); toast('บันทึกแล้ว'); rateOvr.push(r); paintOvr(); });
       });
     };
