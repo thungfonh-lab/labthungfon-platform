@@ -15,6 +15,7 @@ const masterdataRoutes = require('./routes/masterdata');
 const transactionsRoutes = require('./routes/transactions');
 const reportsRoutes = require('./routes/reports');
 const adminRoutes = require('./routes/admin');
+const cronRoutes = require('./routes/cron');
 
 const app = express();
 
@@ -29,7 +30,8 @@ app.use('/api', scheduleRoutes); // /api/bootstrap, /api/schedule/*, /api/statio
 app.use('/api', masterdataRoutes); // /api/master/:category, /api/crud, /api/settings, /api/shifts, /api/setup-bundle, /api/holidays
 app.use('/api', transactionsRoutes); // /api/oncall, /api/availability, /api/overrides
 app.use('/api', reportsRoutes); // /api/reports/:kind[/export]
-app.use('/api', adminRoutes); // /api/permissions, /api/users, /api/audit-logs
+app.use('/api', adminRoutes); // /api/permissions, /api/users, /api/audit-logs, /api/backups
+app.use('/api', cronRoutes); // /api/cron/backup, /api/cron/audit-purge (Vercel Cron only)
 
 // Fallback 404 in the same envelope shape.
 app.use((req, res) => {

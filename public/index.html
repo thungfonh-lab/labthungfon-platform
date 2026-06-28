@@ -724,6 +724,11 @@ function _dispatchApi(fnName, token, args) {
     case 'api_resetUserPassword': return apiCall('/api/users/' + encodeURIComponent(args[0]) + '/reset-password', 'POST', { token: token, newPlainPassword: args[1] });
 
     case 'api_getAuditLogs': return apiCall('/api/audit-logs' + qs(Object.assign({ token: token }, args[0] || {})), 'GET');
+    case 'api_purgeAuditLogs': return apiCall('/api/audit-logs/purge', 'POST', { token: token, olderThanDays: args[0] });
+
+    case 'api_listBackups': return apiCall('/api/backups' + qs({ token: token }), 'GET');
+    case 'api_createBackup': return apiCall('/api/backups', 'POST', { token: token, keep: args[0] });
+    case 'api_deleteBackup': return apiCall('/api/backups/' + encodeURIComponent(args[0]) + qs({ token: token }), 'DELETE');
 
     default:
       return Promise.reject(new Error('ไม่รู้จัก API: ' + fnName));
@@ -1988,7 +1993,8 @@ var Schedule = (function () {
       '<details class="acc"><summary><i class="ti ti-signature"></i> ผู้ลงนามในเอกสาร</summary><div class="acc-body" id="accSign"></div></details>' +
       '<details class="acc"><summary><i class="ti ti-flask"></i> Master Data (LAB · หน่วยงาน)</summary><div class="acc-body" id="accMaster"></div></details>' +
       '<details class="acc"><summary><i class="ti ti-bell"></i> การแจ้งเตือน &amp; กำหนดการ</summary><div class="acc-body" id="accNotif"></div></details>' +
-      '<details class="acc"><summary><i class="ti ti-shield-lock"></i> สิทธิ์การใช้งาน (รายบุคคล)</summary><div class="acc-body" id="accPerms"></div></details>';
+      '<details class="acc"><summary><i class="ti ti-shield-lock"></i> สิทธิ์การใช้งาน (รายบุคคล)</summary><div class="acc-body" id="accPerms"></div></details>' +
+      '<details class="acc"><summary><i class="ti ti-database"></i> สำรองข้อมูล &amp; Audit Log</summary><div class="acc-body" id="accBackup"></div></details>';
 
     gsRun('api_getSetupBundle', Session.token, current.year, current.month).then(function (bundle) {
       peopleCache = bundle.people;
@@ -2004,7 +2010,53 @@ var Schedule = (function () {
       renderMasterSection(bundle.settings);
       renderNotifSection(bundle.settings);
       renderPermsSection(bundle.permissions);
+      renderBackupSection();
     });
+  }
+
+  /* ════════════════ สำรองข้อมูล & Audit Log — new feature, not in the original system.
+     Backups copy the live spreadsheet into a Drive folder (set up once via
+     GOOGLE_BACKUP_FOLDER_ID — see README); a daily Vercel Cron also runs this
+     automatically. Audit log purge deletes AuditLogs rows older than N days
+     (also run weekly by cron) since the original system let that sheet grow forever. ════════════════ */
+  function renderBackupSection() {
+    var body = document.getElementById('accBackup');
+    body.innerHTML =
+      '<div class="card-title" style="margin-top:0;">สำรองข้อมูล (Backup)</div>' +
+      '<p style="font-size:11px;color:var(--mut);margin:-4px 0 8px;">คัดลอกสมุดงาน Google Sheets ทั้งฉบับไปไว้ในโฟลเดอร์ Drive ที่ตั้งค่าไว้ — ระบบสร้างให้อัตโนมัติทุกวัน และเก็บไว้ 14 ชุดล่าสุด</p>' +
+      '<button class="btn btn-primary btn-sm" id="backupNowBtn"><i class="ti ti-database-export"></i> สร้าง Backup ตอนนี้</button>' +
+      '<div class="tbl-wrap" style="margin-top:10px;"><table class="tbl" id="backupTbl"></table></div>' +
+      '<div class="card-title" style="margin-top:18px;">Audit Log</div>' +
+      '<p style="font-size:11px;color:var(--mut);margin:-4px 0 8px;">ลบประวัติการใช้งาน (Audit Log) ที่เก่ากว่าจำนวนวันที่กำหนด — ระบบลบให้อัตโนมัติทุกสัปดาห์ (เก่ากว่า 90 วัน) ปุ่มนี้สำหรับลบทันทีตามจำนวนวันที่ต้องการ</p>' +
+      '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">' +
+      '<label style="display:flex;align-items:center;gap:6px;font-size:12px;">ลบที่เก่ากว่า <input id="auditPurgeDays" type="number" min="1" value="90" style="width:64px;padding:5px 7px;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--ink);text-align:center;"> วัน</label>' +
+      '<button class="btn btn-danger btn-sm" id="auditPurgeBtn"><i class="ti ti-trash"></i> ล้าง Audit Log เก่า</button></div>';
+
+    function paintBackups(files) {
+      document.getElementById('backupTbl').innerHTML =
+        '<tr><th>ชื่อไฟล์</th><th>วันที่สร้าง</th><th></th></tr>' +
+        (files.map(function (f) {
+          return '<tr><td class="l"><a href="' + f.webViewLink + '" target="_blank" rel="noopener">' + f.name + '</a></td>' +
+            '<td>' + new Date(f.createdTime).toLocaleString('th-TH') + '</td>' +
+            '<td><button class="btn btn-sm btn-danger" data-del-backup="' + f.id + '"><i class="ti ti-trash"></i></button></td></tr>';
+        }).join('') || '<tr><td colspan="3" style="color:var(--mut)">ยังไม่มี backup</td></tr>');
+      document.querySelectorAll('#backupTbl [data-del-backup]').forEach(function (b) {
+        b.onclick = function () { gsRun('api_deleteBackup', Session.token, b.dataset.delBackup).then(loadBackups).catch(function () {}); };
+      });
+    }
+    function loadBackups() { gsRun('api_listBackups', Session.token).then(paintBackups).catch(function () { paintBackups([]); }); }
+
+    document.getElementById('backupNowBtn').onclick = function (e) {
+      saveField(e.target, function () { return gsRun('api_createBackup', Session.token).then(loadBackups); });
+    };
+    document.getElementById('auditPurgeBtn').onclick = function (e) {
+      var days = +document.getElementById('auditPurgeDays').value || 90;
+      if (!confirm('ลบ Audit Log ที่เก่ากว่า ' + days + ' วันหรือไม่? ย้อนกลับไม่ได้')) return;
+      saveField(e.target, function () {
+        return gsRun('api_purgeAuditLogs', Session.token, days).then(function (r) { toast('ลบแล้ว ' + r.deleted + ' รายการ'); });
+      });
+    };
+    loadBackups();
   }
 
   function saveField(btn, fn) {

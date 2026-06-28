@@ -7,3 +7,4 @@ labthungfon-platform-b32d2fe81fd5.json
 .vercel
 npm-debug.log*
 .DS_Store
+.env*

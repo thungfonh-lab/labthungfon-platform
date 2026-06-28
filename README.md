@@ -147,6 +147,59 @@ judged close enough to the original's purpose — preventing two users from
 generating/saving the *same* month's schedule simultaneously — to be
 acceptable. Documented again as a code comment in `lib/lockService.js`.
 
+## Backups & audit log retention (new features, not in the original GAS system)
+
+The original system created an empty "Backups" Drive folder placeholder
+(`Setup.gs`'s `setupDriveFolders_()`) but never actually wrote anything into
+it, and `AuditLogs` grew forever with no cleanup. Both are now implemented:
+
+### Backups
+
+`lib/backupService.js` copies the **entire live spreadsheet** (every sheet,
+full fidelity) into a Google Drive folder via the Drive API.
+
+**One-time setup required** (service accounts have no usable Drive storage
+quota of their own, so the destination folder must belong to a real account):
+1. In your own Google Drive, create a folder (e.g. "labthungfon Backups").
+2. Share it with the service account's `client_email` (Editor access) — the
+   same email already shared on the spreadsheet.
+3. Copy the folder ID from its URL (`drive.google.com/drive/folders/<ID>`)
+   and set it as `GOOGLE_BACKUP_FOLDER_ID`.
+
+Without that env var, `GET/POST /api/backups` return a clear Thai setup error
+instead of a confusing Drive permission error.
+
+- `GET /api/backups` — list backups (newest first)
+- `POST /api/backups` — create one now, then prune to the last `keep` (default 14)
+- `DELETE /api/backups/:fileId` — remove a single backup
+- A Vercel Cron job (`/api/cron/backup`, daily 19:00 UTC = 02:00 Thai time)
+  runs this automatically — see `vercel.json`'s `crons` array.
+- UI: ตั้งค่า → "สำรองข้อมูล & Audit Log" accordion section.
+
+### Audit log purge
+
+`auditService.purgeOldLogs(olderThanDays)` deletes `AuditLogs` rows older
+than the given threshold (default 90 days).
+
+- `POST /api/audit-logs/purge` — body `{ olderThanDays }`, requires `manageSettings`
+- A weekly Vercel Cron job (`/api/cron/audit-purge`, Sunday 19:00 UTC) purges
+  anything older than 90 days automatically.
+- UI: same accordion section as backups, with a day-count input + confirm button.
+
+### Cron auth
+
+Both `/api/cron/*` routes only accept Vercel's auto-injected
+`Authorization: Bearer ${CRON_SECRET}` header (sent automatically when the
+`CRON_SECRET` env var is set on the project) — set `CRON_SECRET` to any long
+random string in both Vercel's env vars and nowhere else; there is no other
+way to call these two routes.
+
+**Vercel plan note:** Cron Jobs need at least the Hobby plan's cron
+allowance (2 jobs, daily-or-less frequency) — both jobs here qualify (one
+daily, one weekly), but confirm your plan supports cron jobs at all before
+relying on the automatic schedule; the manual buttons in ตั้งค่า work
+regardless.
+
 ## Gaps / known approximations (honesty section)
 
 - **Excel export fidelity**: the original `exportExcel()` built an HTML blob

@@ -3,6 +3,7 @@ const { wrap, ok, getToken } = require('../helpers');
 const authService = require('../../lib/authService');
 const dataService = require('../../lib/dataService');
 const auditService = require('../../lib/auditService');
+const backupService = require('../../lib/backupService');
 
 const router = express.Router();
 
@@ -99,6 +100,43 @@ router.get('/audit-logs', wrap(async (req, res) => {
   await authService.requirePermission(session.user, 'manageSettings', false);
   const filters = { userId: req.query.userId, module: req.query.module, action: req.query.action, since: req.query.since };
   ok(res, await auditService.getAuditLogs(filters));
+}));
+
+// POST /api/audit-logs/purge — new: deletes AuditLogs rows older than body.olderThanDays (default 90)
+router.post('/audit-logs/purge', wrap(async (req, res) => {
+  const session = authService.requireSession(getToken(req));
+  await authService.requirePermission(session.user, 'manageSettings', false);
+  const result = await auditService.purgeOldLogs(req.body.olderThanDays);
+  await auditService.logAction(session.user.userId, 'DELETE', 'AuditLogs', 'purge', null, result);
+  ok(res, result);
+}));
+
+// ---------------- Backups (new — copies the live spreadsheet into a Drive folder) ----------------
+
+// GET /api/backups — list backup files in the configured Drive folder
+router.get('/backups', wrap(async (req, res) => {
+  const session = authService.requireSession(getToken(req));
+  await authService.requirePermission(session.user, 'manageSettings', false);
+  ok(res, await backupService.listBackups());
+}));
+
+// POST /api/backups — create a backup now, then prune to the last `keep` (default 14)
+router.post('/backups', wrap(async (req, res) => {
+  const session = authService.requireSession(getToken(req));
+  await authService.requirePermission(session.user, 'manageSettings', false);
+  const file = await backupService.createBackup();
+  await backupService.pruneBackups(req.body.keep);
+  await auditService.logAction(session.user.userId, 'CREATE', 'Backups', file.id, null, { name: file.name });
+  ok(res, file);
+}));
+
+// DELETE /api/backups/:fileId — remove a single backup file
+router.delete('/backups/:fileId', wrap(async (req, res) => {
+  const session = authService.requireSession(getToken(req));
+  await authService.requirePermission(session.user, 'manageSettings', false);
+  await backupService.deleteBackup(req.params.fileId);
+  await auditService.logAction(session.user.userId, 'DELETE', 'Backups', req.params.fileId, null, null);
+  ok(res, { ok: true });
 }));
 
 module.exports = router;
