@@ -62,7 +62,7 @@ a{color:var(--tl);text-decoration:none}
 .sb-logo .brand{opacity:0;width:0;overflow:hidden;white-space:nowrap;transition:opacity var(--tr),width var(--tr)}
 #sb.open .sb-logo .brand{opacity:1;width:auto}
 .brand-name{font-size:13px;font-weight:700;letter-spacing:.3px;color:#fff;font-family:'IBM Plex Sans Thai'}
-.brand-sub{font-size:10px;color:rgba(255,255,255,.5);margin-top:1px}
+.brand-sub{display:none}
 .sb-nav{flex:1;overflow-y:auto;overflow-x:hidden;padding:10px 0;scrollbar-width:none}
 .sb-nav::-webkit-scrollbar{display:none}
 .sb-section{padding:0 8px;margin-bottom:4px}
@@ -85,8 +85,8 @@ a{color:var(--tl);text-decoration:none}
 /* ── topbar ── */
 #topbar{height:var(--hdr);background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;padding:0 16px;flex-shrink:0}
 .topbar-title{font-size:14px;font-weight:600;color:var(--ink);white-space:nowrap}
-.topbar-sub{font-size:11px;color:var(--mut);margin-top:1px}
-.topbar-search{margin-left:12px;display:flex;align-items:center;gap:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:0 10px;height:34px;flex:0 1 260px;min-width:0}
+.topbar-sub{display:none}
+.topbar-search{display:none}
 .topbar-search i{color:var(--mut);font-size:15px;flex-shrink:0}
 .topbar-search input{border:none;background:none;outline:none;font-size:12.5px;color:var(--ink);width:100%}
 .topbar-search input::placeholder{color:var(--mut)}
@@ -194,20 +194,65 @@ tbody tr:last-child td{border-bottom:none}
 .rep-tbl th{background:var(--surface2);font-weight:600;text-align:center}
 .rep-tbl td.l{text-align:left}.rep-tbl td.c{text-align:center}.rep-tbl td.r{text-align:right}
 .rep-tbl tr.tot td{background:var(--tl-vl);font-weight:700}
-/* บัญชีลงเวลา OT/เวรคลินิก(น) — กำหนดสัดส่วนทุกคอลัมน์ (ไม่ใช่แค่ลายมือชื่อ) ป้องกันคอลัมน์
-   ชื่อ-สกุล/ตำแหน่ง ถูกบีบจนข้อความทับคอลัมน์ข้างเคียงเมื่อ table-layout:fixed คำนวณความกว้าง
-   จากหัวตารางอย่างเดียว */
-.rep-tbl-sig{table-layout:fixed}
-.rep-tbl-sig th:nth-child(1),.rep-tbl-sig td:nth-child(1){width:10%}
-.rep-tbl-sig th:nth-child(2),.rep-tbl-sig td:nth-child(2){width:18%}
-.rep-tbl-sig th:nth-child(3),.rep-tbl-sig td:nth-child(3){width:13%}
-.rep-tbl-sig th:nth-child(4),.rep-tbl-sig td:nth-child(4){width:9%}
-.rep-tbl-sig th:nth-child(5),.rep-tbl-sig td:nth-child(5){width:7%}
-.rep-tbl-sig th:nth-child(7),.rep-tbl-sig td:nth-child(7){width:7%}
-.rep-tbl-sig th:nth-child(9),.rep-tbl-sig td:nth-child(9){width:10%}
-.rep-tbl-sig .sig-col{width:13%}
+/* ============================================================================
+   บัญชีลงเวลาการปฏิบัติงานนอกเวลาราชการ (.rep-tbl-sig) — Print Layout
+   ใช้กฎเดียวกันทั้งบนหน้าจอและตอนพิมพ์ เพื่อให้พรีวิวตรงกับผลพิมพ์จริงเสมอ
+   ============================================================================ */
+.rep-tbl-sig{
+  /* table-layout:auto (ไม่บังคับ fixed) — ทดสอบแล้วพบว่า fixed + <colgroup> ทำให้ Chrome คำนวณ
+     หน้ากระดาษตอน paginate ผิด เกิดขอบขาวซ้าย-ขวาเกินจริงเฉพาะตารางที่มี thead ซ้ำหลายหน้า (A/B test ยืนยันแล้ว)
+     auto layout อ่าน width hint จากทุกแถวใน thead/tbody (ไม่ใช่แถวแรกอย่างเดียวแบบ fixed) จึงใช้ nth-child ด้านล่างได้ตรง */
+  width:100%;
+  margin-top:14px;
+}
+.rep-tbl-sig th,.rep-tbl-sig td{
+  box-sizing:border-box;   /* border/padding รวมอยู่ในความกว้างคอลัมน์ ไม่ดันตารางล้นขอบกระดาษ */
+  white-space:normal;      /* คืนการตัดบรรทัดปกติ (ทับกฎ table{white-space:nowrap} ของทั้งแอป) */
+  word-break:break-word;
+  overflow-wrap:anywhere;  /* กันคำไทยที่ไม่มีเว้นวรรค (เช่น "นักเทคนิคการแพทย์") ดันคอลัมน์ล้นเมื่อจำเป็นจริงๆ */
+}
+/* สัดส่วนคอลัมน์ (รวม 100% เท่ากับความกว้างหน้า A4 พอดี) — width hint ให้ auto-layout อิงสัดส่วนนี้
+   มีผลตรงทั้งหน้าจอและตอนพิมพ์ เพราะ .rep-tbl-sig ไม่บังคับ table-layout:fixed อีกแล้ว */
+.rep-tbl-sig th:nth-child(1),.rep-tbl-sig td:nth-child(1){width:13.25%}  /* วันเดือนปี — บีบให้เล็กลงตามฟีดแบ็ก ("1 มิถุนายน 2569" ยังพออยู่บรรทัดเดียวที่ font-size 10px) ขยับมา 0.5% จากตำแหน่ง + 0.25% จากหมายเหตุ */
+.rep-tbl-sig th:nth-child(2),.rep-tbl-sig td:nth-child(2){width:18%}  /* ชื่อ-สกุล */
+.rep-tbl-sig th:nth-child(3),.rep-tbl-sig td:nth-child(3){width:16%}  /* ตำแหน่ง — ลด 0.5% ไปให้วันเดือนปี (รวมลดสะสม 1%) */
+.rep-tbl-sig th:nth-child(4),.rep-tbl-sig td:nth-child(4){width:11%}  /* ประเภทเวร */
+.rep-tbl-sig th:nth-child(5),.rep-tbl-sig td:nth-child(5){width:7%}   /* เวลามา */
+.rep-tbl-sig th:nth-child(7),.rep-tbl-sig td:nth-child(7){width:7%}   /* เวลากลับ */
+.rep-tbl-sig th:nth-child(9),.rep-tbl-sig td:nth-child(9){width:7.75%}   /* หมายเหตุ — ลด 0.25% ไปให้วันเดือนปี */
+.rep-tbl-sig .sig-col{width:10%}                                     /* ลายมือชื่อ x2 */
+/* แถวหัวรายงาน (ชื่อรายงาน/หน่วยงาน/เดือน) ที่ฝังอยู่ใน <thead> ของตารางเอง — แสดงเป็นข้อความกึ่งกลางธรรมดา ไม่ใช่หัวคอลัมน์
+   .dtitle ต้องชนะ font-weight ของกฎ .rep-tbl th{font-weight:600} (specificity สูงกว่าเพราะมี class .dtitle เพิ่ม)
+   เพื่อให้หัวรายงานตัวหนา+สีดำเหมือนรายงานอื่นๆ ในระบบ (.dtitle ของ header() ที่ไม่ได้อยู่ใน th) */
+.rep-tbl-sig .rt-head-row th{border:none!important;background:transparent!important;padding:1px 0!important}
+/* ไม่ใส่ font-size เอง — ให้ .dtitle/.dline (คลาสเดียวกับ header() ของใบเบิกเงินรวม) กำหนดขนาดเองตามปกติ
+   (15px/12.5px บนหน้าจอ, 13px/10px ตอนพิมพ์ผ่านกฎ @media print .dtitle/.dline ที่มีอยู่แล้ว) จะได้ตรงกับใบเบิกเงินรวมทุกขนาด
+   แก้แค่ font-weight ที่ .rep-tbl th{font-weight:600} แย่งชนะไปจาก .dtitle(700) และทำให้ .dline เป็นตัวหนาผิดจากต้นฉบับ (ปกติ 400) */
+/* ตรวจผ่าน DevTools แล้วพบว่าใบเบิกเงินรวมจริงๆ ไม่ได้ใช้ class .dtitle/.dline เลย — ใช้ payPageHeader()
+   ที่เป็น inline style (font-weight:700;font-size:15px ตัวบน, font-size:12.5px ไม่มี color override ตัวล่าง)
+   เท่ากันทั้งจอ/พิมพ์ เพราะ inline style ไม่ถูก @media print .dtitle/.dline{font-size:13px/10px} ลดขนาดทับ
+   ดังนั้นไม่ต้องบังคับสีเทา — ให้สีเข้มเหมือนหัวข้อ (เท่าใบเบิกเงินรวมจริง) แค่ลดเฉพาะ font-weight ให้ไม่ตัวหนา */
+.rep-tbl-sig .rt-head-row th.dtitle{font-weight:700!important}
+.rep-tbl-sig .rt-head-row th.dline{font-weight:400!important}
+/* .dtitle/.dline กับ .rep-tbl มี specificity เท่ากัน (คลาสเดียว) แต่ .rep-tbl{font-size:12px} อยู่หลังในไฟล์
+   จึงชนะ .dtitle/.dline ไปบนหน้าจอ (กฎ @media print ด้านล่างแก้แค่ตอนพิมพ์ ไม่ครอบคลุมหน้าจอ) ทำให้หัวรายงาน
+   OT timesheet เล็กกว่าใบเบิกเงินรวมที่ใช้ inline style (ชนะ class เสมอ) ต้องบังคับขนาดตรงนี้ด้วย */
+.rep-tbl-sig .rt-head-row th.dtitle{font-size:15px!important}
+.rep-tbl-sig .rt-head-row th.dline{font-size:12.5px!important}
+/* .dline{color:var(--mut)} ทำให้บรรทัดหน่วยงาน/เดือนเป็นสีเทา ต่างจากใบเบิกเงินรวม (inline style ไม่ตั้งสี เลยใช้สีดำของหัวข้อปกติ)
+   บังคับให้ทุกแถวหัวรายงานของ OT timesheet เป็นสีดำ (var(--ink)) เหมือนกันหมด ตามฟีดแบ็ก */
+.rep-tbl-sig .rt-head-row th.dtitle,.rep-tbl-sig .rt-head-row th.dline{color:var(--ink)!important}
+/* เพิ่มระยะห่างใต้แถวสุดท้ายของหัวรายงาน (เดือน/ปี) ก่อนถึงแถวหัวตาราง (วันเดือนปี/ชื่อ-สกุล/...) ตามฟีดแบ็ก — เดิมชิดกันเกินไป */
+/* :last-of-type นับตาม tag (tr) ไม่ใช่ class — แถวจริงสุดท้ายคือแถวหัวตาราง (ไม่มี class .rt-head-row)
+   เลยไม่ match อะไรเลย (บั๊กเดิม) ใช้ :nth-last-of-type(2) แทน เพราะแถวหัวตารางอยู่ลำดับสุดท้ายเสมอ
+   ดังนั้นแถว .rt-head-row แถวสุดท้าย (เดือน/ปี) จะอยู่อันดับ 2 จากท้ายเสมอ ไม่ว่าจะมีแถวหน่วยงานหรือไม่ */
+.rep-tbl-sig .rt-head-row:nth-last-of-type(2) th{padding-bottom:18px!important}
 .sig-row{display:flex;justify-content:space-between;margin-top:18px;gap:20px;flex-wrap:wrap}
 .sig{text-align:center;font-size:12px;flex:1;border-top:1px solid var(--border);padding-top:8px;min-width:180px;line-height:1.7}
+.appr-row{display:flex;justify-content:space-between;margin-top:40px;gap:30px;flex-wrap:wrap;font-size:12.5px;line-height:1.8}
+.appr-col{flex:1;min-width:220px}
+.appr-col-r{text-align:center}
+.appr-sig{margin:18px 0 6px}
 /* ── stat grid (schedule dashboard) ── */
 .stat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px;margin-bottom:14px}
 .stat{background:var(--surface2);border-radius:var(--r);padding:12px;text-align:center}
@@ -279,7 +324,7 @@ tbody tr:last-child td{border-bottom:none}
   .contact i{display:none!important}
   .print-only{display:block!important}
   #content{overflow:visible}
-  .frame{padding:0}
+  .frame{padding:0;overflow:visible!important;height:auto!important}
   .sched-wrap{overflow:visible;border:none;width:100%;page-break-inside:avoid}
   /* ตารางเวรคือตัวหลักของรายงาน — ให้ฟอนต์/ระยะใหญ่กว่าส่วนอื่น ส่วนข้อมูลรองบีบให้เล็กลงแทน */
   .sched{font-size:7.8px;width:100%;min-width:0;table-layout:fixed}
@@ -312,8 +357,24 @@ tbody tr:last-child td{border-bottom:none}
   .rep-tbl{font-size:10px;width:100%;table-layout:auto;line-height:1.35}
   .rep-tbl th,.rep-tbl td{padding:3px 6px}
   .rep-tbl tr.grp td{font-size:10px;padding-top:5px}
+  /* ── บัญชีลงเวลาการปฏิบัติงานนอกเวลาราชการ (4 รายงาน) — Print Layout ──
+     - ไม่บังคับ table-layout:fixed ที่นี่ (เคยทำแบบนั้น แต่ A/B test พบว่า fixed + <colgroup> ทำให้ Chrome
+       คำนวณขนาดหน้ากระดาษตอน paginate ผิด เกิดขอบขาวซ้าย-ขวาเกินจริง) ใช้ table-layout:auto (ค่าจาก
+       .rep-tbl ด้านบน) แทน — width hint จาก nth-child ด้านบนทำงานถูกต้องเพราะ auto อ่านทุกแถวใน thead/tbody
+     - thead{display:table-header-group} → ซ้ำหัวรายงาน + หัวตารางทุกหน้า (มาตรฐาน CSS print)
+     - tr{page-break-inside:avoid} → ห้ามแบ่งข้อมูลกลางแถว
+     - page-break-inside:auto บนตัวตาราง → อนุญาตให้ตารางขึ้นหน้าใหม่ได้ตามแนวสูงเมื่อข้อมูลเกิน 1 หน้า */
+  .rep-tbl-sig{font-size:10px;line-height:1.45;page-break-inside:auto}  /* ลดจาก 11px ตามฟีดแบ็ก ให้สมดุลกับคอลัมน์วันที่ที่บีบเล็กลง */
+  .rep-tbl-sig th,.rep-tbl-sig td{padding:5.5px 6px}
   .rep-tbl-sig .sig-col{height:22px}
+  .rep-tbl-sig thead{display:table-header-group}
+  .rep-tbl-sig tr{page-break-inside:avoid}
   .dtitle{font-size:13px;margin-bottom:3px}.dline{font-size:10px;line-height:1.4}
+  /* หัวรายงาน OT timesheet (ฝังใน th ของ thead) ใช้ class .dtitle/.dline เดียวกับ header() ทั่วไป จึงถูกกฎ
+     ด้านบนลดขนาดตอนพิมพ์ไปด้วย — แต่ใบเบิกเงินรวมจริงๆ ใช้ payPageHeader() ที่เป็น inline style ไม่ถูกกฎนี้ลดขนาด
+     (คงที่ 15px/12.5px ทั้งจอ/พิมพ์) ต้อง override คืนขนาดเดิมเฉพาะที่นี่ ให้ตรงกับใบเบิกเงินรวมตอนพิมพ์จริง */
+  .rep-tbl-sig .rt-head-row th.dtitle{font-size:15px!important}
+  .rep-tbl-sig .rt-head-row th.dline{font-size:12.5px!important;line-height:1.55!important}
   /* ใบเบิกเงินรวม (แนวตั้ง) — เพิ่ม line-height เฉพาะรายงานนี้ตามฟีดแบ็ก (ยังชิดกันอยู่ที่ 1.35) */
   .pay-portrait .rep-tbl{line-height:1.5}
   body,html{overflow:visible!important;height:auto!important}
@@ -330,8 +391,8 @@ tbody tr:last-child td{border-bottom:none}
   .card-title{margin-bottom:2px!important;font-size:9.5px!important}
   /* เลื่อนลงนามลงไปด้านล่างของหน้า — ใช้ position:fixed ยึดกับขอบล่างกระดาษจริง
      ไม่พึ่ง margin-top (ซึ่งระยะที่เห็นผลขึ้นกับความสูงเนื้อหาก่อนหน้า ไม่แน่นอน) */
-  .print-sign{position:fixed;bottom:10mm;left:6mm;right:6mm;clear:both;display:flex!important;justify-content:space-around;gap:24px;font-size:10px;text-align:center}
-  .print-sign .ln{margin-top:14px;border-top:1px dotted #000;padding-top:3px;min-width:150px}
+  .print-sign{position:fixed;bottom:10mm;left:6mm;right:6mm;clear:both;display:flex!important;justify-content:center;gap:20%;font-size:11px;text-align:center}
+  .print-sign .appr-col{flex:0 1 280px}
   /* รายงาน .doc (เช่น หลักฐานการจ่ายเงิน) ใช้ .sig-row แยกจาก .print-sign ของตารางเวร — เลื่อนลงนามลงด้านล่างหน้าเช่นกัน */
   .sig-row{margin-top:140px!important}
   /* ตัดเส้นคั่นเหนือช่องลงนามออกตามฟีดแบ็ก (ใบเบิกเงินรวม/รายบุคคล) */
@@ -343,8 +404,11 @@ tbody tr:last-child td{border-bottom:none}
      แม้จะไม่พอ 1 หน้าเสมอไป อ่านง่ายสำคัญกว่า */
   .pay-landscape .sig-row{margin-top:20px!important}
   /* Chrome เวลาพิมพ์ตาราง border-collapse:collapse ที่กว้าง/สูงพอดีขอบกระดาษ มักตัดเส้นขอบขวา-ล่างหายไป
-     เปลี่ยนเป็น separate + border-spacing:0 ให้ทุกเซลล์มีกรอบของตัวเอง ไม่หายแม้ชิดขอบกระดาษ */
-  .sched,.tbl,.rep-tbl{border-collapse:separate!important;border-spacing:0!important;border:1px solid #000!important}
+     เปลี่ยนเป็น separate + border-spacing:0 ให้ทุกเซลล์มีกรอบของตัวเอง ไม่หายแม้ชิดขอบกระดาษ
+     .rep-tbl ไม่ใส่ border ระดับ table (ตัด out จากรายการนี้) เพราะ .rep-tbl-sig ฝัง title rows ไว้ใน <thead>
+     ของ table เดียวกัน — border รอบ table จะครอบหัวรายงานเป็นกรอบเกินจำเป็น (ไม่ตรงต้นฉบับที่หัวรายงานอยู่นอกกรอบ) */
+  .sched,.tbl,.rep-tbl{border-collapse:separate!important;border-spacing:0!important;box-sizing:border-box!important}
+  .sched,.tbl{border:1px solid #000!important}
   .sched th,.sched td,.tbl th,.tbl td,.rep-tbl th,.rep-tbl td{border:1px solid #000!important}
   /* บันทึก on-call (รายละเอียด) — ตัดหัวรายงานย่อยออก เพิ่มระยะห่างระหว่างบรรทัดให้อ่านง่าย */
   .oc-claim-blk{line-height:2;padding:10px 0!important}
@@ -1276,12 +1340,17 @@ var Schedule = (function () {
     var s = Session.settings || {};
     var el = document.getElementById('printSign');
     if (!el) return;
-    var blocks = [];
-    if (s.signH) blocks.push({ name: s.signH, title: s.signHT || '' });
-    if (s.signD) blocks.push({ name: s.signD, title: s.signDT || '' });
-    el.innerHTML = blocks.map(function (b) {
-      return '<div><div class="ln">' + b.name + '</div><div>' + b.title + '</div></div>';
-    }).join('');
+    el.innerHTML = '<div class="appr-col">' +
+      '<div>เรียนผู้อำนวยการ' + (s.hosp || '') + '</div>' +
+      '<div>เพื่อโปรดพิจารณาอนุมัติ</div>' +
+      '<div class="appr-sig">..................................................</div>' +
+      '<div>(' + (s.signH || '') + ')</div><div>' + (s.signHT || '') + '</div>' +
+      '</div>' +
+      '<div class="appr-col appr-col-r">' +
+      '<div>คำสั่ง</div><div>อนุมัติ</div>' +
+      '<div class="appr-sig">..................................................</div>' +
+      '<div>(' + (s.signD || '') + ')</div><div>' + (s.signDT || '') + '</div>' +
+      '</div>';
   }
 
   /* ตารางสรุปเวลาในการปฏิบัติงาน — แสดงเฉพาะตอนพิมพ์ (ported per attached sample sheet)
@@ -1992,6 +2061,7 @@ var Schedule = (function () {
       '<details class="acc"><summary><i class="ti ti-coin"></i> อัตราค่าตอบแทน (รองรับไม่เท่ากันราย วัน/เดือน/บุคคล)</summary><div class="acc-body" id="accRates"></div></details>' +
       '<details class="acc"><summary><i class="ti ti-calendar-event"></i> วันหยุดราชการ — ' + monthLabel() + '</summary><div class="acc-body" id="accHolidays"></div></details>' +
       '<details class="acc"><summary><i class="ti ti-signature"></i> ผู้ลงนามในเอกสาร</summary><div class="acc-body" id="accSign"></div></details>' +
+      '<details class="acc"><summary><i class="ti ti-heading"></i> หัวข้อรายงาน (พิมพ์/ส่งออก)</summary><div class="acc-body" id="accRepTitles"></div></details>' +
       '<details class="acc"><summary><i class="ti ti-flask"></i> Master Data (LAB · หน่วยงาน)</summary><div class="acc-body" id="accMaster"></div></details>' +
       '<details class="acc"><summary><i class="ti ti-bell"></i> การแจ้งเตือน &amp; กำหนดการ</summary><div class="acc-body" id="accNotif"></div></details>' +
       '<details class="acc"><summary><i class="ti ti-shield-lock"></i> สิทธิ์การใช้งาน (รายบุคคล)</summary><div class="acc-body" id="accPerms"></div></details>' +
@@ -2008,6 +2078,7 @@ var Schedule = (function () {
       renderRatesSection(bundle.settings.rates || {}, bundle.rateOvr, bundle.people);
       renderHolidaysSection(bundle.holidays);
       renderSignSection(bundle.settings);
+      renderReportTitlesSection(bundle.settings);
       renderMasterSection(bundle.settings);
       renderNotifSection(bundle.settings);
       renderPermsSection(bundle.permissions);
@@ -2447,6 +2518,41 @@ var Schedule = (function () {
           signH: val('cf_signH'), signHT: val('cf_signHT'), signD: val('cf_signD'), signDT: val('cf_signDT'),
           signPay: val('cf_signPay'), signPayT: val('cf_signPayT')
         });
+      });
+    };
+  }
+
+  var DEFAULT_REPORT_TITLES = {
+    otsheet: 'บัญชีลงเวลาการปฏิบัติงานนอกเวลาราชการ  เวรเช้าบ่าย',
+    otsheetb1: 'บัญชีลงเวลาการปฏิบัติงานนอกเวลาราชการ เวรเสริมบ่าย',
+    otsheetd: 'บัญชีลงเวลาการปฏิบัติงานนอกเวลาราชการ  เวรดึก On call',
+    nsheet: 'บัญชีลงเวลาการปฏิบัติงานนอกเวลาราชการ เวรคลินิกนอกเวลา',
+    pay: 'หลักฐานการจ่ายเงินค่าตอบแทนปฏิบัติงานนอกเวลาราชการและในวันหยุดราชการ',
+    payLandscape: 'หลักฐานการจ่ายเงินค่าตอบแทนปฏิบัติงานนอกเวลาราชการและในวันหยุดราชการ',
+    payperson: 'หลักฐานการจ่ายเงิน (รายบุคคล)',
+    shiftsummary: 'สรุปเวรรายบุคคล',
+    teamoverview: 'ภาพรวมการขึ้นเวรทั้งทีม',
+    ocrec: 'แบบบันทึกขอเบิกเงินนอกเวลาราชการ On Call',
+    occlaim: 'แบบบันทึกขอเบิกเงินนอกเวลาราชการ On Call'
+  };
+
+  function renderReportTitlesSection(s) {
+    var titles = s.reportTitles || {};
+    var kinds = Object.keys(DEFAULT_REPORT_TITLES);
+    document.getElementById('accRepTitles').innerHTML =
+      '<div style="font-size:11.5px;color:var(--mut);margin-bottom:8px;">แก้ไขคำบรรยายหัวข้อที่แสดงบนรายงานแต่ละประเภทตอนพิมพ์/ส่งออกได้ที่นี่ — เว้นว่างเพื่อใช้ค่าเริ่มต้น</div>' +
+      kinds.map(function (k) {
+        var tab = REPORT_TABS.filter(function (t) { return t.id === k; })[0];
+        var label = tab ? tab.label : k;
+        return '<label style="display:block;margin-bottom:8px;">' + label +
+          '<input data-rt="' + k + '" value="' + (titles[k] || '').replace(/"/g, '&quot;') + '" placeholder="' + DEFAULT_REPORT_TITLES[k] + '" style="width:100%;margin-top:3px;"></label>';
+      }).join('') +
+      '<button class="btn btn-primary btn-sm" id="repTitlesSaveBtn">บันทึก</button>';
+    document.getElementById('repTitlesSaveBtn').onclick = function (e) {
+      saveField(e.target, function () {
+        var patch = {};
+        document.querySelectorAll('#accRepTitles [data-rt]').forEach(function (inp) { patch[inp.dataset.rt] = inp.value; });
+        return gsRun('api_saveSettings', Session.token, { reportTitles: patch });
       });
     };
   }

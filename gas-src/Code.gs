@@ -314,6 +314,7 @@ function api_saveSettings(token, patch) {
   AuthService.requirePermission(session.user, 'manageSettings', false);
   var before = DataService.getSettings();
   var result = DataService.saveSettings(patch);
+  bumpSettingsVersion_(); // invalidate cached reports (org/hosp/prov/signatures/reportTitles/labs affect renderReport())
   AuditService.logAction(session.user.userId, 'UPDATE', 'Settings', 'org', before, patch);
   return result;
 }

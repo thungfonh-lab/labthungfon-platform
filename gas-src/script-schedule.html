@@ -170,12 +170,17 @@ var Schedule = (function () {
     var s = Session.settings || {};
     var el = document.getElementById('printSign');
     if (!el) return;
-    var blocks = [];
-    if (s.signH) blocks.push({ name: s.signH, title: s.signHT || '' });
-    if (s.signD) blocks.push({ name: s.signD, title: s.signDT || '' });
-    el.innerHTML = blocks.map(function (b) {
-      return '<div><div class="ln">' + b.name + '</div><div>' + b.title + '</div></div>';
-    }).join('');
+    el.innerHTML = '<div class="appr-col">' +
+      '<div>เรียนผู้อำนวยการ' + (s.hosp || '') + '</div>' +
+      '<div>เพื่อโปรดพิจารณาอนุมัติ</div>' +
+      '<div class="appr-sig">..................................................</div>' +
+      '<div>(' + (s.signH || '') + ')</div><div>' + (s.signHT || '') + '</div>' +
+      '</div>' +
+      '<div class="appr-col appr-col-r">' +
+      '<div>คำสั่ง</div><div>อนุมัติ</div>' +
+      '<div class="appr-sig">..................................................</div>' +
+      '<div>(' + (s.signD || '') + ')</div><div>' + (s.signDT || '') + '</div>' +
+      '</div>';
   }
 
   /* ตารางสรุปเวลาในการปฏิบัติงาน — แสดงเฉพาะตอนพิมพ์ (ported per attached sample sheet)
@@ -886,6 +891,7 @@ var Schedule = (function () {
       '<details class="acc"><summary><i class="ti ti-coin"></i> อัตราค่าตอบแทน (รองรับไม่เท่ากันราย วัน/เดือน/บุคคล)</summary><div class="acc-body" id="accRates"></div></details>' +
       '<details class="acc"><summary><i class="ti ti-calendar-event"></i> วันหยุดราชการ — ' + monthLabel() + '</summary><div class="acc-body" id="accHolidays"></div></details>' +
       '<details class="acc"><summary><i class="ti ti-signature"></i> ผู้ลงนามในเอกสาร</summary><div class="acc-body" id="accSign"></div></details>' +
+      '<details class="acc"><summary><i class="ti ti-heading"></i> หัวข้อรายงาน (พิมพ์/ส่งออก)</summary><div class="acc-body" id="accRepTitles"></div></details>' +
       '<details class="acc"><summary><i class="ti ti-flask"></i> Master Data (LAB · หน่วยงาน)</summary><div class="acc-body" id="accMaster"></div></details>' +
       '<details class="acc"><summary><i class="ti ti-bell"></i> การแจ้งเตือน &amp; กำหนดการ</summary><div class="acc-body" id="accNotif"></div></details>' +
       '<details class="acc"><summary><i class="ti ti-shield-lock"></i> สิทธิ์การใช้งาน (รายบุคคล)</summary><div class="acc-body" id="accPerms"></div></details>' +
@@ -902,6 +908,7 @@ var Schedule = (function () {
       renderRatesSection(bundle.settings.rates || {}, bundle.rateOvr, bundle.people);
       renderHolidaysSection(bundle.holidays);
       renderSignSection(bundle.settings);
+      renderReportTitlesSection(bundle.settings);
       renderMasterSection(bundle.settings);
       renderNotifSection(bundle.settings);
       renderPermsSection(bundle.permissions);
@@ -1341,6 +1348,41 @@ var Schedule = (function () {
           signH: val('cf_signH'), signHT: val('cf_signHT'), signD: val('cf_signD'), signDT: val('cf_signDT'),
           signPay: val('cf_signPay'), signPayT: val('cf_signPayT')
         });
+      });
+    };
+  }
+
+  var DEFAULT_REPORT_TITLES = {
+    otsheet: 'บัญชีลงเวลาการปฏิบัติงานนอกเวลาราชการ  เวรเช้าบ่าย',
+    otsheetb1: 'บัญชีลงเวลาการปฏิบัติงานนอกเวลาราชการ เวรเสริมบ่าย',
+    otsheetd: 'บัญชีลงเวลาการปฏิบัติงานนอกเวลาราชการ  เวรดึก On call',
+    nsheet: 'บัญชีลงเวลาการปฏิบัติงานนอกเวลาราชการ เวรคลินิกนอกเวลา',
+    pay: 'หลักฐานการจ่ายเงินค่าตอบแทนปฏิบัติงานนอกเวลาราชการและในวันหยุดราชการ',
+    payLandscape: 'หลักฐานการจ่ายเงินค่าตอบแทนปฏิบัติงานนอกเวลาราชการและในวันหยุดราชการ',
+    payperson: 'หลักฐานการจ่ายเงิน (รายบุคคล)',
+    shiftsummary: 'สรุปเวรรายบุคคล',
+    teamoverview: 'ภาพรวมการขึ้นเวรทั้งทีม',
+    ocrec: 'แบบบันทึกขอเบิกเงินนอกเวลาราชการ On Call',
+    occlaim: 'แบบบันทึกขอเบิกเงินนอกเวลาราชการ On Call'
+  };
+
+  function renderReportTitlesSection(s) {
+    var titles = s.reportTitles || {};
+    var kinds = Object.keys(DEFAULT_REPORT_TITLES);
+    document.getElementById('accRepTitles').innerHTML =
+      '<div style="font-size:11.5px;color:var(--mut);margin-bottom:8px;">แก้ไขคำบรรยายหัวข้อที่แสดงบนรายงานแต่ละประเภทตอนพิมพ์/ส่งออกได้ที่นี่ — เว้นว่างเพื่อใช้ค่าเริ่มต้น</div>' +
+      kinds.map(function (k) {
+        var tab = REPORT_TABS.filter(function (t) { return t.id === k; })[0];
+        var label = tab ? tab.label : k;
+        return '<label style="display:block;margin-bottom:8px;">' + label +
+          '<input data-rt="' + k + '" value="' + (titles[k] || '').replace(/"/g, '&quot;') + '" placeholder="' + DEFAULT_REPORT_TITLES[k] + '" style="width:100%;margin-top:3px;"></label>';
+      }).join('') +
+      '<button class="btn btn-primary btn-sm" id="repTitlesSaveBtn">บันทึก</button>';
+    document.getElementById('repTitlesSaveBtn').onclick = function (e) {
+      saveField(e.target, function () {
+        var patch = {};
+        document.querySelectorAll('#accRepTitles [data-rt]').forEach(function (inp) { patch[inp.dataset.rt] = inp.value; });
+        return gsRun('api_saveSettings', Session.token, { reportTitles: patch });
       });
     };
   }

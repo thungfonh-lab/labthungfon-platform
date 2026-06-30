@@ -3,6 +3,7 @@ const { wrap, ok, getToken } = require('../helpers');
 const authService = require('../../lib/authService');
 const dataService = require('../../lib/dataService');
 const auditService = require('../../lib/auditService');
+const cacheService = require('../../lib/cacheService');
 const { invalidateCalCache } = require('./schedule');
 
 const router = express.Router();
@@ -39,6 +40,7 @@ router.post('/settings', wrap(async (req, res) => {
   const { patch } = req.body;
   const before = await dataService.getSettings();
   const result = await dataService.saveSettings(patch);
+  cacheService.removePrefix('report_'); // settings (org/hosp/prov/signatures/reportTitles/labs) feed into renderReport() but weren't part of the report cache key
   await auditService.logAction(session.user.userId, 'UPDATE', 'Settings', 'org', before, patch);
   ok(res, result);
 }));

@@ -59,7 +59,21 @@ var AppCache = (function () {
   return { put: put, get: get, remove: remove, getOrCompute: getOrCompute };
 })();
 
-/** Cache key helper for report payloads, reused by ReportService/Code.gs. */
+/** Cache key helper for report payloads, reused by ReportService/Code.gs.
+ *  Includes the settings version so that saving settings (org/hosp/prov/signatures/
+ *  reportTitles/labs/...) — which renderReport() reads but the cache key didn't
+ *  account for — invalidates every cached report instead of serving stale HTML
+ *  for up to the 300s TTL (the cache itself has no key-listing API to clear by prefix). */
 function reportCacheKey_(kind, year, month, pid) {
-  return 'report_' + kind + '_' + year + '_' + month + '_' + (pid || 'all');
+  return 'report_' + kind + '_' + year + '_' + month + '_' + (pid || 'all') + '_v' + settingsVersion_();
+}
+
+function settingsVersion_() {
+  return CacheService.getScriptCache().get('settingsVer') || '0';
+}
+
+function bumpSettingsVersion_() {
+  var v = (parseInt(settingsVersion_(), 10) || 0) + 1;
+  CacheService.getScriptCache().put('settingsVer', String(v), 21600);
+  return v;
 }

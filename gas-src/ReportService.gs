@@ -63,15 +63,30 @@ var ReportService = (function () {
   }
 
   function reportHeader_(settings, year, month) {
-    return '<div class="dtitle" id="repTit"></div><div class="dline">' + settings.org + '</div>' +
-      '<div class="dline">' + settings.hosp + ' ' + settings.prov + '</div>' +
+    return '<div class="dtitle" id="repTit"></div><div class="dline">' +
+      [settings.org, settings.hosp, settings.prov].filter(Boolean).join(' ') + '</div>' +
       '<div class="dline">ประจำเดือน ' + TH_M[month] + ' พ.ศ.' + year + '</div>';
   }
 
+  function titleFor_(settings, kind) { return ((settings.reportTitles || {})[kind]) || REPORT_TITLES[kind] || ''; }
+
+  /** บรรทัดหัวรายงาน ฝังไว้ใน <thead> ของตารางเอง (ไม่ใช่ div แยกนอกตาราง) เพื่อให้เบราว์เซอร์พิมพ์
+   *  หัวนี้ซ้ำในหน้าที่ 2 โดยอัตโนมัติเมื่อตารางยาวเกิน 1 แผ่น (display:table-header-group) */
+  function reportHeaderRows_(settings, year, month, colspan) {
+    var orgLine = [settings.org, settings.hosp, settings.prov].filter(Boolean).join(' ');
+    return '<tr class="rt-head-row"><th colspan="' + colspan + '" class="dtitle" id="repTit"></th></tr>' +
+      (orgLine ? '<tr class="rt-head-row"><th colspan="' + colspan + '" class="dline">' + orgLine + '</th></tr>' : '') +
+      '<tr class="rt-head-row"><th colspan="' + colspan + '" class="dline">ประจำเดือน ' + TH_M[month] + ' พ.ศ.' + year + '</th></tr>';
+  }
+
   var OT_TYPE_LABEL_ = { ch: 'นอกเวลาเช้า', b: 'นอกเวลาบ่าย' };
+  var SIG_HEAD_ROW_ = '<tr><th>วัน เดือน ปี</th><th>ชื่อ-สกุล</th><th>ตำแหน่ง</th><th>ประเภทเวร</th><th>เวลามา</th><th class="sig-col">ลายมือชื่อ</th><th>เวลากลับ</th><th class="sig-col">ลายมือชื่อ</th><th>หมาย<br>เหตุ</th></tr>';
+  /* table-layout:fixed อ่านความกว้างคอลัมน์จากแถวแรกของตารางเท่านั้น (CSS spec) — แถวแรกในที่นี้คือ
+     แถวหัวรายงาน (colspan=9, ไม่มี width ระบุ) ทำให้ทุกคอลัมน์ถูกหารเท่ากันโดยไม่สนใจ % ที่ตั้งไว้ใน CSS
+     ต้องระบุความกว้างผ่าน <colgroup><col> แทน ซึ่งมีผลเหนือกว่าทุกแถวเสมอ (% ต้องตรงกับ .rep-tbl-sig th:nth-child ใน style.html) */
 
   /** Ported from repOT() (2735-2744). */
-  function repOT_(workload, year, month, scheduleAssign, N) {
+  function repOT_(workload, year, month, scheduleAssign, N, settings) {
     var rows = [];
     for (var d = 1; d <= N; d++) {
       var a = scheduleAssign[d];
@@ -79,7 +94,7 @@ var ReportService = (function () {
       if (BusinessService.isOff_(year, month, d, []) && a.ch) rows.push([d, a.ch, 'ch', '08.00', '16.00']);
       if (a.b) rows.push([d, a.b, 'b', '16.00', '24.00']);
     }
-    var h = '<table class="rep-tbl rep-tbl-sig"><thead><tr><th>วัน เดือน ปี</th><th>ชื่อ-สกุล</th><th>ตำแหน่ง</th><th>ประเภทเวร</th><th>เวลามา</th><th class="sig-col">ลายมือชื่อ</th><th>เวลากลับ</th><th class="sig-col">ลายมือชื่อ</th><th>หมายเหตุ</th></tr></thead><tbody>';
+    var h = '<table class="rep-tbl rep-tbl-sig"><thead>' + reportHeaderRows_(settings, year, month, 9) + SIG_HEAD_ROW_ + '</thead><tbody>';
     rows.forEach(function (row) {
       var p = workload.people.filter(function (x) { return x.id === row[1]; })[0];
       if (!p) return;
@@ -91,12 +106,12 @@ var ReportService = (function () {
 
   /** OT timesheet สำหรับเวร บ1 เวรเสริมบ่าย — รูปแบบจัดวางเดียวกับ repOT_ (otsheet) ทุกอย่าง
    *  ต่างกันแค่ดึงข้อมูลจาก calendar.laB แทน assign.ch/assign.b */
-  function repOTB1_(workload, year, month, laB, N) {
+  function repOTB1_(workload, year, month, laB, N, settings) {
     var rows = [];
     for (var d = 1; d <= N; d++) {
       if (laB[d]) rows.push([d, laB[d], 'b1', '16.00', '20.00']);
     }
-    var h = '<table class="rep-tbl rep-tbl-sig"><thead><tr><th>วัน เดือน ปี</th><th>ชื่อ-สกุล</th><th>ตำแหน่ง</th><th>ประเภทเวร</th><th>เวลามา</th><th class="sig-col">ลายมือชื่อ</th><th>เวลากลับ</th><th class="sig-col">ลายมือชื่อ</th><th>หมายเหตุ</th></tr></thead><tbody>';
+    var h = '<table class="rep-tbl rep-tbl-sig"><thead>' + reportHeaderRows_(settings, year, month, 9) + SIG_HEAD_ROW_ + '</thead><tbody>';
     rows.forEach(function (row) {
       var p = workload.people.filter(function (x) { return x.id === row[1]; })[0];
       if (!p) return;
@@ -109,13 +124,13 @@ var ReportService = (function () {
   /** OT timesheet สำหรับเวรดึก (on call) — รูปแบบจัดวางเดียวกับ repOT_ (otsheet) ทุกอย่าง
    *  แยกเป็น 2 ช่วงเวลาตามฟีดแบ็ก: ด (00.00-04.00) และ ด (04.00-08.00) — ดึงจากบันทึก on call จริง
    *  (ไม่ใช่ตารางเวร) นับ 1 แถวต่อคน/วัน/ช่วงเวลา ไม่ซ้ำแม้มีหลาย LAB ในช่วงเดียวกัน */
-  function repOTD_(year, month, oncall, people) {
+  function repOTD_(year, month, oncall, people, settings) {
     function ocDayOf(o) {
       var dt = new Date(o.date);
       return (dt.getFullYear() === year - 543 && dt.getMonth() === month) ? dt.getDate() : null;
     }
     var PERIOD_TIME_ = { d0: ['00.00', '04.00'], d1: ['04.00', '08.00'] };
-    var PERIOD_LABEL_ = { d0: 'เวรดึก On call (00.00-04.00)', d1: 'เวรดึก On call (04.00-08.00)' };
+    var PERIOD_LABEL_ = { d0: 'เวรดึก On call', d1: 'เวรดึก On call' };
     var seen = {}, rows = [];
     oncall.forEach(function (o) {
       var d = ocDayOf(o);
@@ -127,7 +142,7 @@ var ReportService = (function () {
       rows.push([d, o.pid, period]);
     });
     rows.sort(function (a, b) { return a[0] - b[0]; });
-    var h = '<table class="rep-tbl rep-tbl-sig"><thead><tr><th>วัน เดือน ปี</th><th>ชื่อ-สกุล</th><th>ตำแหน่ง</th><th>ประเภทเวร</th><th>เวลามา</th><th class="sig-col">ลายมือชื่อ</th><th>เวลากลับ</th><th class="sig-col">ลายมือชื่อ</th><th>หมายเหตุ</th></tr></thead><tbody>';
+    var h = '<table class="rep-tbl rep-tbl-sig"><thead>' + reportHeaderRows_(settings, year, month, 9) + SIG_HEAD_ROW_ + '</thead><tbody>';
     rows.forEach(function (row) {
       var p = people.filter(function (x) { return x.id === row[1]; })[0];
       if (!p) return;
@@ -139,13 +154,13 @@ var ReportService = (function () {
   }
 
   /** Ported from repN() (2745-2751). */
-  function repN_(workload, year, month, clinicMt, clinicLa, N) {
+  function repN_(workload, year, month, clinicMt, clinicLa, N, settings) {
     var rows = [];
     for (var d = 1; d <= N; d++) {
       if (clinicMt[d]) rows.push([d, clinicMt[d]]);
       if (clinicLa[d]) rows.push([d, clinicLa[d]]);
     }
-    var h = '<table class="rep-tbl rep-tbl-sig"><thead><tr><th>วัน เดือน ปี</th><th>ชื่อ-สกุล</th><th>ตำแหน่ง</th><th>ประเภทเวร</th><th>เวลามา</th><th class="sig-col">ลายมือชื่อ</th><th>เวลากลับ</th><th class="sig-col">ลายมือชื่อ</th><th>หมายเหตุ</th></tr></thead><tbody>';
+    var h = '<table class="rep-tbl rep-tbl-sig"><thead>' + reportHeaderRows_(settings, year, month, 9) + SIG_HEAD_ROW_ + '</thead><tbody>';
     rows.forEach(function (row) {
       var p = workload.people.filter(function (x) { return x.id === row[1]; })[0];
       if (!p) return;
@@ -212,7 +227,7 @@ var ReportService = (function () {
   function repPay_(r, people, rateOvr, rates, settings, year, month) {
     var MT = people.filter(function (p) { return p.role !== 'LA'; });
     var LA = people.filter(function (p) { return p.role === 'LA'; });
-    var title = REPORT_TITLES.pay;
+    var title = titleFor_(settings, 'pay');
     var theadRow = '<thead><tr><th>ลำดับ</th><th>ชื่อ-สกุล</th><th>ตำแหน่ง</th><th>อัตรา</th><th>วันที่ปฏิบัติงาน</th><th>รวม(วัน)</th><th>จำนวนเงิน</th><th>ลายมือชื่อ<br>ผู้รับเงิน</th></tr></thead>';
     var sig = sigRow_(settings);
 
@@ -224,12 +239,6 @@ var ReportService = (function () {
     h += g.h; tot += g.sub;
     g = payGroupOnCall_('วันที่ปฏิบัติงาน ' + PAY_SECTION_LABEL_.d, MT.map(function (p) { var rr = r[p.id] || {}; return { p: p, days: rr.d, d0: rr.d0, d1: rr.d1 }; }), rateOvr, rates);
     h += g.h; tot += g.sub;
-    var nMT = MT.filter(function (p) { return BusinessService.rateFor_(rateOvr, rates, p, 'n') > 0; });
-    var nLA = LA.filter(function (p) { return BusinessService.rateFor_(rateOvr, rates, p, 'n') > 0; });
-    if (nMT.length || nLA.length) {
-      var g0 = payGroup_('วันที่ปฏิบัติงาน ' + PAY_SECTION_LABEL_.n, nMT.concat(nLA).map(function (p) { return { p: p, days: (r[p.id] || {}).n }; }), 'n', rateOvr, rates);
-      h += g0.h; tot += g0.sub;
-    }
     g = payGroup_('วันที่ปฏิบัติงาน ' + PAY_SECTION_LABEL_.b1, LA.map(function (p) { return { p: p, days: (r[p.id] || {}).b1 }; }), 'b1', rateOvr, rates);
     h += g.h; tot += g.sub;
     h += '<tr class="tot"><td colspan="6" class="r">รวมจ่ายทั้งสิ้น</td><td class="r">' + money_(tot) + '</td><td></td></tr></tbody></table>';
@@ -388,9 +397,18 @@ var ReportService = (function () {
     return h;
   }
 
+  function periodCheckbox_(on, label) {
+    /* vertical-align ใส่ที่กล่อง inline-block ข้างในไม่มีผล เพราะมันเป็น flex item ของ span ครอบ (inline-flex)
+       — vertical-align ถูก browser ignore ทั้งหมดสำหรับ flex item ต้องใส่ที่ span ครอบ (ตัวที่เป็น inline box
+       จริงในสายตาของบรรทัดข้อความรอบๆ) ถึงจะจัดให้กึ่งกลางบรรทัดเดียวกับตัวอักษรอื่นได้ */
+    return '<span style="display:inline-flex;vertical-align:middle;align-items:center;gap:5px;margin-right:14px;' + (on ? 'font-weight:700' : '') + '">' +
+      '<span style="display:inline-block;width:15px;height:15px;border:1.5px solid #555;text-align:center;line-height:13px;font-size:12px;flex-shrink:0">' +
+      (on ? '✓' : '') + '</span>' + label + '</span>';
+  }
+
   /** แบบบันทึกขอเบิกเงินนอกเวลาราชการ On Call (รายละเอียดผู้ป่วย) — 1 บล็อกต่อ 1 ครั้งที่ on call
    *  ตามฟอร์มที่หน่วยงานแนบมา (วัน/เวลา/ชื่อผู้ป่วย/HN/LAB ที่ตรวจ/หน่วยงานที่ส่งตรวจ ER/IPD) */
-  function repOcClaim_(pid, oncall, people, year, month, settings) {
+  function repOcClaim_(pid, oncall, people, year, month) {
     function ocDayOf(o) {
       var dt = new Date(o.date);
       return (dt.getFullYear() === year - 543 && dt.getMonth() === month) ? dt.getDate() : null;
@@ -405,10 +423,9 @@ var ReportService = (function () {
     list.forEach(function (o) {
       var d = ocDayOf(o);
       var period = BusinessService.onCallPeriod_(o.time);
-      h += '<div class="oc-claim-blk" style="border-bottom:1px dashed var(--border);padding:10px 0;font-size:12.5px;line-height:2">' +
-        '<div style="margin-bottom:3px">วัน เดือน ปี ' + d + ' ' + TH_M[month] + ' ' + year + ' &nbsp; เวลา ' + (o.time || '') +
-        ' &nbsp; <span style="' + (period === 'd0' ? 'font-weight:700;text-decoration:underline' : '') + '">00.00-04.00</span>' +
-        ' &nbsp; <span style="' + (period === 'd1' ? 'font-weight:700;text-decoration:underline' : '') + '">04.01-08.00</span></div>' +
+      h += '<div class="oc-claim-blk" style="border-bottom:1px dashed var(--border);padding:10px 0;font-size:12.5px;line-height:1.9">' +
+        '<div style="margin-bottom:3px">วัน เดือน ปี ' + d + ' ' + TH_M[month] + ' ' + year + ' &nbsp; เวลา <b>' + (o.time || '............') + '</b> น.' +
+        ' &nbsp; ' + periodCheckbox_(period === 'd0', '00.00-04.00') + periodCheckbox_(period === 'd1', '04.01-08.00') + '</div>' +
         '<div style="margin-bottom:3px">ชื่อผู้ป่วย ' + (o.name || '......................................') + ' &nbsp; HN ' + (o.hn || '............') + '</div>' +
         '<div style="margin-bottom:3px">ส่วนที่ตรวจ/LAB ที่ตรวจ ' + ((o.labs || []).join(', ') || '......................................') + '</div>' +
         '<div>หน่วยงานที่ส่งตรวจ ' + (o.unit || 'ER/IPD') + '</div></div>';
@@ -438,32 +455,32 @@ var ReportService = (function () {
     var rates = DataService.getRates();
     var stations = BusinessService.rotateStationsForMonth_(DataService.getStations(), year, month);
     var header = reportHeader_(settings, year, month);
-    var inner = '';
 
     if (kind === 'ocrec') {
-      inner = repOcRec_(pid || 'all', DataService.getOnCallRecords(year, month), people, year, month, settings);
-    } else if (kind === 'occlaim') {
-      inner = repOcClaim_(pid, DataService.getOnCallRecords(year, month), people, year, month, settings);
-    } else if (kind === 'otsheetd') {
-      inner = repOTD_(year, month, DataService.getOnCallRecords(year, month), people);
-    } else {
-      var calendar = BusinessService.loadCalendar(year, month);
-      if (!calendar.status || calendar.status === 'none') {
-        return { title: REPORT_TITLES[kind] || '', html: header + '<div style="padding:30px;text-align:center;color:var(--mut)">ยังไม่มีตารางเวร — สร้างก่อน</div>' };
-      }
-      var workload = BusinessService.calculateWorkload(year, month);
-      var r = workload.byPerson;
-      if (kind === 'otsheet') inner = repOT_(workload, year, month, calendar.assign, calendar.N);
-      else if (kind === 'otsheetb1') inner = repOTB1_(workload, year, month, calendar.laB, calendar.N);
-      else if (kind === 'nsheet') inner = repN_(workload, year, month, calendar.clinicMt, calendar.clinicLa, calendar.N);
-      else if (kind === 'pay') return { title: REPORT_TITLES.pay, html: '<div class="pay-portrait">' + repPay_(r, people, rateOvr, rates, settings, year, month) + '</div>' };
-      else if (kind === 'payLandscape') return { title: REPORT_TITLES.payLandscape, html: '<div class="pay-landscape">' + repPay_(r, people, rateOvr, rates, settings, year, month) + '</div>' };
-      else if (kind === 'payperson') inner = repPayPerson_(r, pid, people, rateOvr, rates, settings);
-      else if (kind === 'shiftsummary') inner = repShiftSummary_(r, pid, people, rateOvr, rates, settings, stations, year, month);
-      else if (kind === 'teamoverview') inner = repTeamOverview_(r, people, rateOvr, rates, year, month);
-      else throw new Error('ไม่รู้จักประเภทรายงาน: ' + kind);
+      return { title: titleFor_(settings, kind), html: header + repOcRec_(pid || 'all', DataService.getOnCallRecords(year, month), people, year, month, settings) };
     }
-    return { title: REPORT_TITLES[kind] || '', html: header + inner };
+    if (kind === 'occlaim') {
+      return { title: titleFor_(settings, kind), html: header + repOcClaim_(pid, DataService.getOnCallRecords(year, month), people, year, month) };
+    }
+    if (kind === 'otsheetd') {
+      return { title: titleFor_(settings, kind), html: repOTD_(year, month, DataService.getOnCallRecords(year, month), people, settings) };
+    }
+
+    var calendar = BusinessService.loadCalendar(year, month);
+    if (!calendar.status || calendar.status === 'none') {
+      return { title: titleFor_(settings, kind), html: header + '<div style="padding:30px;text-align:center;color:var(--mut)">ยังไม่มีตารางเวร — สร้างก่อน</div>' };
+    }
+    var workload = BusinessService.calculateWorkload(year, month);
+    var r = workload.byPerson;
+    if (kind === 'otsheet') return { title: titleFor_(settings, kind), html: repOT_(workload, year, month, calendar.assign, calendar.N, settings) };
+    if (kind === 'otsheetb1') return { title: titleFor_(settings, kind), html: repOTB1_(workload, year, month, calendar.laB, calendar.N, settings) };
+    if (kind === 'nsheet') return { title: titleFor_(settings, kind), html: repN_(workload, year, month, calendar.clinicMt, calendar.clinicLa, calendar.N, settings) };
+    if (kind === 'pay') return { title: titleFor_(settings, 'pay'), html: '<div class="pay-portrait">' + repPay_(r, people, rateOvr, rates, settings, year, month) + '</div>' };
+    if (kind === 'payLandscape') return { title: titleFor_(settings, 'payLandscape'), html: '<div class="pay-landscape">' + repPay_(r, people, rateOvr, rates, settings, year, month) + '</div>' };
+    if (kind === 'payperson') return { title: titleFor_(settings, kind), html: header + repPayPerson_(r, pid, people, rateOvr, rates, settings) };
+    if (kind === 'shiftsummary') return { title: titleFor_(settings, kind), html: header + repShiftSummary_(r, pid, people, rateOvr, rates, settings, stations, year, month) };
+    if (kind === 'teamoverview') return { title: titleFor_(settings, kind), html: header + repTeamOverview_(r, people, rateOvr, rates, year, month) };
+    throw new Error('ไม่รู้จักประเภทรายงาน: ' + kind);
   }
 
   /**
