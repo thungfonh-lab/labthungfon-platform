@@ -128,15 +128,15 @@ var BusinessService = (function () {
     /* ══ lastWeekHolder: pid ที่ได้รับ Fri-Sun block ล่าสุด (ป้องกัน ชบด ติดกัน 2 อาทิตย์) ══ */
     var lastWeekHolder = prevTrail ? prevTrail.lastWeekHolder : null;
 
+    /* ══ ดึง schedule เดือนก่อนครั้งเดียว — ใช้ร่วมกันทั้ง prevLastDayPid fallback และ b1 auto-rotate ══ */
+    var prevMonthRows = DataService.getScheduleAssignments(prevY, prevM) || [];
+
     /* ══ lastDayPid: fallback ดึงจาก schedule เดือนก่อนกรณี trailInfo เก่าไม่มี lastDayPid ══ */
     var prevLastDayPid = prevTrail ? prevTrail.lastDayPid : null;
-    if (!prevLastDayPid) {
-      var prevRows = DataService.getScheduleAssignments(prevY, prevM);
-      if (prevRows && prevRows.length) {
-        var prevN = dim_(prevY, prevM);
-        var prevUnflat = unflattenAssignments_(prevRows, prevN);
-        prevLastDayPid = prevUnflat.assign[prevN] ? prevUnflat.assign[prevN].d : null;
-      }
+    if (!prevLastDayPid && prevMonthRows.length) {
+      var prevN = dim_(prevY, prevM);
+      var prevUnflat = unflattenAssignments_(prevMonthRows, prevN);
+      prevLastDayPid = prevUnflat.assign[prevN] ? prevUnflat.assign[prevN].d : null;
     }
 
     /* ══ crossLock: วันต้นเดือนที่ต้องใช้คนเดิมจากเดือนก่อน ══ */
@@ -272,8 +272,7 @@ var BusinessService = (function () {
 
     /* ══ LA บ1 — สลับอัตโนมัติทุกเดือน โดยอ่านจาก b1 จริงเดือนก่อนเท่านั้น ══ */
     var prevEffectiveLaB = null;
-    var prevB1Rows = DataService.getScheduleAssignments(prevY, prevM);
-    var prevB1All = prevB1Rows ? prevB1Rows.filter(function (r) { return r.shiftType === 'b1'; }) : [];
+    var prevB1All = prevMonthRows.filter(function (r) { return r.shiftType === 'b1'; });
     if (prevB1All.length > 0) {
       if (prevTrail && prevTrail.laB) {
         prevEffectiveLaB = prevTrail.laB;
