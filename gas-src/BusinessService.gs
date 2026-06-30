@@ -125,6 +125,20 @@ var BusinessService = (function () {
     if (prevM < 0) { prevM = 11; prevY--; }
     var prevTrail = DataService.getTrailInfo(prevY, prevM);
 
+    /* ══ lastWeekHolder: pid ที่ได้รับ Fri-Sun block ล่าสุด (ป้องกัน ชบด ติดกัน 2 อาทิตย์) ══ */
+    var lastWeekHolder = prevTrail ? prevTrail.lastWeekHolder : null;
+
+    /* ══ lastDayPid: fallback ดึงจาก schedule เดือนก่อนกรณี trailInfo เก่าไม่มี lastDayPid ══ */
+    var prevLastDayPid = prevTrail ? prevTrail.lastDayPid : null;
+    if (!prevLastDayPid) {
+      var prevRows = DataService.getScheduleAssignments(prevY, prevM);
+      if (prevRows && prevRows.length) {
+        var prevN = dim_(prevY, prevM);
+        var prevUnflat = unflattenAssignments_(prevRows, prevN);
+        prevLastDayPid = prevUnflat.assign[prevN] ? prevUnflat.assign[prevN].d : null;
+      }
+    }
+
     /* ══ crossLock: วันต้นเดือนที่ต้องใช้คนเดิมจากเดือนก่อน ══ */
     var crossLock = {};
     if (prevTrail && prevTrail.lastPid && prevTrail.trailingCount > 0) {
@@ -140,9 +154,11 @@ var BusinessService = (function () {
       }
     }
 
-    function pick(days) {
+    function pick(days, excludeWeek) {
       if (crossLock[days[0]]) return crossLock[days[0]];
-      var cands = pool.filter(function (p) { return canDuty(p.id, days) && consec(p.id, days[0]) < maxC; });
+      /* primary: ตัด excludeWeek (ผู้ถือ Fri block อาทิตย์ก่อน) + consec < maxC */
+      var cands = pool.filter(function (p) { return canDuty(p.id, days) && consec(p.id, days[0]) < maxC && (!excludeWeek || p.id !== excludeWeek); });
+      if (!cands.length) cands = pool.filter(function (p) { return canDuty(p.id, days) && consec(p.id, days[0]) < maxC; });
       if (!cands.length) cands = pool.filter(function (p) { return canDuty(p.id, days); });
       if (!cands.length) cands = pool.slice();
       if (cands.length > 1 && lastDuty) {
@@ -165,7 +181,8 @@ var BusinessService = (function () {
       if (dow_(year, month, dd) === 5) {
         var bl = [dd], x = dd + 1;
         while (x <= N && isOff(x)) { bl.push(x); x++; }
-        var pid = pick(bl); bl.forEach(function (b) { setD(b, pid); }); dd = x;
+        var pid = pick(bl, lastWeekHolder); bl.forEach(function (b) { setD(b, pid); });
+        lastWeekHolder = pid; dd = x;
       } else if (isOff(dd)) {
         var bl2 = [dd], x2 = dd + 1;
         while (x2 <= N && isOff(x2)) { bl2.push(x2); x2++; }
@@ -241,9 +258,29 @@ var BusinessService = (function () {
       }
     }
 
-    /* ══ LA บ1 ══ */
-    var laMonPer = settings.laB === 'A' ? settings.laA : settings.laB2;
-    var laWedPer = settings.laB === 'A' ? settings.laB2 : settings.laA;
+    /* ══ LA บ1 — สลับอัตโนมัติทุกเดือน โดยอ่านจาก b1 จริงเดือนก่อนเท่านั้น ══ */
+    var prevEffectiveLaB = null;
+    var prevB1Rows = DataService.getScheduleAssignments(prevY, prevM);
+    var prevB1All = prevB1Rows ? prevB1Rows.filter(function (r) { return r.shiftType === 'b1'; }) : [];
+    if (prevB1All.length > 0) {
+      if (prevTrail && prevTrail.laB) {
+        prevEffectiveLaB = prevTrail.laB;
+      } else {
+        var prevN2 = dim_(prevY, prevM);
+        for (var pd = 1; pd <= prevN2 && !prevEffectiveLaB; pd++) {
+          var w2 = dow_(prevY, prevM, pd);
+          if (w2 === 1 || w2 === 2) {
+            var b1row = null;
+            for (var bi = 0; bi < prevB1All.length; bi++) { if (prevB1All[bi].day === pd) { b1row = prevB1All[bi]; break; } }
+            if (b1row && b1row.pid === settings.laA) prevEffectiveLaB = 'A';
+            else if (b1row && b1row.pid === settings.laB2) prevEffectiveLaB = 'B';
+          }
+        }
+      }
+    }
+    var effectiveLaB = prevEffectiveLaB ? (prevEffectiveLaB === 'A' ? 'B' : 'A') : (settings.laB === 'A' ? 'A' : 'B');
+    var laMonPer = effectiveLaB === 'A' ? settings.laA : settings.laB2;
+    var laWedPer = effectiveLaB === 'A' ? settings.laB2 : settings.laA;
     if (!disB1) {
       for (var day2 = 1; day2 <= N; day2++) {
         var w = dow_(year, month, day2);
@@ -256,6 +293,8 @@ var BusinessService = (function () {
 
     var overrides = [];
     var trailInfo = computeTrailInfo_(N, assign, isOff);
+    trailInfo.laB = effectiveLaB;
+    trailInfo.lastWeekHolder = lastWeekHolder;
 
     /* ══ ตรวจ balance ของ crossLock ══ */
     var crossLockedPid = prevTrail ? prevTrail.lastPid : null;
@@ -311,6 +350,12 @@ var BusinessService = (function () {
       DataService.addOverridesBulk(year, month, overrides.concat(postPassLog));
     }
 
+    /* ══ assign[0] = d ข้ามเดือน — ให้ cellToks วันที่ 1 แสดง "ด" (ไม่บันทึก DB) ══ */
+    if (prevLastDayPid && !disD) {
+      var cp2 = byId_(people, prevLastDayPid);
+      if (cp2 && cp2.active !== false) assign[0] = { ch: null, b: null, d: prevLastDayPid };
+    }
+
     return {
       year: year, month: month, status: 'draft',
       assign: assign, clinicMt: clinicMt, clinicLa: clinicLa, laB: laB, N: N,
@@ -328,7 +373,8 @@ var BusinessService = (function () {
       if (pid !== lastPid) break;
       trailingCount++; d--;
     }
-    return { lastPid: lastPid, trailingCount: trailingCount, lastDay: N };
+    var lastDayPid = assign[N] ? assign[N].d : null;
+    return { lastPid: lastPid, trailingCount: trailingCount, lastDay: N, lastDayPid: lastDayPid, laB: null };
   }
 
   function runPostBalancePass_(pool, assign, clinicMt, N, isOff, maxC, rateOvr, rates, people) {
@@ -427,6 +473,25 @@ var BusinessService = (function () {
         }
       }
     });
+    /* ชบดติดกัน 2 อาทิตย์: ตรวจ 14+ วันเวรบ่าย/ดึกติดต่อกัน */
+    pool.forEach(function (p) {
+      var run2 = 0, runStart2 = 1;
+      for (var dk = 1; dk <= N + 1; dk++) {
+        var hasB2 = assign[dk] && assign[dk].b === p.id;
+        if (hasB2) { if (run2 === 0) runStart2 = dk; run2++; }
+        else {
+          if (run2 >= 14) {
+            violations.push({
+              type: 'consec_week', pid: p.id, name: (byId_(people, p.id) || p).short,
+              msg: (byId_(people, p.id) || p).short + ' ขึ้นเวรชบดติดต่อกัน 2 สัปดาห์ (วันที่ ' + runStart2 + '-' + (runStart2 + run2 - 1) + ') รวม ' + run2 + ' วัน',
+              days: Array.apply(null, { length: run2 }).map(function (_, i) { return runStart2 + i; }),
+              severity: 'warn'
+            });
+          }
+          run2 = 0;
+        }
+      }
+    });
     for (var d2 = 2; d2 <= N; d2++) {
       if (!isClin_(year, month, d2, holidays)) continue;
       var prevD = assign[d2 - 1] ? assign[d2 - 1].d : null;
@@ -513,6 +578,26 @@ var BusinessService = (function () {
     var rows = DataService.getScheduleAssignments(year, month);
     var status = rows.length ? rows[0].status : 'none';
     var unflat = unflattenAssignments_(rows, N);
+
+    /* assign[0] = d ข้ามเดือน — ให้ cellToks วันที่ 1 แสดง "ด" (ไม่บันทึก DB) */
+    var prevM2 = month - 1, prevY2 = year;
+    if (prevM2 < 0) { prevM2 = 11; prevY2--; }
+    var pt2 = DataService.getTrailInfo(prevY2, prevM2);
+    var prevLDP = pt2 ? pt2.lastDayPid : null;
+    if (!prevLDP) {
+      var pr2 = DataService.getScheduleAssignments(prevY2, prevM2);
+      if (pr2 && pr2.length) {
+        var pN2 = dim_(prevY2, prevM2);
+        var pu2 = unflattenAssignments_(pr2, pN2);
+        prevLDP = pu2.assign[pN2] ? pu2.assign[pN2].d : null;
+      }
+    }
+    if (prevLDP) {
+      var people2 = DataService.getPeople();
+      var cp3 = byId_(people2, prevLDP);
+      if (cp3 && cp3.active !== false) unflat.assign[0] = { ch: null, b: null, d: prevLDP };
+    }
+
     return {
       year: year, month: month, N: N, status: status,
       assign: unflat.assign, clinicMt: unflat.clinicMt, clinicLa: unflat.clinicLa, laB: unflat.laB,
