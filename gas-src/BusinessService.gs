@@ -154,13 +154,21 @@ var BusinessService = (function () {
       }
     }
 
-    /* ══ cross-month Fri block: ถ้าเดือนก่อนลงท้ายวันศุกร์ → ส-อา ต้นเดือนต้องเป็นคนเดิม ══ */
-    if (prevLastDayPid) {
-      var prevLastDay = dim_(prevY, prevM);
-      if (dow_(prevY, prevM, prevLastDay) === 5) {
+    /* ══ cross-month Fri block: ถ้าเดือนก่อนลงท้ายวันศุกร์ → ส-อา ต้นเดือนต้องเป็นคนเดิม ══
+       อ่าน pid จาก shiftType='b' ของ prevMonthRows โดยตรง (robust ต่อกรณี disD=true) */
+    var prevLastDay2 = dim_(prevY, prevM);
+    if (dow_(prevY, prevM, prevLastDay2) === 5) {
+      var lastFriBRow = null;
+      for (var fri_i = 0; fri_i < prevMonthRows.length; fri_i++) {
+        if (prevMonthRows[fri_i].day === prevLastDay2 && prevMonthRows[fri_i].shiftType === 'b') {
+          lastFriBRow = prevMonthRows[fri_i]; break;
+        }
+      }
+      var friPid = lastFriBRow ? lastFriBRow.pid : prevLastDayPid;
+      if (friPid) {
         var lockD = 1;
         while (lockD <= N && isOff(lockD)) {
-          if (!crossLock[lockD] && canDuty(prevLastDayPid, [lockD])) crossLock[lockD] = prevLastDayPid;
+          if (!crossLock[lockD] && canDuty(friPid, [lockD])) crossLock[lockD] = friPid;
           lockD++;
         }
       }
