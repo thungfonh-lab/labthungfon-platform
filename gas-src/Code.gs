@@ -451,3 +451,30 @@ function api_getAuditLogs(token, filters) {
   AuthService.requirePermission(session.user, 'manageSettings', false);
   return AuditService.getAuditLogs(filters);
 }
+
+/** คำนวณ cutoff year/month จาก keepMonths แล้วนับแถวที่จะถูกลบ (preview ก่อนยืนยัน) */
+function api_previewArchive(token, keepMonths) {
+  var session = AuthService.requireSession(token);
+  AuthService.requirePermission(session.user, 'manageSettings', false);
+  var cutoff = calcArchiveCutoff_(keepMonths);
+  var preview = DataService.previewArchive(cutoff.year, cutoff.month);
+  preview.cutoffYear = cutoff.year;
+  preview.cutoffMonth = cutoff.month;
+  return preview;
+}
+
+/** ลบข้อมูลเก่าจริง (admin only) */
+function api_archiveOldData(token, keepMonths) {
+  var session = AuthService.requireSession(token);
+  AuthService.requirePermission(session.user, 'manageSettings', false);
+  var cutoff = calcArchiveCutoff_(keepMonths);
+  var result = DataService.archiveOldData(cutoff.year, cutoff.month);
+  AuditService.logAction(session.user.userId, 'DELETE', 'Archive', 'keepMonths=' + keepMonths, null, result);
+  return result;
+}
+
+function calcArchiveCutoff_(keepMonths) {
+  var now = new Date();
+  var totalMonths = now.getFullYear() * 12 + now.getMonth() - keepMonths; // getMonth() = 0-based, ทำให้ current month ไม่ถูกลบ
+  return { year: Math.floor(totalMonths / 12), month: totalMonths % 12 + 1 };
+}

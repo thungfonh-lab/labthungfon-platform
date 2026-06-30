@@ -1282,12 +1282,76 @@ var Schedule = (function () {
     }).join('');
 
     document.getElementById('genBtn').onclick = function () {
-      gsRun('api_generateSchedule', Session.token, current.year, current.month).then(function (result) {
-        invalidateMonthCache();
-        toast('สร้างตารางสำเร็จ', 'ปรับสมดุล ' + result.postBalanceSwaps + ' เวร · พบ ' + result.ruleViolations.length + ' ข้อควรตรวจสอบ');
-        loadAndRenderGrid();
-      });
+      showGenConfirm();
     };
+
+    function showGenConfirm() {
+      var MONTH_TH = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
+      var overlay = document.createElement('div');
+      overlay.id = 'genConfirmOverlay';
+      overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9999;display:flex;align-items:center;justify-content:center;';
+      overlay.innerHTML = '<div style="background:#fff;color:#1a1a1a;border-radius:12px;padding:24px 28px;max-width:520px;width:94%;max-height:88vh;overflow-y:auto;box-shadow:0 8px 40px rgba(0,0,0,.4);">' +
+        '<div style="font-weight:700;font-size:16px;margin-bottom:4px;"><i class="ti ti-calendar-check" style="margin-right:6px;"></i>ยืนยันสร้างตารางเวร</div>' +
+        '<div style="font-size:12.5px;color:var(--mut);margin-bottom:16px;">เดือน ' + MONTH_TH[current.month] + ' ' + current.year + '</div>' +
+        '<div id="genConfirmBody" style="font-size:13px;">กำลังโหลดข้อมูล...</div>' +
+        '<div style="margin-top:18px;padding-top:14px;border-top:1px solid var(--border);font-size:12px;color:var(--mut);">' +
+        '<i class="ti ti-info-circle" style="margin-right:4px;"></i>หากต้องการแก้ไขกฎการจัดเวร ให้ไปที่ ' +
+        '<a href="#" id="genGoSettings" style="color:var(--tl-d);font-weight:600;">ตั้งค่า</a> ก่อนกดสร้างตาราง</div>' +
+        '<div style="display:flex;gap:8px;margin-top:16px;justify-content:flex-end;">' +
+        '<button class="btn btn-sm" id="genConfirmCancel">ยกเลิก</button>' +
+        '<button class="btn btn-primary btn-sm" id="genConfirmOk"><i class="ti ti-check"></i> จัดตารางเวร</button>' +
+        '</div></div>';
+      document.body.appendChild(overlay);
+
+      function closeOverlay() { if (overlay.parentNode) overlay.parentNode.removeChild(overlay); }
+      document.getElementById('genConfirmCancel').onclick = closeOverlay;
+      overlay.addEventListener('click', function (e) { if (e.target === overlay) closeOverlay(); });
+      document.getElementById('genGoSettings').onclick = function (e) {
+        e.preventDefault(); closeOverlay();
+        schedSwitchTab('setup');
+      };
+      document.getElementById('genConfirmOk').onclick = function () {
+        closeOverlay();
+        gsRun('api_generateSchedule', Session.token, current.year, current.month).then(function (result) {
+          invalidateMonthCache();
+          toast('สร้างตารางสำเร็จ', 'ปรับสมดุล ' + result.postBalanceSwaps + ' เวร · พบ ' + result.ruleViolations.length + ' ข้อควรตรวจสอบ');
+          loadAndRenderGrid();
+        });
+      };
+
+      Promise.all([
+        gsRun('api_getSetupBundle', Session.token, current.year, current.month),
+        gsRun('api_getDutyRoster', Session.token, current.year, current.month)
+      ]).then(function (res) {
+        var s = res[0].settings, ppl = res[0].people || [], roster = res[1] || {};
+        var eligible = ppl.filter(function (p) { return p.active && (p.role === 'MT' || p.role === 'HT'); });
+        var incBd = roster.included;
+        var incCl = roster.includedClinic;
+        var bdList = eligible.filter(function (p) { return !incBd || incBd.indexOf(p.id) > -1; }).map(fullN).join(', ') || '(ทุกคน)';
+        var clList = eligible.filter(function (p) { return !incCl || incCl.indexOf(p.id) > -1; }).map(fullN).join(', ') || '(ทุกคน)';
+        var laAName = s.laA && s.laA !== 'no' ? (function () { var p = ppl.filter(function (x) { return x.id === s.laA; })[0]; return p ? fullN(p) : s.laA; })() : '—';
+        var laBName = s.laB2 && s.laB2 !== 'no' ? (function () { var p = ppl.filter(function (x) { return x.id === s.laB2; })[0]; return p ? fullN(p) : s.laB2; })() : '—';
+        var clinicLaName = !s.clinicLa ? 'ไม่จัด' : s.clinicLa === 'auto' ? 'เลือกอัตโนมัติ' : (function () { var p = ppl.filter(function (x) { return x.id === s.clinicLa; })[0]; return p ? fullN(p) : s.clinicLa; })();
+        var laBLabel = s.laB === 'A' ? 'A: จ-อ · B: พ-พฤ (ตามตั้งค่า)' : 'A: พ-พฤ · B: จ-อ (ตามตั้งค่า)';
+        function row(label, val) { return '<tr><td style="padding:5px 10px 5px 0;color:var(--mut);white-space:nowrap;vertical-align:top;">' + label + '</td><td style="padding:5px 0;font-weight:500;">' + val + '</td></tr>'; }
+        document.getElementById('genConfirmBody').innerHTML =
+          '<div style="font-weight:600;font-size:12.5px;color:var(--mut);letter-spacing:.5px;margin-bottom:8px;">กฎการจัดเวร</div>' +
+          '<table style="width:100%;border-collapse:collapse;font-size:12.5px;">' +
+          row('การกระจายเวร', s.dist === 'priority' ? 'ตาม Priority' : 'สมดุลที่สุด (พักผ่อนมากสุด)') +
+          row('วันติดต่อกันสูงสุด', (s.maxC || 4) + ' วัน') +
+          row('เวร บ1 สัปดาห์นี้ (สลับเดือน auto)', laBLabel) +
+          row('ผู้ช่วย A (เวร บ1)', laAName) +
+          row('ผู้ช่วย B (เวร บ1)', laBName) +
+          row('ผู้ช่วยคลินิก (น)', clinicLaName) +
+          '</table>' +
+          '<div style="font-weight:600;font-size:12.5px;color:var(--mut);letter-spacing:.5px;margin:14px 0 6px;">เจ้าหน้าที่ขึ้นเวร ช/บ/ด เดือนนี้</div>' +
+          '<div style="font-size:12.5px;">' + bdList + '</div>' +
+          '<div style="font-weight:600;font-size:12.5px;color:var(--mut);letter-spacing:.5px;margin:14px 0 6px;">เจ้าหน้าที่ขึ้นเวร น คลินิก เดือนนี้</div>' +
+          '<div style="font-size:12.5px;">' + clList + '</div>';
+      }).catch(function () {
+        document.getElementById('genConfirmBody').innerHTML = '<span style="color:var(--mut);">ไม่สามารถโหลดข้อมูลได้ — กดยืนยันเพื่อดำเนินการต่อได้เลย</span>';
+      });
+    }
     document.getElementById('pubBtn').onclick = function () {
       gsRun('api_publishSchedule', Session.token, current.year, current.month).then(function () {
         invalidateMonthCache();
@@ -2644,7 +2708,8 @@ var Schedule = (function () {
 var Admin = (function () {
   var ADMIN_TABS = [
     { id: 'users', label: 'บัญชีผู้ใช้' },
-    { id: 'modules', label: 'โมดูล' }
+    { id: 'modules', label: 'โมดูล' },
+    { id: 'data', label: 'จัดการข้อมูล' }
   ];
   var curTab = 'modules';
 
@@ -2669,6 +2734,7 @@ var Admin = (function () {
 
   function renderTab(tabId) {
     if (tabId === 'users') return renderUsersTab();
+    if (tabId === 'data') return renderDataTab();
     return renderModulesTab();
   }
 
@@ -2834,6 +2900,69 @@ var Admin = (function () {
         saveModuleLabel(btn.dataset.renameSub, v).then(function () { toast('เปลี่ยนชื่อเมนูย่อยแล้ว'); renderSidebar(); paintModList(); });
       };
     });
+  }
+
+  /* ---------------- Data management (archive old data) ---------------- */
+
+  function renderDataTab() {
+    var body = document.getElementById('adminBody');
+    body.innerHTML =
+      '<div class="card">' +
+      '<div class="card-title"><i class="ti ti-archive"></i>ลบข้อมูลเก่า (Archive)</div>' +
+      '<p style="font-size:13px;color:var(--mut);margin:0 0 14px;">ลบข้อมูลใน sheet <strong>Transactions</strong> และ <strong>Schedules</strong> ที่เก่ากว่าจำนวนเดือนที่กำหนด เพื่อให้ระบบโหลดเร็วขึ้น ข้อมูลที่ถูกลบจะ<strong>ไม่สามารถกู้คืนได้</strong></p>' +
+      '<div class="frm-grid" style="grid-template-columns:1fr 1fr;max-width:420px;">' +
+      '<label>เก็บข้อมูลย้อนหลัง (เดือน)<input type="number" id="archiveKeepMonths" value="12" min="3" max="60" style="width:100%;"></label>' +
+      '</div>' +
+      '<div style="display:flex;gap:8px;margin-top:12px;">' +
+      '<button class="btn btn-sm" id="archivePreviewBtn"><i class="ti ti-eye"></i> ตรวจสอบก่อนลบ</button>' +
+      '</div>' +
+      '<div id="archivePreviewResult" style="margin-top:14px;"></div>' +
+      '</div>';
+
+    document.getElementById('archivePreviewBtn').onclick = function () {
+      var keep = parseInt(document.getElementById('archiveKeepMonths').value, 10);
+      if (isNaN(keep) || keep < 3) { toast('กรุณาระบุจำนวนเดือนอย่างน้อย 3 เดือน', '', true); return; }
+      var btn = document.getElementById('archivePreviewBtn');
+      btn.disabled = true; btn.innerHTML = '<i class="ti ti-loader-2"></i> กำลังตรวจสอบ...';
+      gsRun('api_previewArchive', Session.token, keep).then(function (r) {
+        btn.disabled = false; btn.innerHTML = '<i class="ti ti-eye"></i> ตรวจสอบก่อนลบ';
+        var cutoffLabel = 'ก่อนเดือน ' + r.cutoffMonth + '/' + r.cutoffYear;
+        var hasData = r.transactions > 0 || r.schedules > 0;
+        var resultHtml =
+          '<div class="alert" style="background:var(--coral-l,#fff5f5);border:1px solid var(--coral,#e53e3e);border-radius:8px;padding:12px 14px;margin-bottom:0;">' +
+          '<div style="font-weight:600;margin-bottom:8px;color:var(--coral,#c53030);"><i class="ti ti-alert-triangle"></i> ผลการตรวจสอบ (' + cutoffLabel + ')</div>' +
+          '<div style="font-size:13px;line-height:1.8;">' +
+          'Transactions: <strong>' + r.transactions + '</strong> แถว<br>' +
+          'Schedules: <strong>' + r.schedules + '</strong> แถว' +
+          '</div>' +
+          (hasData
+            ? '<button class="btn btn-danger btn-sm" id="archiveConfirmBtn" style="margin-top:12px;"><i class="ti ti-trash"></i> ยืนยันลบข้อมูลเก่า ' + (r.transactions + r.schedules) + ' แถว</button>'
+            : '<div style="margin-top:10px;font-size:13px;color:var(--ok,green);">ไม่มีข้อมูลเก่าที่ต้องลบ</div>') +
+          '</div>';
+        document.getElementById('archivePreviewResult').innerHTML = resultHtml;
+        if (hasData) {
+          document.getElementById('archiveConfirmBtn').onclick = function () {
+            if (!confirm('ยืนยันการลบข้อมูลก่อน ' + cutoffLabel + '?\nการกระทำนี้ไม่สามารถย้อนกลับได้')) return;
+            var confirmBtn = document.getElementById('archiveConfirmBtn');
+            confirmBtn.disabled = true; confirmBtn.innerHTML = '<i class="ti ti-loader-2"></i> กำลังลบ...';
+            gsRun('api_archiveOldData', Session.token, keep).then(function (res) {
+              document.getElementById('archivePreviewResult').innerHTML =
+                '<div class="alert" style="background:var(--green-l,#f0fff4);border:1px solid var(--ok,#38a169);border-radius:8px;padding:12px 14px;">' +
+                '<i class="ti ti-check" style="color:var(--ok,#38a169);"></i> ' +
+                '<strong>ลบสำเร็จ</strong> — Transactions ' + res.deletedTransactions + ' แถว, Schedules ' + res.deletedSchedules + ' แถว' +
+                '</div>';
+              toast('ลบข้อมูลเก่าแล้ว', 'รวม ' + (res.deletedTransactions + res.deletedSchedules) + ' แถว');
+            }).catch(function (e) {
+              confirmBtn.disabled = false; confirmBtn.innerHTML = '<i class="ti ti-trash"></i> ยืนยันลบ';
+              toast('เกิดข้อผิดพลาด: ' + e, '', true);
+            });
+          };
+        }
+      }).catch(function (e) {
+        btn.disabled = false; btn.innerHTML = '<i class="ti ti-eye"></i> ตรวจสอบก่อนลบ';
+        toast('เกิดข้อผิดพลาด: ' + e, '', true);
+      });
+    };
   }
 
   return { render: render };

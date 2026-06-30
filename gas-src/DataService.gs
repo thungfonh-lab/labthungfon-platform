@@ -463,6 +463,33 @@ var DataService = (function () {
     return headers.indexOf(headerName);
   }
 
+  /* ---------------- Archive / cleanup ---------------- */
+
+  function isBefore_(year, month, beforeYear, beforeMonth) {
+    var y = Number(year), m = Number(month);
+    return y < beforeYear || (y === beforeYear && m < beforeMonth);
+  }
+
+  /** นับแถวที่จะถูกลบถ้า archive จริง (preview ก่อนยืนยัน) */
+  function previewArchive(beforeYear, beforeMonth) {
+    var tx = readAll(SHEETS.TRANSACTIONS).filter(function (r) { return isBefore_(r.year, r.month, beforeYear, beforeMonth); }).length;
+    var sch = readAll(SHEETS.SCHEDULES).filter(function (r) { return isBefore_(r.year, r.month, beforeYear, beforeMonth); }).length;
+    return { transactions: tx, schedules: sch };
+  }
+
+  /** ลบข้อมูล Transactions + Schedules ที่เก่ากว่า beforeYear/beforeMonth ออกจาก sheet */
+  function archiveOldData(beforeYear, beforeMonth) {
+    var txSheet = getSheet_(SHEETS.TRANSACTIONS);
+    var txRows = readAll(SHEETS.TRANSACTIONS).filter(function (r) { return isBefore_(r.year, r.month, beforeYear, beforeMonth); });
+    if (txRows.length) { deleteRowsBulk_(txSheet, txRows.map(function (r) { return r.__rowIndex; })); invalidateReadAllCache_(SHEETS.TRANSACTIONS); }
+
+    var schSheet = getSheet_(SHEETS.SCHEDULES);
+    var schRows = readAll(SHEETS.SCHEDULES).filter(function (r) { return isBefore_(r.year, r.month, beforeYear, beforeMonth); });
+    if (schRows.length) { deleteRowsBulk_(schSheet, schRows.map(function (r) { return r.__rowIndex; })); invalidateReadAllCache_(SHEETS.SCHEDULES); }
+
+    return { deletedTransactions: txRows.length, deletedSchedules: schRows.length };
+  }
+
   /* ---------------- Users / login accounts ---------------- */
 
   /** List all login accounts (without passwordHash/salt — those never go to the client). */
@@ -554,6 +581,7 @@ var DataService = (function () {
     getScheduleAssignments: getScheduleAssignments, getScheduleStatus: getScheduleStatus,
     saveScheduleAssignments: saveScheduleAssignments, setScheduleStatus: setScheduleStatus, setAssignment: setAssignment,
     getPermission: getPermission, getAllPermissions: getAllPermissions, setPermission: setPermission,
-    crudMasterDataBulk: crudMasterDataBulk
+    crudMasterDataBulk: crudMasterDataBulk,
+    previewArchive: previewArchive, archiveOldData: archiveOldData
   };
 })();
