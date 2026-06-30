@@ -154,6 +154,18 @@ var BusinessService = (function () {
       }
     }
 
+    /* ══ cross-month Fri block: ถ้าเดือนก่อนลงท้ายวันศุกร์ → ส-อา ต้นเดือนต้องเป็นคนเดิม ══ */
+    if (prevLastDayPid) {
+      var prevLastDay = dim_(prevY, prevM);
+      if (dow_(prevY, prevM, prevLastDay) === 5) {
+        var lockD = 1;
+        while (lockD <= N && isOff(lockD)) {
+          if (!crossLock[lockD] && canDuty(prevLastDayPid, [lockD])) crossLock[lockD] = prevLastDayPid;
+          lockD++;
+        }
+      }
+    }
+
     function pick(days, excludeWeek) {
       if (crossLock[days[0]]) return crossLock[days[0]];
       /* primary: ตัด excludeWeek (ผู้ถือ Fri block อาทิตย์ก่อน) + consec < maxC */
