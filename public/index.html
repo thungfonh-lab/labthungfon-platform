@@ -213,8 +213,8 @@ tbody tr:last-child td{border-bottom:none}
 }
 /* สัดส่วนคอลัมน์ (รวม 100% เท่ากับความกว้างหน้า A4 พอดี) — width hint ให้ auto-layout อิงสัดส่วนนี้
    มีผลตรงทั้งหน้าจอและตอนพิมพ์ เพราะ .rep-tbl-sig ไม่บังคับ table-layout:fixed อีกแล้ว */
-.rep-tbl-sig th:nth-child(1),.rep-tbl-sig td:nth-child(1){width:13.25%}  /* วันเดือนปี — บีบให้เล็กลงตามฟีดแบ็ก ("1 มิถุนายน 2569" ยังพออยู่บรรทัดเดียวที่ font-size 10px) ขยับมา 0.5% จากตำแหน่ง + 0.25% จากหมายเหตุ */
-.rep-tbl-sig th:nth-child(2),.rep-tbl-sig td:nth-child(2){width:23.75%}  /* ชื่อ-สกุล — ขยายตามฟีดแบ็ก (ถูกบีบจนตกบรรทัด) ดึง 5.75% มาจาก .sig-col ทั้งคู่ */
+.rep-tbl-sig th:nth-child(1),.rep-tbl-sig td:nth-child(1){width:18%}  /* วันเดือนปี — ขยายตามฟีดแบ็ก (เดือนยาวๆ เช่น "กรกฎาคม" ที่ font-size 11.5px ตกบรรทัดตอน 13.25%) ดึง 4.75% มาจากชื่อ-สกุล */
+.rep-tbl-sig th:nth-child(2),.rep-tbl-sig td:nth-child(2){width:19%}  /* ชื่อ-สกุล — ลดลงเพื่อยกให้วันเดือนปี ยังกว้างกว่าค่าดั้งเดิม (18%) เล็กน้อย */
 .rep-tbl-sig th:nth-child(3),.rep-tbl-sig td:nth-child(3){width:16%}  /* ตำแหน่ง — ลด 0.5% ไปให้วันเดือนปี (รวมลดสะสม 1%) */
 .rep-tbl-sig th:nth-child(4),.rep-tbl-sig td:nth-child(4){width:11%}  /* ประเภทเวร */
 .rep-tbl-sig th:nth-child(5),.rep-tbl-sig td:nth-child(5){width:7%}   /* เวลามา */
@@ -440,7 +440,9 @@ tbody tr:last-child td{border-bottom:none}
      ไม่น่าจะเจอบั๊กเดียวกัน — .rep-tbl-sig ห่อ div ไม่ได้เหมือนกัน (จะครอบหัวรายงานที่ฝังใน thead เข้าไปด้วย) เลย
      ยังต้องพึ่ง width shrink เหมือนเดิม ส่วนเซลล์ของทั้ง .rep-tbl และ .rep-tbl-sig กลับไปใช้สูตรเดียวกัน (วาดแค่
      ขวา+ล่าง กันเส้นภายในซ้อนกันหนา เติมซ้าย/บนเฉพาะคอลัมน์แรก/แถวหัว) เพราะไม่มีกรอบ table ให้พึ่งอีกต่อไปแล้ว */
-  .rep-tbl-wrap{border:1px solid #000!important;box-sizing:border-box!important}
+  /* ขอบ div ห่อ (รอบหก) บางกว่าเส้นภายในตามฟีดแบ็ก — เพราะเส้นภายในมี box-shadow ทาบซ้อน border ให้ดูเข้มขึ้นด้วย
+     แต่ div wrapper มีแค่ border เฉยๆ เพิ่ม box-shadow ทาบรอบกรอบ div ให้น้ำหนักเท่ากับเส้นภายใน */
+  .rep-tbl-wrap{border:1px solid #000!important;box-sizing:border-box!important;box-shadow:inset 0 0 0 1px #000!important}
   .sched th,.sched td,.tbl th,.tbl td{border:1px solid #000!important}
   .rep-tbl th,.rep-tbl td{border-width:0 0 1px 1px!important;border-style:solid!important;border-color:#000!important}
   .rep-tbl th{border-top-width:1px!important}
