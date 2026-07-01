@@ -182,7 +182,7 @@ var ReportService = (function () {
       sub += amt;
       var rate = BusinessService.rateFor_(rateOvr, rates, item.p, shift, item.days[0]);
       h += '<tr><td class="c">' + i + '</td><td class="l">' + fullN_(item.p) + '</td><td class="l">' + item.p.title + '</td><td class="c">' + rate + '</td>' +
-        '<td class="l">' + item.days.join(', ') + '</td><td class="c">' + item.days.length + '</td><td class="r">' + money_(amt) + '</td><td></td></tr>';
+        '<td class="l" style="white-space:normal">' + item.days.join(', ') + '</td><td class="c">' + item.days.length + '</td><td class="r">' + money_(amt) + '</td><td></td></tr>';
     });
     return { h: h, sub: sub };
   }
@@ -201,7 +201,7 @@ var ReportService = (function () {
       var rate1 = BusinessService.rateFor_(rateOvr, rates, item.p, 'd1', 1);
       var rateLbl = rate0 === rate1 ? String(rate0) : (rate0 + '/' + rate1);
       h += '<tr><td class="c">' + i + '</td><td class="l">' + fullN_(item.p) + '</td><td class="l">' + item.p.title + '</td><td class="c">' + rateLbl + '</td>' +
-        '<td class="l">' + item.days.join(', ') + '</td><td class="c">' + item.days.length + '</td><td class="r">' + money_(amt) + '</td><td></td></tr>';
+        '<td class="l" style="white-space:normal">' + item.days.join(', ') + '</td><td class="c">' + item.days.length + '</td><td class="r">' + money_(amt) + '</td><td></td></tr>';
     });
     return { h: h, sub: sub };
   }
@@ -266,7 +266,7 @@ var ReportService = (function () {
       var rate = days.length ? BusinessService.rateFor_(rateOvr, rates, p, sh, days[0]) : BusinessService.rateFor_(rateOvr, rates, p, sh);
       var amt = days.reduce(function (s, dy) { return s + BusinessService.rateFor_(rateOvr, rates, p, sh, dy); }, 0);
       tot += amt;
-      h += '<tr><td class="l">' + sDef.name + '</td><td class="c">' + rate + '</td><td class="l">' + (days.join(', ') || '—') + '</td><td class="c">' + days.length + '</td><td class="r">' + money_(amt) + '</td></tr>';
+      h += '<tr><td class="l">' + sDef.name + '</td><td class="c">' + rate + '</td><td class="l" style="white-space:normal">' + (days.join(', ') || '—') + '</td><td class="c">' + days.length + '</td><td class="r">' + money_(amt) + '</td></tr>';
     });
     h += '<tr class="tot"><td colspan="4" class="r">รวมทั้งสิ้น</td><td class="r">' + money_(tot) + '</td></tr></tbody></table></div>';
     h += '<div style="font-size:12.5px;margin-top:5px">(ตัวอักษร) <b>' + bahtText_(tot) + '</b></div>';
