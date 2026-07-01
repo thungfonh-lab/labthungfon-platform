@@ -167,7 +167,7 @@ tbody tr:last-child td{border-bottom:none}
 .sched th.dow{height:16px;font-size:10px;color:var(--ink2)}
 .sched td.wknd,.sched th.wknd{background:var(--coral-l)}
 .sched td.holi,.sched th.holi{background:var(--coral-l)}
-.sched .nm{text-align:left;white-space:nowrap;padding:4px 8px;font-weight:600;font-size:12px;position:sticky;left:0;background:var(--surface);z-index:3;border-right:2px solid var(--border);min-width:120px;max-width:160px}
+.sched .nm{text-align:left;white-space:nowrap;padding:4px 8px;font-weight:600;font-size:12px;position:sticky;left:0;background:var(--surface);z-index:3;border-right:1px solid var(--border);min-width:120px;max-width:160px}
 .sched .sumcol{font-weight:700;background:var(--tl-vl);color:var(--tl-d);font-size:11px;min-width:26px;white-space:nowrap}
 .sched .cell{cursor:pointer;height:30px;display:flex;align-items:center;justify-content:center;gap:1px;flex-wrap:wrap;padding:1px;position:relative}
 .sched .cell:hover{outline:2px solid var(--tl);outline-offset:-2px;z-index:2}
@@ -406,10 +406,20 @@ tbody tr:last-child td{border-bottom:none}
   /* Chrome เวลาพิมพ์ตาราง border-collapse:collapse ที่กว้าง/สูงพอดีขอบกระดาษ มักตัดเส้นขอบขวา-ล่างหายไป
      เปลี่ยนเป็น separate + border-spacing:0 ให้ทุกเซลล์มีกรอบของตัวเอง ไม่หายแม้ชิดขอบกระดาษ
      .rep-tbl ไม่ใส่ border ระดับ table (ตัด out จากรายการนี้) เพราะ .rep-tbl-sig ฝัง title rows ไว้ใน <thead>
-     ของ table เดียวกัน — border รอบ table จะครอบหัวรายงานเป็นกรอบเกินจำเป็น (ไม่ตรงต้นฉบับที่หัวรายงานอยู่นอกกรอบ) */
+     ของ table เดียวกัน — border รอบ table จะครอบหัวรายงานเป็นกรอบเกินจำเป็น (ไม่ตรงต้นฉบับที่หัวรายงานอยู่นอกกรอบ)
+     บั๊กที่เจอทีหลัง: border-collapse:separate ทำให้แต่ละเซลล์วาดกรอบของตัวเอง ตอนเซลล์ติดกัน เส้นขอบขวาของ
+     เซลล์ซ้าย + เส้นขอบซ้ายของเซลล์ขวา วาดซ้อนกัน 2 เส้น กลายเป็นเส้นภายในหนา ~2px ในขณะที่เส้นขอบนอกสุด
+     (ซ้ายสุด/ขวาสุด/บนสุด) มีเซลล์วาดแค่ด้านเดียว เลยบางกว่า — แก้โดยให้ทุกเซลล์วาดแค่ขวา+ล่าง (กันเส้นภายใน
+     ซ้อนกัน) แล้วเติมซ้าย/บนเฉพาะคอลัมน์แรก/แถวหัวตารางให้ครบกรอบนอก ผลคือทุกเส้นหนาเท่ากันที่ 1px
+     ใช้ตัวเลือก th (ไม่ใช่ tr:first-child) สำหรับเส้นขอบบน เพราะบางตาราง (.tbl) ไม่มี <thead> ครอบแถวหัว
+     — tr:first-child จะ match ทั้งแถวแรกของ thead และแถวแรกของ tbody พร้อมกัน ทำให้เส้นซ้อนคืนที่รอยต่อ
+     thead/tbody ส่วน th ทั้งโค้ดเบสนี้ใช้เฉพาะแถวหัวตารางเท่านั้น (td ล้วนสำหรับแถวข้อมูล) จึงชี้เฉพาะแถวหัวได้ตรง
+     ไม่ว่าจะมี <thead> ครอบหรือไม่ (แถวหัวรายงานที่ฝังใน .rt-head-row มีกฎ border:none!important เฉพาะทางอยู่แล้ว
+     ซึ่ง specificity สูงกว่า เลยไม่ถูกเส้นขอบบนนี้ทับ) */
   .sched,.tbl,.rep-tbl{border-collapse:separate!important;border-spacing:0!important;box-sizing:border-box!important}
-  .sched,.tbl{border:1px solid #000!important}
-  .sched th,.sched td,.tbl th,.tbl td,.rep-tbl th,.rep-tbl td{border:1px solid #000!important}
+  .sched th,.sched td,.tbl th,.tbl td,.rep-tbl th,.rep-tbl td{border-width:0 0 1px 1px!important;border-style:solid!important;border-color:#000!important}
+  .sched th,.tbl th,.rep-tbl th{border-top-width:1px!important}
+  .sched th:last-child,.sched td:last-child,.tbl th:last-child,.tbl td:last-child,.rep-tbl th:last-child,.rep-tbl td:last-child{border-right-width:1px!important}
   /* บันทึก on-call (รายละเอียด) — ตัดหัวรายงานย่อยออก เพิ่มระยะห่างระหว่างบรรทัดให้อ่านง่าย */
   .oc-claim-blk{line-height:2;padding:10px 0!important}
   .oc-claim-blk>div{margin-bottom:3px}
