@@ -80,9 +80,10 @@ var ReportService = (function () {
   }
 
   var OT_TYPE_LABEL_ = { ch: 'นอกเวลาเช้า', b: 'นอกเวลาบ่าย' };
-  var SIG_HEAD_ROW_ = '<tr><th>วัน เดือน ปี</th><th>ชื่อ-สกุล</th><th>ตำแหน่ง</th><th>ประเภทเวร</th><th>เวลามา</th><th class="sig-col">ลายมือชื่อ</th><th>เวลากลับ</th><th class="sig-col">ลายมือชื่อ</th><th>หมาย<br>เหตุ</th></tr>';
+  /* ตัดคอลัมน์ "หมายเหตุ" ออกตามฟีดแบ็ก — พื้นที่ที่ว่างยกให้ช่องลายมือชื่อ (.sig-col) แทน (ดู .rep-tbl-sig .sig-col ใน style.html) */
+  var SIG_HEAD_ROW_ = '<tr><th>วัน เดือน ปี</th><th>ชื่อ-สกุล</th><th>ตำแหน่ง</th><th>ประเภทเวร</th><th>เวลามา</th><th class="sig-col">ลายมือชื่อ</th><th>เวลากลับ</th><th class="sig-col">ลายมือชื่อ</th></tr>';
   /* table-layout:fixed อ่านความกว้างคอลัมน์จากแถวแรกของตารางเท่านั้น (CSS spec) — แถวแรกในที่นี้คือ
-     แถวหัวรายงาน (colspan=9, ไม่มี width ระบุ) ทำให้ทุกคอลัมน์ถูกหารเท่ากันโดยไม่สนใจ % ที่ตั้งไว้ใน CSS
+     แถวหัวรายงาน (colspan=8, ไม่มี width ระบุ) ทำให้ทุกคอลัมน์ถูกหารเท่ากันโดยไม่สนใจ % ที่ตั้งไว้ใน CSS
      ต้องระบุความกว้างผ่าน <colgroup><col> แทน ซึ่งมีผลเหนือกว่าทุกแถวเสมอ (% ต้องตรงกับ .rep-tbl-sig th:nth-child ใน style.html) */
 
   /** Ported from repOT() (2735-2744). */
@@ -94,12 +95,12 @@ var ReportService = (function () {
       if (BusinessService.isOff_(year, month, d, []) && a.ch) rows.push([d, a.ch, 'ch', '08.00', '16.00']);
       if (a.b) rows.push([d, a.b, 'b', '16.00', '24.00']);
     }
-    var h = '<table class="rep-tbl rep-tbl-sig"><thead>' + reportHeaderRows_(settings, year, month, 9) + SIG_HEAD_ROW_ + '</thead><tbody>';
+    var h = '<table class="rep-tbl rep-tbl-sig"><thead>' + reportHeaderRows_(settings, year, month, 8) + SIG_HEAD_ROW_ + '</thead><tbody>';
     rows.forEach(function (row) {
       var p = workload.people.filter(function (x) { return x.id === row[1]; })[0];
       if (!p) return;
       h += '<tr><td class="c">' + dStr_(row[0], year, month) + '</td><td class="l">' + fullN_(p) + '</td><td class="c">' + p.title + '</td>' +
-        '<td class="c">' + OT_TYPE_LABEL_[row[2]] + '</td><td class="c">' + row[3] + '</td><td class="sig-col"></td><td class="c">' + row[4] + '</td><td class="sig-col"></td><td></td></tr>';
+        '<td class="c">' + OT_TYPE_LABEL_[row[2]] + '</td><td class="c">' + row[3] + '</td><td class="sig-col"></td><td class="c">' + row[4] + '</td><td class="sig-col"></td></tr>';
     });
     return h + '</tbody></table>';
   }
@@ -111,12 +112,12 @@ var ReportService = (function () {
     for (var d = 1; d <= N; d++) {
       if (laB[d]) rows.push([d, laB[d], 'b1', '16.00', '20.00']);
     }
-    var h = '<table class="rep-tbl rep-tbl-sig"><thead>' + reportHeaderRows_(settings, year, month, 9) + SIG_HEAD_ROW_ + '</thead><tbody>';
+    var h = '<table class="rep-tbl rep-tbl-sig"><thead>' + reportHeaderRows_(settings, year, month, 8) + SIG_HEAD_ROW_ + '</thead><tbody>';
     rows.forEach(function (row) {
       var p = workload.people.filter(function (x) { return x.id === row[1]; })[0];
       if (!p) return;
       h += '<tr><td class="c">' + dStr_(row[0], year, month) + '</td><td class="l">' + fullN_(p) + '</td><td class="c">' + p.title + '</td>' +
-        '<td class="c">นอกเวลาเสริมบ่าย</td><td class="c">' + row[3] + '</td><td class="sig-col"></td><td class="c">' + row[4] + '</td><td class="sig-col"></td><td></td></tr>';
+        '<td class="c">นอกเวลาเสริมบ่าย</td><td class="c">' + row[3] + '</td><td class="sig-col"></td><td class="c">' + row[4] + '</td><td class="sig-col"></td></tr>';
     });
     return h + '</tbody></table>';
   }
@@ -142,13 +143,13 @@ var ReportService = (function () {
       rows.push([d, o.pid, period]);
     });
     rows.sort(function (a, b) { return a[0] - b[0]; });
-    var h = '<table class="rep-tbl rep-tbl-sig"><thead>' + reportHeaderRows_(settings, year, month, 9) + SIG_HEAD_ROW_ + '</thead><tbody>';
+    var h = '<table class="rep-tbl rep-tbl-sig"><thead>' + reportHeaderRows_(settings, year, month, 8) + SIG_HEAD_ROW_ + '</thead><tbody>';
     rows.forEach(function (row) {
       var p = people.filter(function (x) { return x.id === row[1]; })[0];
       if (!p) return;
       var t = PERIOD_TIME_[row[2]];
       h += '<tr><td class="c">' + dStr_(row[0], year, month) + '</td><td class="l">' + fullN_(p) + '</td><td class="c">' + p.title + '</td>' +
-        '<td class="c">' + PERIOD_LABEL_[row[2]] + '</td><td class="c">' + t[0] + '</td><td class="sig-col"></td><td class="c">' + t[1] + '</td><td class="sig-col"></td><td></td></tr>';
+        '<td class="c">' + PERIOD_LABEL_[row[2]] + '</td><td class="c">' + t[0] + '</td><td class="sig-col"></td><td class="c">' + t[1] + '</td><td class="sig-col"></td></tr>';
     });
     return h + '</tbody></table>';
   }
@@ -160,12 +161,12 @@ var ReportService = (function () {
       if (clinicMt[d]) rows.push([d, clinicMt[d]]);
       if (clinicLa[d]) rows.push([d, clinicLa[d]]);
     }
-    var h = '<table class="rep-tbl rep-tbl-sig"><thead>' + reportHeaderRows_(settings, year, month, 9) + SIG_HEAD_ROW_ + '</thead><tbody>';
+    var h = '<table class="rep-tbl rep-tbl-sig"><thead>' + reportHeaderRows_(settings, year, month, 8) + SIG_HEAD_ROW_ + '</thead><tbody>';
     rows.forEach(function (row) {
       var p = workload.people.filter(function (x) { return x.id === row[1]; })[0];
       if (!p) return;
       h += '<tr><td class="c">' + dStr_(row[0], year, month) + '</td><td class="l">' + fullN_(p) + '</td><td class="c">' + p.title + '</td>' +
-        '<td class="c">คลินิกนอกเวลา</td><td class="c">07.00</td><td class="sig-col"></td><td class="c">08.00</td><td class="sig-col"></td><td></td></tr>';
+        '<td class="c">คลินิกนอกเวลา</td><td class="c">07.00</td><td class="sig-col"></td><td class="c">08.00</td><td class="sig-col"></td></tr>';
     });
     return h + '</tbody></table>';
   }
