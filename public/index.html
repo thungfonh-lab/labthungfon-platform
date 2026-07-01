@@ -214,13 +214,13 @@ tbody tr:last-child td{border-bottom:none}
 /* สัดส่วนคอลัมน์ (รวม 100% เท่ากับความกว้างหน้า A4 พอดี) — width hint ให้ auto-layout อิงสัดส่วนนี้
    มีผลตรงทั้งหน้าจอและตอนพิมพ์ เพราะ .rep-tbl-sig ไม่บังคับ table-layout:fixed อีกแล้ว */
 .rep-tbl-sig th:nth-child(1),.rep-tbl-sig td:nth-child(1){width:13.25%}  /* วันเดือนปี — บีบให้เล็กลงตามฟีดแบ็ก ("1 มิถุนายน 2569" ยังพออยู่บรรทัดเดียวที่ font-size 10px) ขยับมา 0.5% จากตำแหน่ง + 0.25% จากหมายเหตุ */
-.rep-tbl-sig th:nth-child(2),.rep-tbl-sig td:nth-child(2){width:18%}  /* ชื่อ-สกุล */
+.rep-tbl-sig th:nth-child(2),.rep-tbl-sig td:nth-child(2){width:23.75%}  /* ชื่อ-สกุล — ขยายตามฟีดแบ็ก (ถูกบีบจนตกบรรทัด) ดึง 5.75% มาจาก .sig-col ทั้งคู่ */
 .rep-tbl-sig th:nth-child(3),.rep-tbl-sig td:nth-child(3){width:16%}  /* ตำแหน่ง — ลด 0.5% ไปให้วันเดือนปี (รวมลดสะสม 1%) */
 .rep-tbl-sig th:nth-child(4),.rep-tbl-sig td:nth-child(4){width:11%}  /* ประเภทเวร */
 .rep-tbl-sig th:nth-child(5),.rep-tbl-sig td:nth-child(5){width:7%}   /* เวลามา */
 .rep-tbl-sig th:nth-child(7),.rep-tbl-sig td:nth-child(7){width:7%}   /* เวลากลับ */
 /* ตัดคอลัมน์หมายเหตุ (เดิม nth-child(9)) ออกตามฟีดแบ็ก — 7.75% ที่ว่างยกให้ .sig-col ทั้งคู่ (10% → 13.875%) */
-.rep-tbl-sig .sig-col{width:13.875%}                                 /* ลายมือชื่อ x2 */
+.rep-tbl-sig .sig-col{width:11%}                                     /* ลายมือชื่อ x2 — ลดลงตามฟีดแบ็ก ยกพื้นที่ให้ชื่อ-สกุลแทน */
 /* แถวหัวรายงาน (ชื่อรายงาน/หน่วยงาน/เดือน) ที่ฝังอยู่ใน <thead> ของตารางเอง — แสดงเป็นข้อความกึ่งกลางธรรมดา ไม่ใช่หัวคอลัมน์
    .dtitle ต้องชนะ font-weight ของกฎ .rep-tbl th{font-weight:600} (specificity สูงกว่าเพราะมี class .dtitle เพิ่ม)
    เพื่อให้หัวรายงานตัวหนา+สีดำเหมือนรายงานอื่นๆ ในระบบ (.dtitle ของ header() ที่ไม่ได้อยู่ใน th) */
