@@ -425,14 +425,17 @@ var BusinessService = (function () {
         while (x <= N && assign[x] && assign[x].b === uid) { nc++; x++; }
         return nc <= maxC;
       };
-      /* d เป็นส่วนหนึ่งของ Fri-block (ศุกร์ + วันหยุดต่อเนื่อง เช่น ส-อา) หรือไม่ —
-         ห้าม swap วันเดียวในบล็อคนี้ เพราะจะทำให้ศุกร์แยกคนกับ ส-อา ที่ตามมา */
+      /* d เป็นส่วนหนึ่งของ Fri-block (ศุกร์ + วันหยุดต่อเนื่อง เช่น ส-อา) หรือไม่ — ห้าม swap วันเดียว
+         ในบล็อคนี้ เพราะจะทำให้ศุกร์แยกคนกับ ส-อา ที่ตามมา ถ้า backward-walk ชนวันที่ 1 (x<1) ให้เช็ค
+         วันที่ 0 ต่อ — Date(year,month,0) โรลโอเวอร์ไปวันสุดท้ายของเดือนก่อนหน้าอัตโนมัติ ทำให้ตรวจจับ
+         Fri-block ที่ลากข้ามมาจากศุกร์ท้ายเดือนก่อน (เดือนนี้เริ่มด้วย ส-อา ต่อเนื่อง) ได้ด้วย */
       var inFriBlock = function (d) {
         if (dow_(year, month, d) === 5) return true;
         if (!isOff(d)) return false;
         var x = d;
         while (x >= 1 && isOff(x)) x--;
-        return x >= 1 && dow_(year, month, x) === 5;
+        if (x >= 1) return dow_(year, month, x) === 5;
+        return dow_(year, month, 0) === 5;
       };
 
       for (var d1 = 1; d1 <= N && !swapped; d1++) {
