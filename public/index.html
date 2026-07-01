@@ -380,8 +380,10 @@ tbody tr:last-child td{border-bottom:none}
      (คงที่ 15px/12.5px ทั้งจอ/พิมพ์) ต้อง override คืนขนาดเดิมเฉพาะที่นี่ ให้ตรงกับใบเบิกเงินรวมตอนพิมพ์จริง */
   .rep-tbl-sig .rt-head-row th.dtitle{font-size:15px!important}
   .rep-tbl-sig .rt-head-row th.dline{font-size:12.5px!important;line-height:1.55!important}
-  /* ใบเบิกเงินรวม (แนวตั้ง) — เพิ่ม line-height เฉพาะรายงานนี้ตามฟีดแบ็ก (ยังชิดกันอยู่ที่ 1.35) */
-  .pay-portrait .rep-tbl{line-height:1.5}
+  /* ใบเบิกเงินรวม (แนวตั้ง) — เพิ่ม line-height เฉพาะรายงานนี้ตามฟีดแบ็ก มีที่ว่างเหลือเยอะก่อนถึงลายเซ็น
+     (margin-top:140px ของ .sig-row ด้านล่าง) จึงขยายแถวให้อ่านง่ายขึ้นได้อีกโดยยังพอดี 1 หน้า */
+  .pay-portrait .rep-tbl{line-height:2.2}
+  .pay-portrait .rep-tbl th,.pay-portrait .rep-tbl td{padding:5px 6px}
   body,html{overflow:visible!important;height:auto!important}
   #app{display:block!important;height:auto!important}
   #main{overflow:visible!important}
