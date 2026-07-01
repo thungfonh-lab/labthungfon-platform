@@ -219,8 +219,8 @@ tbody tr:last-child td{border-bottom:none}
 .rep-tbl-sig th:nth-child(4),.rep-tbl-sig td:nth-child(4){width:11%}  /* ประเภทเวร */
 .rep-tbl-sig th:nth-child(5),.rep-tbl-sig td:nth-child(5){width:7%}   /* เวลามา */
 .rep-tbl-sig th:nth-child(7),.rep-tbl-sig td:nth-child(7){width:7%}   /* เวลากลับ */
-.rep-tbl-sig th:nth-child(9),.rep-tbl-sig td:nth-child(9){width:7.75%}   /* หมายเหตุ — ลด 0.25% ไปให้วันเดือนปี */
-.rep-tbl-sig .sig-col{width:10%}                                     /* ลายมือชื่อ x2 */
+/* ตัดคอลัมน์หมายเหตุ (เดิม nth-child(9)) ออกตามฟีดแบ็ก — 7.75% ที่ว่างยกให้ .sig-col ทั้งคู่ (10% → 13.875%) */
+.rep-tbl-sig .sig-col{width:13.875%}                                 /* ลายมือชื่อ x2 */
 /* แถวหัวรายงาน (ชื่อรายงาน/หน่วยงาน/เดือน) ที่ฝังอยู่ใน <thead> ของตารางเอง — แสดงเป็นข้อความกึ่งกลางธรรมดา ไม่ใช่หัวคอลัมน์
    .dtitle ต้องชนะ font-weight ของกฎ .rep-tbl th{font-weight:600} (specificity สูงกว่าเพราะมี class .dtitle เพิ่ม)
    เพื่อให้หัวรายงานตัวหนา+สีดำเหมือนรายงานอื่นๆ ในระบบ (.dtitle ของ header() ที่ไม่ได้อยู่ใน th) */
@@ -352,11 +352,13 @@ tbody tr:last-child td{border-bottom:none}
   #gridSub{color:#000!important;font-weight:600}
   .doc{border:none;padding:0;overflow:visible!important}
   .tbl-wrap{overflow:visible!important}
-  /* รายงาน (.rep-tbl) ใช้ฟอนต์ TH Saraban (Sarabun) ขนาด 10px — ลด line-height ลงจาก 1.7 เพื่อให้พอดี A4 */
+  /* รายงาน (.rep-tbl) ใช้ฟอนต์ TH Saraban (Sarabun) — ลด line-height ลงจาก 1.7 เพื่อให้พอดี A4
+     ขยับจาก 10px → 11.5px ตามฟีดแบ็ก ("ตัวหนังสือขยายให้พอดีตาราง") — คอลัมน์ .rep-tbl ทั่วไป (ใบเบิกเงินรวม ฯลฯ)
+     ไม่มีข้อจำกัดความกว้างคอลัมน์ตายตัวแบบ .rep-tbl-sig จึงขยายได้อย่างปลอดภัยโดยไม่ล้นบรรทัด */
   .rep-tbl,.doc{font-family:'Sarabun','TH Sarabun New',sans-serif}
-  .rep-tbl{font-size:10px;width:100%;table-layout:auto;line-height:1.35}
+  .rep-tbl{font-size:11.5px;width:100%;table-layout:auto;line-height:1.35}
   .rep-tbl th,.rep-tbl td{padding:3px 6px}
-  .rep-tbl tr.grp td{font-size:10px;padding-top:5px}
+  .rep-tbl tr.grp td{font-size:11.5px;padding-top:5px}
   /* ── บัญชีลงเวลาการปฏิบัติงานนอกเวลาราชการ (4 รายงาน) — Print Layout ──
      - ไม่บังคับ table-layout:fixed ที่นี่ (เคยทำแบบนั้น แต่ A/B test พบว่า fixed + <colgroup> ทำให้ Chrome
        คำนวณขนาดหน้ากระดาษตอน paginate ผิด เกิดขอบขาวซ้าย-ขวาเกินจริง) ใช้ table-layout:auto (ค่าจาก
@@ -364,12 +366,15 @@ tbody tr:last-child td{border-bottom:none}
      - thead{display:table-header-group} → ซ้ำหัวรายงาน + หัวตารางทุกหน้า (มาตรฐาน CSS print)
      - tr{page-break-inside:avoid} → ห้ามแบ่งข้อมูลกลางแถว
      - page-break-inside:auto บนตัวตาราง → อนุญาตให้ตารางขึ้นหน้าใหม่ได้ตามแนวสูงเมื่อข้อมูลเกิน 1 หน้า */
-  .rep-tbl-sig{font-size:10px;line-height:1.45;page-break-inside:auto}  /* ลดจาก 11px ตามฟีดแบ็ก ให้สมดุลกับคอลัมน์วันที่ที่บีบเล็กลง */
+  /* เคยลดจาก 11px→10px ตามฟีดแบ็กเดิม เพราะคอลัมน์วันเดือนปีตอนนั้นแคบเกินจนตัวอักษรตกบรรทัด — ตอนนี้คอลัมน์
+     วันเดือนปีกว้างขึ้นแล้ว (13.25%) ทดสอบแล้วพบว่า "1 มิถุนายน 2569" ยังอยู่บรรทัดเดียวสบายๆ ที่ 11.5px จึงขยับกลับขึ้น
+     ตามฟีดแบ็กล่าสุด ("ตัวหนังสือขยายให้พอดีตาราง") */
+  .rep-tbl-sig{font-size:11.5px;line-height:1.4;page-break-inside:auto}
   .rep-tbl-sig th,.rep-tbl-sig td{padding:5.5px 6px}
   .rep-tbl-sig .sig-col{height:22px}
   .rep-tbl-sig thead{display:table-header-group}
   .rep-tbl-sig tr{page-break-inside:avoid}
-  .dtitle{font-size:13px;margin-bottom:3px}.dline{font-size:10px;line-height:1.4}
+  .dtitle{font-size:13px;margin-bottom:3px}.dline{font-size:11px;line-height:1.4}
   /* หัวรายงาน OT timesheet (ฝังใน th ของ thead) ใช้ class .dtitle/.dline เดียวกับ header() ทั่วไป จึงถูกกฎ
      ด้านบนลดขนาดตอนพิมพ์ไปด้วย — แต่ใบเบิกเงินรวมจริงๆ ใช้ payPageHeader() ที่เป็น inline style ไม่ถูกกฎนี้ลดขนาด
      (คงที่ 15px/12.5px ทั้งจอ/พิมพ์) ต้อง override คืนขนาดเดิมเฉพาะที่นี่ ให้ตรงกับใบเบิกเงินรวมตอนพิมพ์จริง */
