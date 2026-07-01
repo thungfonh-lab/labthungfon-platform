@@ -415,8 +415,16 @@ tbody tr:last-child td{border-bottom:none}
      — tr:first-child จะ match ทั้งแถวแรกของ thead และแถวแรกของ tbody พร้อมกัน ทำให้เส้นซ้อนคืนที่รอยต่อ
      thead/tbody ส่วน th ทั้งโค้ดเบสนี้ใช้เฉพาะแถวหัวตารางเท่านั้น (td ล้วนสำหรับแถวข้อมูล) จึงชี้เฉพาะแถวหัวได้ตรง
      ไม่ว่าจะมี <thead> ครอบหรือไม่ (แถวหัวรายงานที่ฝังใน .rt-head-row มีกฎ border:none!important เฉพาะทางอยู่แล้ว
-     ซึ่ง specificity สูงกว่า เลยไม่ถูกเส้นขอบบนนี้ทับ) */
+     ซึ่ง specificity สูงกว่า เลยไม่ถูกเส้นขอบบนนี้ทับ)
+     รอบสอง (พบจากการทดสอบพิมพ์จริง): เส้นขอบขวาของ .rep-tbl หายไปทั้งเส้น ไม่ใช่แค่บาง — สาเหตุคือบั๊ก Chrome เดิม
+     (ตัดเส้นขอบที่ชิดขอบกระดาษพอดี) ยังไม่ได้ถูกแก้จริง แค่ถูกบังไว้ด้วยกรอบระดับ table ที่ .sched/.tbl เคยมี (คืนกลับ
+     มาด้านล่าง เป็น fallback ซ้อนอีกชั้นที่ขอบนอกเท่านั้น ไม่กระทบเส้นภายในที่เพิ่งแก้ให้บางเท่ากัน) ส่วน .rep-tbl
+     ใส่กรอบระดับ table ไม่ได้ (จะครอบหัวรายงานตามที่อธิบายไว้ด้านบน) จึงแก้ด้วยการหด width ลง 1px แทน ให้ขอบขวา/ล่าง
+     ของตารางขยับเข้ามาไม่ชิดขอบกระดาษพอดีเป๊ะ หลบบั๊กการตัดเส้นของ Chrome ได้โดยไม่ต้องพึ่งกรอบระดับ table */
   .sched,.tbl,.rep-tbl{border-collapse:separate!important;border-spacing:0!important;box-sizing:border-box!important}
+  .sched,.tbl{border:1px solid #000!important}
+  .rep-tbl{width:calc(100% - 1px)!important}
+  .rep-tbl-sig{width:calc(100% - 1px)!important}
   .sched th,.sched td,.tbl th,.tbl td,.rep-tbl th,.rep-tbl td{border-width:0 0 1px 1px!important;border-style:solid!important;border-color:#000!important}
   .sched th,.tbl th,.rep-tbl th{border-top-width:1px!important}
   .sched th:last-child,.sched td:last-child,.tbl th:last-child,.tbl td:last-child,.rep-tbl th:last-child,.rep-tbl td:last-child{border-right-width:1px!important}
