@@ -359,15 +359,9 @@ var BusinessService = (function () {
     var ruleViolations = checkRuleViolations_(pool, assign, clinicMt, N, maxC, year, month, holidays, people);
 
     DataService.saveScheduleAssignments(year, month, flattenAssignments_(assign, clinicMt, clinicLa, laB, N), 'draft');
-    DataService.setTrailInfo(year, month, trailInfo);
-    DataService.clearRuleViolations(year, month);
-    DataService.addRuleViolations(year, month, ruleViolations);
     /* Each "สร้างตารางเวร" re-run replaces this run's auto-generated swap log instead of
        appending forever (was producing duplicate p1→p2/p1→p3 entries across repeated runs). */
-    DataService.clearAutoOverrides(year, month);
-    if (overrides.length || postPassLog.length) {
-      DataService.addOverridesBulk(year, month, overrides.concat(postPassLog));
-    }
+    DataService.finalizeGenerateWrites(year, month, trailInfo, ruleViolations, overrides.concat(postPassLog));
 
     /* ══ assign[0] = d ข้ามเดือน — ให้ cellToks วันที่ 1 แสดง "ด" (ไม่บันทึก DB) ══ */
     if (prevLastDayPid && !disD) {

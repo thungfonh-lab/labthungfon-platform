@@ -320,6 +320,48 @@ var DataService = (function () {
     invalidateReadAllCache_(SHEETS.TRANSACTIONS);
   }
 
+  /** ท้าย generateSchedule(): trailInfo + ruleViolations + auto-overrides ทั้งหมดล้วน
+   *  อยู่ใน sheet TRANSACTIONS เดียวกัน — เดิมเรียก setTrailInfo/clearRuleViolations/addRuleViolations/
+   *  clearAutoOverrides/addOverridesBulk แยกกัน 5 ครั้ง แต่ละครั้งที่มีการเขียน (write) จะ invalidate
+   *  _readAllCache ของ TRANSACTIONS ทำให้ฟังก์ชันถัดไปที่ต้องอ่านก่อนเขียน (setTrailInfo, clearRuleViolations,
+   *  clearAutoOverrides) ต้องอ่านชีตใหม่ทุกครั้ง (cascade re-read) ฟังก์ชันนี้อ่าน TRANSACTIONS ครั้งเดียว
+   *  แล้วรวมการเขียนทั้งหมดเป็น update/append(trailInfo) + delete(รวม) + append(รวม) */
+  function finalizeGenerateWrites(year, month, trailInfo, ruleViolations, overrides, createdBy) {
+    var AUTO_TYPES = ['balance-swap', 'cross-month-unlock'];
+    var rows = readAll(SHEETS.TRANSACTIONS);
+    var existingTrail = null;
+    for (var i = 0; i < rows.length; i++) {
+      if (rows[i].category === TX_CATEGORY.TRAIL_INFO && rows[i].year === year && rows[i].month === month) { existingTrail = rows[i]; break; }
+    }
+    var toDelete = rows.filter(function (r) {
+      if (r.year !== year || r.month !== month) return false;
+      if (r.category === TX_CATEGORY.RULE_VIOLATION) return true;
+      if (r.category === TX_CATEGORY.OVERRIDE) return AUTO_TYPES.indexOf(parseJsonSafe_(r.data, {}).type) > -1;
+      return false;
+    });
+
+    if (existingTrail) {
+      updateRow_(SHEETS.TRANSACTIONS, existingTrail.__rowIndex, {
+        id: existingTrail.id, category: TX_CATEGORY.TRAIL_INFO, year: year, month: month,
+        pid: trailInfo.lastPid || '', data: JSON.stringify(trailInfo), createdAt: new Date().toISOString(), createdBy: createdBy || ''
+      });
+    } else {
+      addTransaction_(TX_CATEGORY.TRAIL_INFO, year, month, trailInfo.lastPid, trailInfo, createdBy);
+    }
+    if (toDelete.length) {
+      var sheet = getSheet_(SHEETS.TRANSACTIONS);
+      deleteRowsBulk_(sheet, toDelete.map(function (r) { return r.__rowIndex; }));
+      invalidateReadAllCache_(SHEETS.TRANSACTIONS);
+    }
+
+    var bulkItems = ruleViolations.map(function (v) {
+      return { category: TX_CATEGORY.RULE_VIOLATION, year: year, month: month, pid: v.pid, data: v, createdBy: createdBy };
+    }).concat(overrides.map(function (o) {
+      return { category: TX_CATEGORY.OVERRIDE, year: year, month: month, pid: null, data: o, createdBy: createdBy };
+    }));
+    if (bulkItems.length) addTransactionsBulk_(bulkItems);
+  }
+
   function getRuleViolations(year, month) { return getTransactions_(TX_CATEGORY.RULE_VIOLATION, year, month); }
   function clearRuleViolations(year, month) {
     var sheet = getSheet_(SHEETS.TRANSACTIONS);
@@ -576,6 +618,7 @@ var DataService = (function () {
     getPayAdjustments: getPayAdjustments, setPayAdjustment: setPayAdjustment,
     getOverrides: getOverrides, addOverride: addOverride, addOverridesBulk: addOverridesBulk, clearAutoOverrides: clearAutoOverrides,
     getRuleViolations: getRuleViolations, clearRuleViolations: clearRuleViolations, addRuleViolations: addRuleViolations,
+    finalizeGenerateWrites: finalizeGenerateWrites,
     getTrailInfo: getTrailInfo, setTrailInfo: setTrailInfo,
     getDutyRoster: getDutyRoster, setDutyRoster: setDutyRoster,
     getScheduleAssignments: getScheduleAssignments, getScheduleStatus: getScheduleStatus,
