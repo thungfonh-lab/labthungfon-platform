@@ -435,6 +435,16 @@ tbody tr:last-child td{border-bottom:none}
   .sched th,.sched td,.tbl th,.tbl td,.rep-tbl th,.rep-tbl td{border-width:0 0 1px 1px!important;border-style:solid!important;border-color:#000!important}
   .sched th,.tbl th,.rep-tbl th{border-top-width:1px!important}
   .sched th:last-child,.sched td:last-child,.tbl th:last-child,.tbl td:last-child,.rep-tbl th:last-child,.rep-tbl td:last-child{border-right-width:1px!important}
+  /* รอบสาม (พบจากการทดสอบพิมพ์จริงอีกครั้ง): เส้นขอบบางเส้นในตาราง .rep-tbl ที่แถวสูงไม่เท่ากัน (เช่น ใบเบิกเงินรวม
+     ที่เพิ่ง line-height ให้สูงขึ้น) หายเป็นช่วงๆ แบบสุ่ม ไม่ใช่หายทั้งเส้นแบบรอบสอง — เดา: Chrome rasterize เส้น
+     บาง 1px ที่ตกตำแหน่ง sub-pixel พอดีบางแถวแล้วปัดเศษจนหาย เพิ่ม box-shadow inset ทับแนวเดียวกับ border ทุกเส้น
+     เป็นเลเยอร์สำรอง (คนละ paint path จาก border ใน Chrome จึงไม่น่าโดนปัดเศษพร้อมกัน) ถ้า border หายที่แถวไหน
+     ยังเห็นเส้นจาก box-shadow แทนได้ */
+  .sched td,.tbl td,.rep-tbl td,.sched th,.tbl th,.rep-tbl th{box-shadow:inset -1px 0 0 #000,inset 0 -1px 0 0 #000!important}
+  .sched th,.tbl th,.rep-tbl th{box-shadow:inset -1px 0 0 #000,inset 0 -1px 0 0 #000,inset 0 1px 0 0 #000!important}
+  .sched td:first-child,.tbl td:first-child,.rep-tbl td:first-child{box-shadow:inset -1px 0 0 #000,inset 0 -1px 0 0 #000,inset 1px 0 0 #000!important}
+  .sched th:first-child,.tbl th:first-child,.rep-tbl th:first-child{box-shadow:inset -1px 0 0 #000,inset 0 -1px 0 0 #000,inset 1px 0 0 #000,inset 0 1px 0 0 #000!important}
+  .rep-tbl-sig .rt-head-row th{box-shadow:none!important}
   /* บันทึก on-call (รายละเอียด) — ตัดหัวรายงานย่อยออก เพิ่มระยะห่างระหว่างบรรทัดให้อ่านง่าย */
   .oc-claim-blk{line-height:2;padding:10px 0!important}
   .oc-claim-blk>div{margin-bottom:3px}
