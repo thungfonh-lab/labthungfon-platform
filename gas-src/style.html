@@ -430,8 +430,13 @@ tbody tr:last-child td{border-bottom:none}
      ยังต้องพึ่ง width shrink เหมือนเดิม ส่วนเซลล์ของทั้ง .rep-tbl และ .rep-tbl-sig กลับไปใช้สูตรเดียวกัน (วาดแค่
      ขวา+ล่าง กันเส้นภายในซ้อนกันหนา เติมซ้าย/บนเฉพาะคอลัมน์แรก/แถวหัว) เพราะไม่มีกรอบ table ให้พึ่งอีกต่อไปแล้ว */
   /* ขอบ div ห่อ (รอบหก) บางกว่าเส้นภายในตามฟีดแบ็ก — เพราะเส้นภายในมี box-shadow ทาบซ้อน border ให้ดูเข้มขึ้นด้วย
-     แต่ div wrapper มีแค่ border เฉยๆ เพิ่ม box-shadow ทาบรอบกรอบ div ให้น้ำหนักเท่ากับเส้นภายใน */
-  .rep-tbl-wrap{border:1px solid #000!important;box-sizing:border-box!important;box-shadow:inset 0 0 0 1px #000!important}
+     แต่ div wrapper มีแค่ border เฉยๆ เพิ่ม box-shadow ทาบรอบกรอบ div ให้น้ำหนักเท่ากับเส้นภายใน
+     รอบเจ็ด: ยังหาย/บางอยู่ (แนวตั้งหายทั้งเส้น, แนวนอนบางกว่า) เพราะ .rep-tbl-wrap ไม่เคยมี width shrink เลย —
+     width:auto ของ div เต็มพื้นที่ .doc พอดี (padding:0 ตอนพิมพ์) เท่ากับ <table> เดิมที่ชิดขอบกระดาษเป๊ะเหมือนกัน
+     ไม่ได้ช่วยอะไรเลยจริงๆ แถมพบว่าโหมดแนวตั้ง/แนวนอนใช้ margin กระดาษคนละค่า (portrait 9mm, landscape 6mm — ดู
+     printWithPageSize() ใน script-schedule.html) ทำให้ผลต่างกัน หด width ของ wrapper ลงจริงๆ ด้วยหน่วย mm (แม่นยำ
+     กว่า px ตอนคำนวณระยะจากขอบกระดาษ) ให้เผื่อระยะพอจะพ้นเขตที่ Chrome ตัดเส้น ไม่ว่าจะ margin ค่าไหน */
+  .rep-tbl-wrap{width:calc(100% - 2mm)!important;border:1px solid #000!important;box-sizing:border-box!important;box-shadow:inset 0 0 0 1px #000!important}
   .sched th,.sched td,.tbl th,.tbl td{border:1px solid #000!important}
   .rep-tbl th,.rep-tbl td{border-width:0 0 1px 1px!important;border-style:solid!important;border-color:#000!important}
   .rep-tbl th{border-top-width:1px!important}
