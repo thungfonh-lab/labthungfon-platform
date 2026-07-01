@@ -419,27 +419,25 @@ tbody tr:last-child td{border-bottom:none}
      ของตารางขยับเข้ามาไม่ชิดขอบกระดาษพอดีเป๊ะ หลบบั๊กการตัดเส้นของ Chrome ได้โดยไม่ต้องพึ่งกรอบระดับ table */
   .sched,.tbl,.rep-tbl{border-collapse:separate!important;border-spacing:0!important;box-sizing:border-box!important}
   .sched,.tbl{border:1px solid #000!important}
-  .rep-tbl:not(.rep-tbl-sig){border:1px solid #000!important}
   .rep-tbl-sig{width:calc(100% - 1px)!important}
-  /* รอบห้า: การเติม border:1px solid ระดับ table (รอบสี่) กลับไปชนกับสูตร "เซลล์วาดแค่ขวา+ล่าง" (รอบแรก) ทำให้
-     ขอบนอกกลายเป็นกรอบ table + เซลล์วาดซ้ำ 2 ชั้นคนละตำแหน่ง (ไม่ทับกันสนิทเพราะ border-spacing:0 ทำให้กรอบ table
-     อยู่ "นอก" กล่องเซลล์ ส่วนเซลล์วาดที่ "ใน" กล่องตัวเอง) เลยหนากว่าเส้นภายในที่วาดครั้งเดียว — สลับกลยุทธ์ใหม่
-     แยก 2 กลุ่มตามว่ามีกรอบ table ช่วยได้หรือไม่:
-     กลุ่ม A — .sched, .tbl, .rep-tbl ที่ไม่ใช่ .rep-tbl-sig (มีกรอบ table แล้ว) → ให้ทุกเซลล์วาดกรอบเต็ม 4 ด้าน
-     ตามปกติ (border:1px solid) ซึ่งที่ขอบนอกจะซ้อนกับกรอบ table พอดีตำแหน่งเดียวกันเป๊ะ (คนละกล่องแต่ border ของ
-     table วาดชิดขอบกล่องเซลล์พอดี) Chrome เรนเดอร์เส้นซ้อนสนิทแบบนี้เป็นเส้นเดียว ไม่หนาขึ้น — ต่างจากเส้นภายในที่
-     เป็นคนละเซลล์คนละตำแหน่ง (ติดกันแต่ไม่ทับกัน จะรวมเป็นเส้นหนา ~2px) ยอมรับเส้นภายในหนากว่าขอบนอกเล็กน้อยเพื่อ
-     ความเสถียร (.sched/.tbl ใช้วิธีนี้มานานไม่เคยมีคนสังเกตปัญหา) ดีกว่าไล่ตามบั๊กขอบหายซ้ำๆ ไม่จบ
-     กลุ่ม B — .rep-tbl-sig (ใส่กรอบ table ไม่ได้ เพราะจะครอบหัวรายงานที่ฝังใน thead) → ยังต้องพึ่งสูตรเดิม:
-     เซลล์วาดแค่ขวา+ล่าง (กันเส้นภายในซ้อนกัน) เติมซ้าย/บนเฉพาะคอลัมน์แรก/แถวหัว + box-shadow สำรอง + width shrink */
-  .sched th,.sched td,.tbl th,.tbl td,.rep-tbl:not(.rep-tbl-sig) th,.rep-tbl:not(.rep-tbl-sig) td{border:1px solid #000!important}
-  .rep-tbl-sig th,.rep-tbl-sig td{border-width:0 0 1px 1px!important;border-style:solid!important;border-color:#000!important}
-  .rep-tbl-sig th{border-top-width:1px!important}
-  .rep-tbl-sig th:last-child,.rep-tbl-sig td:last-child{border-right-width:1px!important}
-  .rep-tbl-sig td,.rep-tbl-sig th{box-shadow:inset -1px 0 0 #000,inset 0 -1px 0 0 #000!important}
-  .rep-tbl-sig th{box-shadow:inset -1px 0 0 #000,inset 0 -1px 0 0 #000,inset 0 1px 0 0 #000!important}
-  .rep-tbl-sig td:first-child{box-shadow:inset -1px 0 0 #000,inset 0 -1px 0 0 #000,inset 1px 0 0 #000!important}
-  .rep-tbl-sig th:first-child{box-shadow:inset -1px 0 0 #000,inset 0 -1px 0 0 #000,inset 1px 0 0 #000,inset 0 1px 0 0 #000!important}
+  /* รอบหก: รอบสี่/ห้าพยายามให้ตัว <table> วาดกรอบนอกเอง (ซ้อนทับเซลล์ขอบพอดีตำแหน่ง คาดว่า Chrome จะเรนเดอร์เป็น
+     เส้นเดียว) แต่ทดสอบพิมพ์จริงแล้วขอบขวายังหายอยู่ดี — สรุปว่า border ระดับ <table> ไม่น่าเชื่อถือใน Chrome
+     "Save as PDF" เมื่อ border-collapse:separate เลยเลิกพึ่งมันสำหรับ .rep-tbl ไปเลย (ต่างจาก .sched/.tbl ที่ยังคง
+     ของเดิมไว้ก่อน เพราะยังไม่มีรายงานว่าเสียเหมือนกัน) แทนที่ด้วยการห่อ <table class="rep-tbl"> อีกชั้นด้วย
+     <div class="rep-tbl-wrap"> (ดู ReportService.gs — repPay_/payperson/teamoverview/oncall record) แล้วให้ div
+     เป็นคนวาดกรอบนอกแทน เพราะ border ของ div เป็นคนละ rendering path จาก table ไม่ผ่าน border-collapse เลย
+     ไม่น่าจะเจอบั๊กเดียวกัน — .rep-tbl-sig ห่อ div ไม่ได้เหมือนกัน (จะครอบหัวรายงานที่ฝังใน thead เข้าไปด้วย) เลย
+     ยังต้องพึ่ง width shrink เหมือนเดิม ส่วนเซลล์ของทั้ง .rep-tbl และ .rep-tbl-sig กลับไปใช้สูตรเดียวกัน (วาดแค่
+     ขวา+ล่าง กันเส้นภายในซ้อนกันหนา เติมซ้าย/บนเฉพาะคอลัมน์แรก/แถวหัว) เพราะไม่มีกรอบ table ให้พึ่งอีกต่อไปแล้ว */
+  .rep-tbl-wrap{border:1px solid #000!important;box-sizing:border-box!important}
+  .sched th,.sched td,.tbl th,.tbl td{border:1px solid #000!important}
+  .rep-tbl th,.rep-tbl td{border-width:0 0 1px 1px!important;border-style:solid!important;border-color:#000!important}
+  .rep-tbl th{border-top-width:1px!important}
+  .rep-tbl th:last-child,.rep-tbl td:last-child{border-right-width:1px!important}
+  .rep-tbl td,.rep-tbl th{box-shadow:inset -1px 0 0 #000,inset 0 -1px 0 0 #000!important}
+  .rep-tbl th{box-shadow:inset -1px 0 0 #000,inset 0 -1px 0 0 #000,inset 0 1px 0 0 #000!important}
+  .rep-tbl td:first-child{box-shadow:inset -1px 0 0 #000,inset 0 -1px 0 0 #000,inset 1px 0 0 #000!important}
+  .rep-tbl th:first-child{box-shadow:inset -1px 0 0 #000,inset 0 -1px 0 0 #000,inset 1px 0 0 #000,inset 0 1px 0 0 #000!important}
   .rep-tbl-sig .rt-head-row th{box-shadow:none!important}
   /* บันทึก on-call (รายละเอียด) — ตัดหัวรายงานย่อยออก เพิ่มระยะห่างระหว่างบรรทัดให้อ่านง่าย */
   .oc-claim-blk{line-height:2;padding:10px 0!important}

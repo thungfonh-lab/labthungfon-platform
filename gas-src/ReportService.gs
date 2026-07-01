@@ -233,7 +233,7 @@ var ReportService = (function () {
     var sig = sigRow_(settings);
 
     var tot = 0;
-    var h = payPageHeader_(title, settings, year, month) + '<table class="rep-tbl">' + theadRow + '<tbody>';
+    var h = payPageHeader_(title, settings, year, month) + '<div class="rep-tbl-wrap"><table class="rep-tbl">' + theadRow + '<tbody>';
     var g = payGroup_('วันที่ปฏิบัติงาน ' + PAY_SECTION_LABEL_.ch, MT.concat(LA).map(function (p) { return { p: p, days: (r[p.id] || {}).ch }; }), 'ch', rateOvr, rates);
     h += g.h; tot += g.sub;
     g = payGroup_('วันที่ปฏิบัติงาน ' + PAY_SECTION_LABEL_.b, MT.map(function (p) { return { p: p, days: (r[p.id] || {}).b }; }), 'b', rateOvr, rates);
@@ -242,7 +242,7 @@ var ReportService = (function () {
     h += g.h; tot += g.sub;
     g = payGroup_('วันที่ปฏิบัติงาน ' + PAY_SECTION_LABEL_.b1, LA.map(function (p) { return { p: p, days: (r[p.id] || {}).b1 }; }), 'b1', rateOvr, rates);
     h += g.h; tot += g.sub;
-    h += '<tr class="tot"><td colspan="6" class="r">รวมจ่ายทั้งสิ้น</td><td class="r">' + money_(tot) + '</td><td></td></tr></tbody></table>';
+    h += '<tr class="tot"><td colspan="6" class="r">รวมจ่ายทั้งสิ้น</td><td class="r">' + money_(tot) + '</td><td></td></tr></tbody></table></div>';
     h += '<div style="margin-top:7px;font-size:12.5px">รวมเป็นเงิน (ตัวอักษร) <b>' + bahtText_(tot) + '</b></div>';
     h += '<div style="font-size:12px;margin-top:4px">หัวหน้าผู้ควบคุมขอรับรองว่าผู้รับค่าตอบแทนได้ปฏิบัติงานจริง</div>' + sig;
 
@@ -258,7 +258,7 @@ var ReportService = (function () {
     var rows = isLA ? [['ch', d.ch], ['b1', d.b1], ['n', d.n]] : [['ch', d.ch], ['b', d.b], ['n', d.n], ['d0', d.d0], ['d1', d.d1]];
     var tot = 0;
     var h = '<div style="margin:8px 0;font-size:13.5px">ชื่อ <b>' + fullN_(p) + '</b> · ตำแหน่ง ' + p.title + '</div>';
-    h += '<table class="rep-tbl"><thead><tr><th>ประเภทเวร</th><th>อัตรา</th><th>วันที่</th><th>จำนวน</th><th>รวมเงิน</th></tr></thead><tbody>';
+    h += '<div class="rep-tbl-wrap"><table class="rep-tbl"><thead><tr><th>ประเภทเวร</th><th>อัตรา</th><th>วันที่</th><th>จำนวน</th><th>รวมเงิน</th></tr></thead><tbody>';
     rows.forEach(function (pair) {
       var sh = pair[0], days = pair[1];
       if (!days) return;
@@ -268,7 +268,7 @@ var ReportService = (function () {
       tot += amt;
       h += '<tr><td class="l">' + sDef.name + '</td><td class="c">' + rate + '</td><td class="l">' + (days.join(', ') || '—') + '</td><td class="c">' + days.length + '</td><td class="r">' + money_(amt) + '</td></tr>';
     });
-    h += '<tr class="tot"><td colspan="4" class="r">รวมทั้งสิ้น</td><td class="r">' + money_(tot) + '</td></tr></tbody></table>';
+    h += '<tr class="tot"><td colspan="4" class="r">รวมทั้งสิ้น</td><td class="r">' + money_(tot) + '</td></tr></tbody></table></div>';
     h += '<div style="font-size:12.5px;margin-top:5px">(ตัวอักษร) <b>' + bahtText_(tot) + '</b></div>';
     h += '<div class="sig-row"><div class="sig">(ลงชื่อ)..................................................<br>(' + fullN_(p) + ')<br>ผู้รับเงิน</div>' +
       '<div class="sig">(ลงชื่อ)..................................................<br>(' + settings.signH + ')<br>' + settings.signHT + '</div></div>';
@@ -332,7 +332,7 @@ var ReportService = (function () {
       h += '<div style="background:' + sl.bg + ';color:' + sl.color + ';border-radius:9px;padding:8px 14px;text-align:center;min-width:70px">' +
         '<div style="font-size:20px;font-weight:700">' + totByShift[s] + '</div><div style="font-size:11px">' + sl.short + ' รวม</div></div>';
     });
-    h += '</div><table class="rep-tbl"><thead><tr><th>ชื่อ-สกุล</th><th>ตำแหน่ง</th>';
+    h += '</div><div class="rep-tbl-wrap"><table class="rep-tbl"><thead><tr><th>ชื่อ-สกุล</th><th>ตำแหน่ง</th>';
     shiftIds.forEach(function (s) {
       var sl = SHIFT_DEFS[s];
       h += '<th><span style="background:' + sl.bg + ';color:' + sl.color + ';padding:1px 6px;border-radius:4px">' + sl.short + '</span></th>';
@@ -362,7 +362,7 @@ var ReportService = (function () {
     });
     h += '<tr class="tot"><td colspan="2" class="r">รวมทั้งสิ้น</td>';
     shiftIds.forEach(function (s) { h += '<td class="c">' + totByShift[s] + '</td>'; });
-    h += '<td class="c"></td><td class="r">' + money_(grandTotal) + '</td></tr></tbody></table>';
+    h += '<td class="c"></td><td class="r">' + money_(grandTotal) + '</td></tr></tbody></table></div>';
     h += '<div style="margin-top:6px;font-size:12px">รวมเป็นเงิน <b>' + bahtText_(grandTotal) + '</b></div>';
     return h;
   }
@@ -384,7 +384,7 @@ var ReportService = (function () {
       ? '<div style="margin:8px 0;font-size:13.5px">เจ้าหน้าที่: <b>' + fullN_(byPer) + '</b> · ตำแหน่ง <b>' + byPer.title + '</b></div>'
       : '<div style="margin:8px 0;font-size:13.5px">บันทึก On Call <b>ทุกคน</b></div>';
     if (!list.length) return h + '<div style="padding:20px;color:var(--mut)">ยังไม่มีข้อมูล On Call</div>';
-    h += '<table class="rep-tbl"><thead><tr><th>วัน เดือน ปี</th><th>เจ้าหน้าที่</th><th>เวลา</th><th>HN</th><th>ชื่อผู้ป่วย</th><th>LAB ที่ตรวจ</th><th>หน่วยงาน</th></tr></thead><tbody>';
+    h += '<div class="rep-tbl-wrap"><table class="rep-tbl"><thead><tr><th>วัน เดือน ปี</th><th>เจ้าหน้าที่</th><th>เวลา</th><th>HN</th><th>ชื่อผู้ป่วย</th><th>LAB ที่ตรวจ</th><th>หน่วยงาน</th></tr></thead><tbody>';
     list.forEach(function (o) {
       var d = ocDayOf(o);
       var per = people.filter(function (p) { return p.id === o.pid; })[0];
@@ -394,7 +394,7 @@ var ReportService = (function () {
     });
     var nightsSet = {};
     list.forEach(function (o) { nightsSet[o.pid + '_' + ocDayOf(o)] = true; });
-    h += '</tbody></table><div style="text-align:right;margin-top:5px;font-size:12px">รวม ' + Object.keys(nightsSet).length + ' คืน · ' + list.length + ' ราย</div>';
+    h += '</tbody></table></div><div style="text-align:right;margin-top:5px;font-size:12px">รวม ' + Object.keys(nightsSet).length + ' คืน · ' + list.length + ' ราย</div>';
     return h;
   }
 
