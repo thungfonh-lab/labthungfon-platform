@@ -430,7 +430,13 @@ tbody tr:last-child td{border-bottom:none}
      ของตารางขยับเข้ามาไม่ชิดขอบกระดาษพอดีเป๊ะ หลบบั๊กการตัดเส้นของ Chrome ได้โดยไม่ต้องพึ่งกรอบระดับ table */
   .sched,.tbl,.rep-tbl{border-collapse:separate!important;border-spacing:0!important;box-sizing:border-box!important}
   .sched,.tbl{border:1px solid #000!important}
-  .rep-tbl{width:calc(100% - 1px)!important}
+  /* รอบสี่: ขอบขวาสุดยังหายอยู่ที่ใบเบิกเงินรวม (repPay_) แม้ลด width ไป 1px แล้ว — 1px ที่ 300dpi ตอนพิมพ์
+     แคบกว่าที่คิดมาก (~4 device px เท่านั้น) ไม่พอกันบั๊ก Chrome ตัดเส้นที่ขอบกระดาษ ส่วน .sched/.tbl ไม่เจอปัญหานี้
+     เพราะมีกรอบระดับ table เป็นตัวช่วยอยู่แล้ว (เห็นชัดว่าใช้ได้ผลจริง) — repPay_/repN_ variants ที่ไม่ใช่
+     .rep-tbl-sig ก็ไม่มีหัวรายงานฝังใน thead เหมือนกัน (payPageHeader_ อยู่นอกตารางเป็น div แยก) จึงใส่กรอบระดับ
+     table ได้แบบเดียวกับ .sched/.tbl โดยไม่ครอบหัวรายงาน — เหลือแค่ .rep-tbl-sig ที่ยังต้องพึ่ง width shrink
+     เพราะฝัง title rows ไว้ใน thead จริง ใส่กรอบ table ไม่ได้ */
+  .rep-tbl:not(.rep-tbl-sig){border:1px solid #000!important}
   .rep-tbl-sig{width:calc(100% - 1px)!important}
   .sched th,.sched td,.tbl th,.tbl td,.rep-tbl th,.rep-tbl td{border-width:0 0 1px 1px!important;border-style:solid!important;border-color:#000!important}
   .sched th,.tbl th,.rep-tbl th{border-top-width:1px!important}
