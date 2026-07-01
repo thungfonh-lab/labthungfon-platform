@@ -431,10 +431,20 @@ var BusinessService = (function () {
         while (x <= N && assign[x] && assign[x].b === uid) { nc++; x++; }
         return nc <= maxC;
       };
+      /* d เป็นส่วนหนึ่งของ Fri-block (ศุกร์ + วันหยุดต่อเนื่อง เช่น ส-อา) หรือไม่ —
+         ห้าม swap วันเดียวในบล็อคนี้ เพราะจะทำให้ศุกร์แยกคนกับ ส-อา ที่ตามมา */
+      var inFriBlock = function (d) {
+        if (dow_(year, month, d) === 5) return true;
+        if (!isOff(d)) return false;
+        var x = d;
+        while (x >= 1 && isOff(x)) x--;
+        return x >= 1 && dow_(year, month, x) === 5;
+      };
 
       for (var d1 = 1; d1 <= N && !swapped; d1++) {
         var a1 = assign[d1] || {};
         if (!isOff(d1)) continue;
+        if (inFriBlock(d1)) continue;
         if (a1.ch !== ov.p.id || a1.b !== ov.p.id) continue;
         if (avOffSimple_(un.p.id, d1, assign)) continue;
         if (!checkConsec(un.p.id, d1)) continue;
@@ -445,6 +455,7 @@ var BusinessService = (function () {
       for (var d2 = 1; d2 <= N && !swapped; d2++) {
         var a2 = assign[d2] || {};
         if (isOff(d2)) continue;
+        if (inFriBlock(d2)) continue;
         if (a2.b !== ov.p.id) continue;
         if (!checkConsec(un.p.id, d2)) continue;
         assign[d2].b = un.p.id; assign[d2].d = un.p.id;
@@ -454,7 +465,7 @@ var BusinessService = (function () {
       for (var d5 = 1; d5 <= N && !swapped; d5++) {
         var a5 = assign[d5] || {};
         if (isOff(d5)) continue;
-        if (dow_(year, month, d5) === 5) continue; // Fri block: b ต้องเท่ากับ d เสมอ ห้าม b-only swap
+        if (inFriBlock(d5)) continue; // Fri block: b ต้องเท่ากับ d เสมอ ห้าม swap แยกวัน
         if (a5.b !== ov.p.id) continue;
         if (!checkConsec(un.p.id, d5)) continue;
         assign[d5].b = un.p.id;
