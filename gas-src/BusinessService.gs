@@ -353,7 +353,7 @@ var BusinessService = (function () {
     }
 
     /* ══ POST-BALANCE PASS (ported 1:1, tol=650, maxPass=12) ══ */
-    var postPassLog = runPostBalancePass_(pool, assign, clinicMt, N, isOff, maxC, rateOvr, rates, people);
+    var postPassLog = runPostBalancePass_(pool, assign, clinicMt, N, isOff, maxC, rateOvr, rates, people, year, month);
 
     /* ══ RULE VIOLATION CHECKER (3 rules, ported 1:1) ══ */
     var ruleViolations = checkRuleViolations_(pool, assign, clinicMt, N, maxC, year, month, holidays, people);
@@ -396,7 +396,7 @@ var BusinessService = (function () {
     return { lastPid: lastPid, trailingCount: trailingCount, lastDay: N, lastDayPid: lastDayPid, laB: null };
   }
 
-  function runPostBalancePass_(pool, assign, clinicMt, N, isOff, maxC, rateOvr, rates, people) {
+  function runPostBalancePass_(pool, assign, clinicMt, N, isOff, maxC, rateOvr, rates, people, year, month) {
     var tol = 650, maxPass = 12, postPassLog = [];
     var calcMoney = function (pid) {
       var m = 0, person = byId_(people, pid);
@@ -454,6 +454,7 @@ var BusinessService = (function () {
       for (var d5 = 1; d5 <= N && !swapped; d5++) {
         var a5 = assign[d5] || {};
         if (isOff(d5)) continue;
+        if (dow_(year, month, d5) === 5) continue; // Fri block: b ต้องเท่ากับ d เสมอ ห้าม b-only swap
         if (a5.b !== ov.p.id) continue;
         if (!checkConsec(un.p.id, d5)) continue;
         assign[d5].b = un.p.id;
