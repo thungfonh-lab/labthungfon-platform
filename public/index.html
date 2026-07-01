@@ -382,8 +382,8 @@ tbody tr:last-child td{border-bottom:none}
   .rep-tbl-sig .rt-head-row th.dline{font-size:12.5px!important;line-height:1.55!important}
   /* ใบเบิกเงินรวม (แนวตั้ง) — เพิ่ม line-height เฉพาะรายงานนี้ตามฟีดแบ็ก แต่ 2.2/5px ดูหลวมเกินไปตามฟีดแบ็กถัดมา
      ("ลด line-height/padding ให้พอดี A4") ลดกลับมาอยู่กึ่งกลางระหว่างค่าเดิม (1.5/3px) กับค่าที่ขยายไปก่อนหน้า */
-  .pay-portrait .rep-tbl{line-height:1.8}
-  .pay-portrait .rep-tbl th,.pay-portrait .rep-tbl td{padding:4px 6px}
+  .pay-portrait .rep-tbl{line-height:1.6}
+  .pay-portrait .rep-tbl th,.pay-portrait .rep-tbl td{padding:3px 6px}
   body,html{overflow:visible!important;height:auto!important}
   #app{display:block!important;height:auto!important}
   #main{overflow:visible!important}
@@ -430,26 +430,27 @@ tbody tr:last-child td{border-bottom:none}
      ของตารางขยับเข้ามาไม่ชิดขอบกระดาษพอดีเป๊ะ หลบบั๊กการตัดเส้นของ Chrome ได้โดยไม่ต้องพึ่งกรอบระดับ table */
   .sched,.tbl,.rep-tbl{border-collapse:separate!important;border-spacing:0!important;box-sizing:border-box!important}
   .sched,.tbl{border:1px solid #000!important}
-  /* รอบสี่: ขอบขวาสุดยังหายอยู่ที่ใบเบิกเงินรวม (repPay_) แม้ลด width ไป 1px แล้ว — 1px ที่ 300dpi ตอนพิมพ์
-     แคบกว่าที่คิดมาก (~4 device px เท่านั้น) ไม่พอกันบั๊ก Chrome ตัดเส้นที่ขอบกระดาษ ส่วน .sched/.tbl ไม่เจอปัญหานี้
-     เพราะมีกรอบระดับ table เป็นตัวช่วยอยู่แล้ว (เห็นชัดว่าใช้ได้ผลจริง) — repPay_/repN_ variants ที่ไม่ใช่
-     .rep-tbl-sig ก็ไม่มีหัวรายงานฝังใน thead เหมือนกัน (payPageHeader_ อยู่นอกตารางเป็น div แยก) จึงใส่กรอบระดับ
-     table ได้แบบเดียวกับ .sched/.tbl โดยไม่ครอบหัวรายงาน — เหลือแค่ .rep-tbl-sig ที่ยังต้องพึ่ง width shrink
-     เพราะฝัง title rows ไว้ใน thead จริง ใส่กรอบ table ไม่ได้ */
   .rep-tbl:not(.rep-tbl-sig){border:1px solid #000!important}
   .rep-tbl-sig{width:calc(100% - 1px)!important}
-  .sched th,.sched td,.tbl th,.tbl td,.rep-tbl th,.rep-tbl td{border-width:0 0 1px 1px!important;border-style:solid!important;border-color:#000!important}
-  .sched th,.tbl th,.rep-tbl th{border-top-width:1px!important}
-  .sched th:last-child,.sched td:last-child,.tbl th:last-child,.tbl td:last-child,.rep-tbl th:last-child,.rep-tbl td:last-child{border-right-width:1px!important}
-  /* รอบสาม (พบจากการทดสอบพิมพ์จริงอีกครั้ง): เส้นขอบบางเส้นในตาราง .rep-tbl ที่แถวสูงไม่เท่ากัน (เช่น ใบเบิกเงินรวม
-     ที่เพิ่ง line-height ให้สูงขึ้น) หายเป็นช่วงๆ แบบสุ่ม ไม่ใช่หายทั้งเส้นแบบรอบสอง — เดา: Chrome rasterize เส้น
-     บาง 1px ที่ตกตำแหน่ง sub-pixel พอดีบางแถวแล้วปัดเศษจนหาย เพิ่ม box-shadow inset ทับแนวเดียวกับ border ทุกเส้น
-     เป็นเลเยอร์สำรอง (คนละ paint path จาก border ใน Chrome จึงไม่น่าโดนปัดเศษพร้อมกัน) ถ้า border หายที่แถวไหน
-     ยังเห็นเส้นจาก box-shadow แทนได้ */
-  .sched td,.tbl td,.rep-tbl td,.sched th,.tbl th,.rep-tbl th{box-shadow:inset -1px 0 0 #000,inset 0 -1px 0 0 #000!important}
-  .sched th,.tbl th,.rep-tbl th{box-shadow:inset -1px 0 0 #000,inset 0 -1px 0 0 #000,inset 0 1px 0 0 #000!important}
-  .sched td:first-child,.tbl td:first-child,.rep-tbl td:first-child{box-shadow:inset -1px 0 0 #000,inset 0 -1px 0 0 #000,inset 1px 0 0 #000!important}
-  .sched th:first-child,.tbl th:first-child,.rep-tbl th:first-child{box-shadow:inset -1px 0 0 #000,inset 0 -1px 0 0 #000,inset 1px 0 0 #000,inset 0 1px 0 0 #000!important}
+  /* รอบห้า: การเติม border:1px solid ระดับ table (รอบสี่) กลับไปชนกับสูตร "เซลล์วาดแค่ขวา+ล่าง" (รอบแรก) ทำให้
+     ขอบนอกกลายเป็นกรอบ table + เซลล์วาดซ้ำ 2 ชั้นคนละตำแหน่ง (ไม่ทับกันสนิทเพราะ border-spacing:0 ทำให้กรอบ table
+     อยู่ "นอก" กล่องเซลล์ ส่วนเซลล์วาดที่ "ใน" กล่องตัวเอง) เลยหนากว่าเส้นภายในที่วาดครั้งเดียว — สลับกลยุทธ์ใหม่
+     แยก 2 กลุ่มตามว่ามีกรอบ table ช่วยได้หรือไม่:
+     กลุ่ม A — .sched, .tbl, .rep-tbl ที่ไม่ใช่ .rep-tbl-sig (มีกรอบ table แล้ว) → ให้ทุกเซลล์วาดกรอบเต็ม 4 ด้าน
+     ตามปกติ (border:1px solid) ซึ่งที่ขอบนอกจะซ้อนกับกรอบ table พอดีตำแหน่งเดียวกันเป๊ะ (คนละกล่องแต่ border ของ
+     table วาดชิดขอบกล่องเซลล์พอดี) Chrome เรนเดอร์เส้นซ้อนสนิทแบบนี้เป็นเส้นเดียว ไม่หนาขึ้น — ต่างจากเส้นภายในที่
+     เป็นคนละเซลล์คนละตำแหน่ง (ติดกันแต่ไม่ทับกัน จะรวมเป็นเส้นหนา ~2px) ยอมรับเส้นภายในหนากว่าขอบนอกเล็กน้อยเพื่อ
+     ความเสถียร (.sched/.tbl ใช้วิธีนี้มานานไม่เคยมีคนสังเกตปัญหา) ดีกว่าไล่ตามบั๊กขอบหายซ้ำๆ ไม่จบ
+     กลุ่ม B — .rep-tbl-sig (ใส่กรอบ table ไม่ได้ เพราะจะครอบหัวรายงานที่ฝังใน thead) → ยังต้องพึ่งสูตรเดิม:
+     เซลล์วาดแค่ขวา+ล่าง (กันเส้นภายในซ้อนกัน) เติมซ้าย/บนเฉพาะคอลัมน์แรก/แถวหัว + box-shadow สำรอง + width shrink */
+  .sched th,.sched td,.tbl th,.tbl td,.rep-tbl:not(.rep-tbl-sig) th,.rep-tbl:not(.rep-tbl-sig) td{border:1px solid #000!important}
+  .rep-tbl-sig th,.rep-tbl-sig td{border-width:0 0 1px 1px!important;border-style:solid!important;border-color:#000!important}
+  .rep-tbl-sig th{border-top-width:1px!important}
+  .rep-tbl-sig th:last-child,.rep-tbl-sig td:last-child{border-right-width:1px!important}
+  .rep-tbl-sig td,.rep-tbl-sig th{box-shadow:inset -1px 0 0 #000,inset 0 -1px 0 0 #000!important}
+  .rep-tbl-sig th{box-shadow:inset -1px 0 0 #000,inset 0 -1px 0 0 #000,inset 0 1px 0 0 #000!important}
+  .rep-tbl-sig td:first-child{box-shadow:inset -1px 0 0 #000,inset 0 -1px 0 0 #000,inset 1px 0 0 #000!important}
+  .rep-tbl-sig th:first-child{box-shadow:inset -1px 0 0 #000,inset 0 -1px 0 0 #000,inset 1px 0 0 #000,inset 0 1px 0 0 #000!important}
   .rep-tbl-sig .rt-head-row th{box-shadow:none!important}
   /* บันทึก on-call (รายละเอียด) — ตัดหัวรายงานย่อยออก เพิ่มระยะห่างระหว่างบรรทัดให้อ่านง่าย */
   .oc-claim-blk{line-height:2;padding:10px 0!important}
