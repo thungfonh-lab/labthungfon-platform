@@ -92,8 +92,8 @@ var ReportService = (function () {
     for (var d = 1; d <= N; d++) {
       var a = scheduleAssign[d];
       if (!a) continue;
-      if (BusinessService.isOff_(year, month, d, []) && a.ch) rows.push([d, a.ch, 'ch', '08.00', '16.00']);
-      if (a.b) rows.push([d, a.b, 'b', '16.00', '24.00']);
+      if (BusinessService.isOff_(year, month, d, [])) (a.ch || []).forEach(function (pid) { rows.push([d, pid, 'ch', '08.00', '16.00']); });
+      (a.b || []).forEach(function (pid) { rows.push([d, pid, 'b', '16.00', '24.00']); });
     }
     var h = '<table class="rep-tbl rep-tbl-sig"><thead>' + reportHeaderRows_(settings, year, month, 8) + SIG_HEAD_ROW_ + '</thead><tbody>';
     rows.forEach(function (row) {
@@ -110,7 +110,7 @@ var ReportService = (function () {
   function repOTB1_(workload, year, month, laB, N, settings) {
     var rows = [];
     for (var d = 1; d <= N; d++) {
-      if (laB[d]) rows.push([d, laB[d], 'b1', '16.00', '20.00']);
+      (laB[d] || []).forEach(function (pid) { rows.push([d, pid, 'b1', '16.00', '20.00']); });
     }
     var h = '<table class="rep-tbl rep-tbl-sig"><thead>' + reportHeaderRows_(settings, year, month, 8) + SIG_HEAD_ROW_ + '</thead><tbody>';
     rows.forEach(function (row) {
@@ -158,8 +158,8 @@ var ReportService = (function () {
   function repN_(workload, year, month, clinicMt, clinicLa, N, settings) {
     var rows = [];
     for (var d = 1; d <= N; d++) {
-      if (clinicMt[d]) rows.push([d, clinicMt[d]]);
-      if (clinicLa[d]) rows.push([d, clinicLa[d]]);
+      (clinicMt[d] || []).forEach(function (pid) { rows.push([d, pid]); });
+      (clinicLa[d] || []).forEach(function (pid) { rows.push([d, pid]); });
     }
     var h = '<table class="rep-tbl rep-tbl-sig"><thead>' + reportHeaderRows_(settings, year, month, 8) + SIG_HEAD_ROW_ + '</thead><tbody>';
     rows.forEach(function (row) {

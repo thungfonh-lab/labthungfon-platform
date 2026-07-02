@@ -1498,12 +1498,12 @@ var Schedule = (function () {
   function cellToks(p, d, cal) {
     var t = [];
     var a = cal.assign[d] || {};
-    if (a.ch === p.id && (isHolD(d) || isWknd(current.year, current.month, d))) t.push('ch');
-    if (a.b === p.id) t.push('b');
+    if ((a.ch || []).indexOf(p.id) > -1 && (isHolD(d) || isWknd(current.year, current.month, d))) t.push('ch');
+    if ((a.b || []).indexOf(p.id) > -1) t.push('b');
     var prevA = cal.assign[d - 1];
-    if (prevA && prevA.d === p.id) t.push('d');
-    if (cal.clinicMt[d] === p.id || cal.clinicLa[d] === p.id) t.push('n');
-    if (cal.laB[d] === p.id) t.push('b1');
+    if (prevA && (prevA.d || []).indexOf(p.id) > -1) t.push('d');
+    if ((cal.clinicMt[d] || []).indexOf(p.id) > -1 || (cal.clinicLa[d] || []).indexOf(p.id) > -1) t.push('n');
+    if ((cal.laB[d] || []).indexOf(p.id) > -1) t.push('b1');
     t.sort(function (x, y) { return TOK_TIME_ORDER[x] - TOK_TIME_ORDER[y]; });
     return t;
   }
@@ -1548,7 +1548,7 @@ var Schedule = (function () {
     table.innerHTML = h;
     table.onclick = function (e) {
       var cell = e.target.closest('[data-day]');
-      if (cell && Session.permissions.override) openOvr(+cell.dataset.day, cell.dataset.pid);
+      if (cell && Session.permissions.override) openOvr(+cell.dataset.day, cell.dataset.pid, cal);
     };
   }
 
@@ -1615,17 +1615,30 @@ var Schedule = (function () {
      (ดูคอมเมนต์ cellToks ด้านบน) ตอน override ต้องเขียนย้อนกลับไปที่ day-1 ให้ตรงกับสิ่งที่มองเห็นจริง
      ไม่งั้นจะกลายเป็นบั๊ก "ต้องคลิกวันก่อนหน้าถึงจะย้ายเวรที่เห็น" */
   function ovrStorageDay_(day, shift) { return shift === 'd' ? day - 1 : day; }
-  function openOvr(day, pid) {
+  /** ใครอยู่เวรนี้อยู่แล้ว (รองรับหลายคนต่อ 1 เวร/1 วัน) — เวร 'd' ใช้ offset เดียวกับ ovrStorageDay_
+   *  (แสดงคนของ "เมื่อคืน" ให้ตรงกับที่เห็นในตาราง) */
+  function currentOccupants_(cal, day, shift) {
+    var map = {
+      ch: (cal.assign[day] || {}).ch, b: (cal.assign[day] || {}).b, d: (cal.assign[day - 1] || {}).d,
+      n_mt: cal.clinicMt[day], n_la: cal.clinicLa[day], b1: cal.laB[day]
+    };
+    return map[shift] || [];
+  }
+  function openOvr(day, pid, cal) {
     loadPeople().then(function (people) {
       var byId = {}; people.forEach(function (p) { byId[p.id] = p; });
       var clickedName = byId[pid] ? fullN(byId[pid]) : '';
       var opts = people.map(function (p) { return '<option value="' + p.id + '"' + (p.id === pid ? ' selected' : '') + '>' + fullN(p) + '</option>'; }).join('');
       var body = document.createElement('div');
-      body.innerHTML = '<div class="alert" style="background:var(--coral-l);border-color:var(--coral);color:var(--coral);"><i class="ti ti-alert-triangle"></i> Override ยกเว้นกฎทั้งหมด · บันทึก Log ทันที</div>' +
+      body.innerHTML = '<div class="alert" style="background:var(--coral-l);border-color:var(--coral);color:var(--coral);"><i class="ti ti-alert-triangle"></i> Override ยกเว้นกฎทั้งหมด · บันทึก Log ทันที · เวรเดียวกันมีได้หลายคนพร้อมกัน</div>' +
         '<div class="oc-form-grid" style="grid-template-columns:1fr 1fr;">' +
         '<label style="grid-column:1/-1;">ย้ายเป็นก้อน<select id="ovrPreset">' + OVR_BLOCK_PRESETS.map(function (p) { return '<option value="' + p.id + '">' + p.label + '</option>'; }).join('') + '</select></label>' +
         '<label style="grid-column:1/-1;">ประเภทเวร (เลือกได้หลายเวร)<div id="ovrShiftChips" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px;">' +
-        OVR_SHIFT_OPTS.map(function (o) { return '<label style="display:flex;align-items:center;gap:4px;font-size:12.5px;border:1px solid var(--border);border-radius:7px;padding:4px 8px;cursor:pointer;"><input type="checkbox" value="' + o[0] + '" class="ovrShiftChk"> ' + o[1] + '</label>'; }).join('') +
+        OVR_SHIFT_OPTS.map(function (o) {
+          var occ = currentOccupants_(cal, day, o[0]).map(function (oid) { return byId[oid] ? fullN(byId[oid]) : oid; });
+          return '<label style="display:flex;align-items:center;gap:4px;font-size:12.5px;border:1px solid var(--border);border-radius:7px;padding:4px 8px;cursor:pointer;"><input type="checkbox" value="' + o[0] + '" class="ovrShiftChk"> ' + o[1] +
+            ' <span style="color:var(--mut);font-size:11px;">(ปัจจุบัน: ' + (occ.length ? occ.join(', ') : 'ว่าง') + ')</span></label>';
+        }).join('') +
         '</div></label>' +
         '<label>มอบเวรให้ (ใช้กับปุ่ม "เพิ่มเวร" เท่านั้น)<select id="ovrPid">' + opts + '</select></label>' +
         '<label style="grid-column:1/-1;">เหตุผล<textarea id="ovrReason" rows="2" style="border:1px solid var(--border);border-radius:7px;padding:6px;"></textarea></label></div>' +
@@ -1642,18 +1655,12 @@ var Schedule = (function () {
         if (!shifts.length) toast('กรุณาเลือกประเภทเวรอย่างน้อย 1 เวร', '', true);
         return shifts;
       }
-      function submit(shifts, toPid, ovrType, entryExtra, successMsg) {
-        var reason = document.getElementById('ovrReason').value;
+      function submit(shifts, buildEntry, successMsg) {
         var crossMonth = false;
         var calls = shifts.map(function (shift) {
           var storageDay = ovrStorageDay_(day, shift);
           if (storageDay < 1) { crossMonth = true; return null; }
-          var entry = {
-            day: storageDay, type: ovrType, shift: shift, to: toPid || null, from: pid || null,
-            reason: reason, time: new Date().toISOString(), aff: [pid, toPid].filter(Boolean)
-          };
-          Object.assign(entry, entryExtra(shift));
-          return gsRun('api_addOverride', Session.token, current.year, current.month, entry);
+          return gsRun('api_addOverride', Session.token, current.year, current.month, buildEntry(shift, storageDay));
         }).filter(Boolean);
         if (crossMonth) toast('เวร ด ของวันที่ 1 เป็นเวรข้ามเดือนจากเดือนก่อน กรุณาแก้ไขที่ตารางเดือนก่อนหน้าแทน', '', true);
         if (!calls.length) { if (!crossMonth) closeModal(); return; }
@@ -1665,15 +1672,28 @@ var Schedule = (function () {
       body.querySelector('#ovrAddBtn').onclick = function () {
         var shifts = pickedShifts(); if (!shifts.length) return;
         var toPid = document.getElementById('ovrPid').value;
-        submit(shifts, toPid, 'manual-override', function () { return {}; }, 'บันทึก Override แล้ว');
+        var toName = byId[toPid] ? fullN(byId[toPid]) : toPid;
+        var reason = document.getElementById('ovrReason').value;
+        submit(shifts, function (shift, storageDay) {
+          return {
+            day: storageDay, type: 'manual-override', shift: shift, to: toPid, from: null,
+            reason: reason, time: new Date().toISOString(), aff: [toPid],
+            shiftLabel: 'เพิ่ม ' + toName + ' เข้าเวร ' + (OVR_SHIFT_LABEL_[shift] || shift)
+          };
+        }, 'บันทึก Override แล้ว');
       };
       body.querySelector('#ovrRemoveBtn').onclick = function () {
         var shifts = pickedShifts(); if (!shifts.length) return;
-        submit(shifts, null, 'manual-remove', function (shift) {
-          return { shiftLabel: 'เอา ' + clickedName + ' ออกจากเวร ' + (OVR_SHIFT_LABEL_[shift] || shift) };
+        var reason = document.getElementById('ovrReason').value;
+        submit(shifts, function (shift, storageDay) {
+          return {
+            day: storageDay, type: 'manual-remove', shift: shift, to: null, from: pid,
+            reason: reason, time: new Date().toISOString(), aff: [pid],
+            shiftLabel: 'เอา ' + clickedName + ' ออกจากเวร ' + (OVR_SHIFT_LABEL_[shift] || shift)
+          };
         }, 'เอาเวรออกแล้ว');
       };
-      showModal('แก้ไข/สลับเวร — วันที่ ' + day + ' ' + monthLabel(), body, false);
+      showModal('จัดการเวร — วันที่ ' + day + ' ' + monthLabel(), body, false);
     });
   }
 
@@ -1694,7 +1714,7 @@ var Schedule = (function () {
         var N = cal.N, nW = 0;
         for (var d = 1; d <= N; d++) if (!isWknd(current.year, current.month, d) && !(cal.holidays || []).some(function (h) { return h.day === d; })) nW++;
         var nC = 0;
-        for (var d2 = 1; d2 <= N; d2++) if (cal.clinicMt[d2] || cal.clinicLa[d2]) nC++;
+        for (var d2 = 1; d2 <= N; d2++) if ((cal.clinicMt[d2] || []).length || (cal.clinicLa[d2] || []).length) nC++;
         var stats = [
           { lbl: 'วันราชการ', val: nW }, { lbl: 'วันหยุด', val: N - nW },
           { lbl: 'นักขัตฤกษ์', val: (cal.holidays || []).length }, { lbl: 'คลินิก (วัน)', val: nC },

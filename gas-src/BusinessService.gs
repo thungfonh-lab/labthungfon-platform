@@ -569,16 +569,19 @@ var BusinessService = (function () {
     return rows;
   }
 
+  /** ตั้งแต่รองรับหลายคนต่อ 1 เวร/1 วัน (ผ่าน override) — ch/b/d และ clinicMt/clinicLa/laB
+   *  เก็บเป็น array ของ pid แทนค่าเดียว (rows ที่ day+shiftType ซ้ำกันคือหลายคนอยู่เวรเดียวกัน) */
   function unflattenAssignments_(rows, N) {
     var assign = {}, clinicMt = {}, clinicLa = {}, laB = {};
-    for (var d = 1; d <= N; d++) assign[d] = { ch: null, b: null, d: null };
+    for (var d = 1; d <= N; d++) assign[d] = { ch: [], b: [], d: [] };
     rows.forEach(function (r) {
-      if (r.shiftType === 'ch') assign[r.day].ch = r.pid;
-      else if (r.shiftType === 'b') assign[r.day].b = r.pid;
-      else if (r.shiftType === 'd') assign[r.day].d = r.pid;
-      else if (r.shiftType === 'n_mt') clinicMt[r.day] = r.pid;
-      else if (r.shiftType === 'n_la') clinicLa[r.day] = r.pid;
-      else if (r.shiftType === 'b1') laB[r.day] = r.pid;
+      if (!r.pid) return;
+      if (r.shiftType === 'ch') assign[r.day].ch.push(r.pid);
+      else if (r.shiftType === 'b') assign[r.day].b.push(r.pid);
+      else if (r.shiftType === 'd') assign[r.day].d.push(r.pid);
+      else if (r.shiftType === 'n_mt') (clinicMt[r.day] = clinicMt[r.day] || []).push(r.pid);
+      else if (r.shiftType === 'n_la') (clinicLa[r.day] = clinicLa[r.day] || []).push(r.pid);
+      else if (r.shiftType === 'b1') (laB[r.day] = laB[r.day] || []).push(r.pid);
     });
     return { assign: assign, clinicMt: clinicMt, clinicLa: clinicLa, laB: laB, N: N };
   }
@@ -608,23 +611,24 @@ var BusinessService = (function () {
     var status = rows.length ? rows[0].status : 'none';
     var unflat = unflattenAssignments_(rows, N);
 
-    /* assign[0] = d ข้ามเดือน — ให้ cellToks วันที่ 1 แสดง "ด" (ไม่บันทึก DB) */
+    /* assign[0] = d ข้ามเดือน — ให้ cellToks วันที่ 1 แสดง "ด" (ไม่บันทึก DB)
+       เผื่อหลายคนอยู่เวร ด วันสุดท้ายของเดือนก่อนพร้อมกันได้ (ผ่าน override) */
     var prevM2 = month - 1, prevY2 = year;
     if (prevM2 < 0) { prevM2 = 11; prevY2--; }
     var pt2 = DataService.getTrailInfo(prevY2, prevM2);
-    var prevLDP = pt2 ? pt2.lastDayPid : null;
-    if (!prevLDP) {
+    var prevLDP = pt2 && pt2.lastDayPid ? [pt2.lastDayPid] : [];
+    if (!prevLDP.length) {
       var pr2 = DataService.getScheduleAssignments(prevY2, prevM2);
       if (pr2 && pr2.length) {
         var pN2 = dim_(prevY2, prevM2);
         var pu2 = unflattenAssignments_(pr2, pN2);
-        prevLDP = pu2.assign[pN2] ? pu2.assign[pN2].d : null;
+        prevLDP = pu2.assign[pN2] ? pu2.assign[pN2].d : [];
       }
     }
-    if (prevLDP) {
+    if (prevLDP.length) {
       var people2 = DataService.getPeople();
-      var cp3 = byId_(people2, prevLDP);
-      if (cp3 && cp3.active !== false) unflat.assign[0] = { ch: null, b: null, d: prevLDP };
+      var activePrevLDP = prevLDP.filter(function (pid) { var cp3 = byId_(people2, pid); return cp3 && cp3.active !== false; });
+      if (activePrevLDP.length) unflat.assign[0] = { ch: [], b: [], d: activePrevLDP };
     }
 
     return {
@@ -656,12 +660,12 @@ var BusinessService = (function () {
     for (var d = 1; d <= N; d++) {
       var a = unflat.assign[d];
       if (a) {
-        if (a.ch && isOff_(year, month, d, holidays) && r[a.ch]) r[a.ch].ch.push(d);
-        if (a.b && r[a.b]) r[a.b].b.push(d);
+        if (isOff_(year, month, d, holidays)) (a.ch || []).forEach(function (pid) { if (r[pid]) r[pid].ch.push(d); });
+        (a.b || []).forEach(function (pid) { if (r[pid]) r[pid].b.push(d); });
       }
-      if (unflat.laB[d] && r[unflat.laB[d]]) r[unflat.laB[d]].b1.push(d);
-      if (unflat.clinicMt[d] && r[unflat.clinicMt[d]]) r[unflat.clinicMt[d]].n.push(d);
-      if (unflat.clinicLa[d] && r[unflat.clinicLa[d]]) r[unflat.clinicLa[d]].n.push(d);
+      (unflat.laB[d] || []).forEach(function (pid) { if (r[pid]) r[pid].b1.push(d); });
+      (unflat.clinicMt[d] || []).forEach(function (pid) { if (r[pid]) r[pid].n.push(d); });
+      (unflat.clinicLa[d] || []).forEach(function (pid) { if (r[pid]) r[pid].n.push(d); });
     }
     /* เวร ด (on call) นับเป็น 2 ช่วงเวลาแยกกัน: 00.00-04.00 (d0) และ 04.00-08.00 (d1)
        on call หลายเวลาในช่วงเดียวกันของวันเดียวกัน นับเป็น 1 ครั้งของช่วงนั้น ไม่ใช่นับซ้ำต่อเวลา */
@@ -801,19 +805,20 @@ var BusinessService = (function () {
     var swapDay = null;
 
     if (shift === 'b') {
-      for (var d1 = N; d1 >= 1; d1--) { if (unflat.assign[d1] && unflat.assign[d1].b === ovId) { swapDay = d1; break; } }
+      for (var d1 = N; d1 >= 1; d1--) { if (unflat.assign[d1] && (unflat.assign[d1].b || []).indexOf(ovId) > -1) { swapDay = d1; break; } }
     } else if (shift === 'ch') {
-      for (var d2 = N; d2 >= 1; d2--) { if (unflat.assign[d2] && unflat.assign[d2].ch === ovId) { swapDay = d2; break; } }
+      for (var d2 = N; d2 >= 1; d2--) { if (unflat.assign[d2] && (unflat.assign[d2].ch || []).indexOf(ovId) > -1) { swapDay = d2; break; } }
     } else if (shift === 'b1') {
-      for (var d3 = N; d3 >= 1; d3--) { if (unflat.laB[d3] === ovId) { swapDay = d3; break; } }
+      for (var d3 = N; d3 >= 1; d3--) { if ((unflat.laB[d3] || []).indexOf(ovId) > -1) { swapDay = d3; break; } }
     } else if (shift === 'n') {
       for (var d4 = N; d4 >= 1; d4--) {
-        if (unflat.clinicMt[d4] === ovId || unflat.clinicLa[d4] === ovId) { swapDay = d4; break; }
+        if ((unflat.clinicMt[d4] || []).indexOf(ovId) > -1 || (unflat.clinicLa[d4] || []).indexOf(ovId) > -1) { swapDay = d4; break; }
       }
     }
     if (!swapDay) throw new Error('ไม่พบวันที่จะสลับ');
 
-    DataService.setAssignment(year, month, swapDay, shift, unId, userId);
+    DataService.removeAssignment(year, month, swapDay, shift, ovId);
+    DataService.addAssignment(year, month, swapDay, shift, unId);
     DataService.addOverride(year, month, {
       day: swapDay, type: 'balance-swap', shift: shift, from: ovId, to: unId,
       reason: 'สมดุลเวร: ' + ovId + ' → ' + unId

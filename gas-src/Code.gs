@@ -283,7 +283,8 @@ function api_listHolidays(token, year, month) {
 function api_addOverride(token, year, month, entry) {
   var session = AuthService.requireSession(token);
   AuthService.requirePermission(session.user, 'override', false);
-  DataService.setAssignment(year, month, entry.day, entry.shift, entry.to, session.user.userId);
+  if (entry.type === 'manual-remove') DataService.removeAssignment(year, month, entry.day, entry.shift, entry.from);
+  else DataService.addAssignment(year, month, entry.day, entry.shift, entry.to);
   DataService.addOverride(year, month, entry, session.user.userId);
   invalidateCalCache_(year, month);
   AuditService.logAction(session.user.userId, 'UPDATE', 'Overrides', 'day-' + entry.day, null, entry);

@@ -469,21 +469,24 @@ var DataService = (function () {
     return rows;
   }
 
-  /** Ported from applyOvr(): mutate a single day/shiftType cell, used by the manual override modal. */
-  function setAssignment(year, month, day, shiftType, pid, updatedBy) {
-    var sheet = getSheet_(SHEETS.SCHEDULES);
+  /** ตั้งแต่รองรับหลายคนต่อ 1 เวร/1 วัน — day+shiftType ไม่ใช่ unique key อีกต่อไป
+   *  (หลาย row วัน+เวรเดียวกัน คนละ pid = หลายคนอยู่เวรพร้อมกัน) ใช้แทน setAssignment เดิม
+   *  ที่เคย "หา row เดียวแล้วเขียนทับ" ซึ่งทำให้เพิ่มคนใหม่ = เตะคนเดิมออกเสมอ */
+  function addAssignment(year, month, day, shiftType, pid) {
+    if (!pid) return { added: false };
     var rows = getScheduleAssignments(year, month);
-    var existing = rows.filter(function (r) { return r.day === day && r.shiftType === shiftType; })[0];
+    var dup = rows.some(function (r) { return r.day === day && r.shiftType === shiftType && r.pid === pid; });
+    if (dup) return { added: false };
     var status = rows.length ? (rows[0].status || 'draft') : 'draft';
-    if (existing) {
-      updateRow_(SHEETS.SCHEDULES, existing.__rowIndex, {
-        year: year, month: month, day: day, shiftType: shiftType, pid: pid, status: status
-      });
-    } else if (pid) {
-      appendRow(SHEETS.SCHEDULES, {
-        year: year, month: month, day: day, shiftType: shiftType, pid: pid, status: status
-      });
-    }
+    appendRow(SHEETS.SCHEDULES, { year: year, month: month, day: day, shiftType: shiftType, pid: pid, status: status });
+    return { added: true };
+  }
+
+  function removeAssignment(year, month, day, shiftType, pid) {
+    var rows = getScheduleAssignments(year, month);
+    var existing = rows.filter(function (r) { return r.day === day && r.shiftType === shiftType && r.pid === pid; })[0];
+    if (existing) deleteRow_(SHEETS.SCHEDULES, existing.__rowIndex);
+    return { removed: !!existing };
   }
 
   function setScheduleStatus(year, month, status) {
@@ -622,7 +625,8 @@ var DataService = (function () {
     getTrailInfo: getTrailInfo, setTrailInfo: setTrailInfo,
     getDutyRoster: getDutyRoster, setDutyRoster: setDutyRoster,
     getScheduleAssignments: getScheduleAssignments, getScheduleStatus: getScheduleStatus,
-    saveScheduleAssignments: saveScheduleAssignments, setScheduleStatus: setScheduleStatus, setAssignment: setAssignment,
+    saveScheduleAssignments: saveScheduleAssignments, setScheduleStatus: setScheduleStatus,
+    addAssignment: addAssignment, removeAssignment: removeAssignment,
     getPermission: getPermission, getAllPermissions: getAllPermissions, setPermission: setPermission,
     crudMasterDataBulk: crudMasterDataBulk,
     previewArchive: previewArchive, archiveOldData: archiveOldData
