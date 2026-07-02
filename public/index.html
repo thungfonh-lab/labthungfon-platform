@@ -456,6 +456,15 @@ tbody tr:last-child td{border-bottom:none}
   .rep-tbl th,.rep-tbl td{border-style:solid!important;border-color:#000!important;border-width:0 .5px .5px 0!important}
   .rep-tbl th{border-top-width:.5px!important}
   .rep-tbl td:first-child,.rep-tbl th:first-child{border-left-width:.5px!important}
+  /* ใบเบิกเงินรวม/oncall record ฯลฯ (ห่อด้วย .rep-tbl-wrap) — กฎ 3 บรรทัดด้านบนเติมซ้าย/บนให้คอลัมน์แรก/แถวหัว
+     เพื่อให้ .rep-tbl-sig (ไม่มี div ห่อ) วาดกรอบนอกของตัวเองครบ 4 ด้าน แต่ตารางที่มี .rep-tbl-wrap ห่ออยู่แล้ว
+     ขอบซ้าย/บน/ขวา (ผ่านทุกเซลล์คอลัมน์สุดท้าย)/ล่าง (ผ่านทุกเซลล์แถวสุดท้าย) ของตัวตารางจะซ้อนทับเส้นขอบของ
+     div ห่อพอดี กลายเป็นเส้นคู่หนักกว่าเส้นภายในที่วาดครั้งเดียว — ตัดเส้นขอบตัวตารางฝั่งที่ทับกับ div ออกทั้งหมด
+     ให้ div ห่อเป็นคนวาดกรอบนอกแต่ผู้เดียว เหลือแต่เส้นภายใน (คอลัมน์กลาง/แถวกลาง) ที่ตารางวาดเอง */
+  .rep-tbl-wrap .rep-tbl th{border-top-width:0!important}
+  .rep-tbl-wrap .rep-tbl td:first-child,.rep-tbl-wrap .rep-tbl th:first-child{border-left-width:0!important}
+  .rep-tbl-wrap .rep-tbl td:last-child,.rep-tbl-wrap .rep-tbl th:last-child{border-right-width:0!important}
+  .rep-tbl-wrap .rep-tbl tbody tr:last-child td{border-bottom-width:0!important}
   /* บันทึก on-call (รายละเอียด) — ตัดหัวรายงานย่อยออก เพิ่มระยะห่างระหว่างบรรทัดให้อ่านง่าย */
   .oc-claim-blk{line-height:2;padding:10px 0!important}
   .oc-claim-blk>div{margin-bottom:3px}
