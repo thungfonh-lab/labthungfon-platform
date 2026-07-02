@@ -110,6 +110,7 @@ function showModal(title, bodyHtml, confirmTxt, onConfirm) {
   if (typeof bodyHtml === 'string') body.innerHTML = bodyHtml;
   else body.appendChild(bodyHtml);
   var btn = document.getElementById('modalConfirm');
+  btn.style.display = confirmTxt === false ? 'none' : '';
   btn.textContent = confirmTxt || 'ตกลง';
   _modalConfirmHandler = onConfirm || null;
   btn.onclick = function () { if (_modalConfirmHandler) _modalConfirmHandler(); };

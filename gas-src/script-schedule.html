@@ -238,7 +238,10 @@ var Schedule = (function () {
       for (var d2 = 1; d2 <= cal.N; d2++) {
         var toks = cellToks(p, d2, cal);
         toks.forEach(function (t) { sums[t] = (sums[t] || 0) + 1; });
-        var ovrd = (cal.overrides || []).some(function (o) { return o.day === d2 && (o.aff || []).indexOf(p.id) > -1; });
+        var ovrd = (cal.overrides || []).some(function (o) {
+          if ((o.aff || []).indexOf(p.id) === -1) return false;
+          return (o.shift === 'd' ? o.day + 1 : o.day) === d2;
+        });
         row += '<td class="' + dowCls(d2) + '"><div class="cell' + (ovrd ? ' ovrd' : '') + '" data-day="' + d2 + '" data-pid="' + p.id + '">' + toks.map(tokEl).join('') + '</div></td>';
       }
       var isLA = p.role === 'LA';
@@ -266,6 +269,7 @@ var Schedule = (function () {
   };
   var OVR_TYPE_LABEL = {
     'manual-override': 'แก้ไขด้วยตนเอง',
+    'manual-remove': 'เอาเวรออก',
     'balance-swap': 'สลับสมดุลอัตโนมัติ',
     'cross-month-unlock': 'ปลดล็อกข้ามเดือน'
   };
@@ -301,7 +305,8 @@ var Schedule = (function () {
       overrides.slice().reverse().map(function (o) {
         var t = o.time ? new Date(o.time).toLocaleString('th-TH', { hour: '2-digit', minute: '2-digit' }) : '';
         var change = o.from && o.to ? ((byId[o.from] ? byId[o.from].short || byId[o.from].name : o.from) + ' → ' + (byId[o.to] ? byId[o.to].short || byId[o.to].name : o.to)) : (o.shiftLabel || o.reason || '');
-        return '<tr><td>' + t + '</td><td>วันที่ ' + o.day + '</td><td><span class="badge none">' + (OVR_TYPE_LABEL[o.type] || o.type || 'override') + '</span></td><td class="l">' + change + '</td></tr>';
+        var dispDay = o.shift === 'd' ? o.day + 1 : o.day;
+        return '<tr><td>' + t + '</td><td>วันที่ ' + dispDay + '</td><td><span class="badge none">' + (OVR_TYPE_LABEL[o.type] || o.type || 'override') + '</span></td><td class="l">' + change + '</td></tr>';
       }).join('');
   }
 
@@ -310,13 +315,20 @@ var Schedule = (function () {
     ['ch', 'เวรเช้า (วันหยุด)'], ['b', 'เวรบ่าย'], ['d', 'เวรดึก On call'],
     ['n_mt', 'เวรคลินิกนอกเวลา (MT)'], ['n_la', 'เวรคลินิกนอกเวลา (LA)'], ['b1', 'บ1 เวรเสริมบ่าย']
   ];
+  var OVR_SHIFT_LABEL_ = {}; OVR_SHIFT_OPTS.forEach(function (o) { OVR_SHIFT_LABEL_[o[0]] = o[1]; });
   var OVR_BLOCK_PRESETS = [
     { id: '', label: '(เลือกทีละเวร)', shifts: [] },
     { id: 'chbd', label: 'ทั้งก้อน ช+บ+ด', shifts: ['ch', 'b', 'd'] },
     { id: 'bd', label: 'ทั้งก้อน บ+ด', shifts: ['b', 'd'] }
   ];
+  /* เวร "d" ต่อเนื่องจากเมื่อคืน จบ 08:00 — cellToks() จึงแสดงผลของ assign[day-1].d ไว้ในช่องวันที่ day
+     (ดูคอมเมนต์ cellToks ด้านบน) ตอน override ต้องเขียนย้อนกลับไปที่ day-1 ให้ตรงกับสิ่งที่มองเห็นจริง
+     ไม่งั้นจะกลายเป็นบั๊ก "ต้องคลิกวันก่อนหน้าถึงจะย้ายเวรที่เห็น" */
+  function ovrStorageDay_(day, shift) { return shift === 'd' ? day - 1 : day; }
   function openOvr(day, pid) {
     loadPeople().then(function (people) {
+      var byId = {}; people.forEach(function (p) { byId[p.id] = p; });
+      var clickedName = byId[pid] ? fullN(byId[pid]) : '';
       var opts = people.map(function (p) { return '<option value="' + p.id + '"' + (p.id === pid ? ' selected' : '') + '>' + fullN(p) + '</option>'; }).join('');
       var body = document.createElement('div');
       body.innerHTML = '<div class="alert" style="background:var(--coral-l);border-color:var(--coral);color:var(--coral);"><i class="ti ti-alert-triangle"></i> Override ยกเว้นกฎทั้งหมด · บันทึก Log ทันที</div>' +
@@ -325,27 +337,53 @@ var Schedule = (function () {
         '<label style="grid-column:1/-1;">ประเภทเวร (เลือกได้หลายเวร)<div id="ovrShiftChips" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px;">' +
         OVR_SHIFT_OPTS.map(function (o) { return '<label style="display:flex;align-items:center;gap:4px;font-size:12.5px;border:1px solid var(--border);border-radius:7px;padding:4px 8px;cursor:pointer;"><input type="checkbox" value="' + o[0] + '" class="ovrShiftChk"> ' + o[1] + '</label>'; }).join('') +
         '</div></label>' +
-        '<label>เจ้าหน้าที่<select id="ovrPid">' + opts + '</select></label>' +
-        '<label style="grid-column:1/-1;">เหตุผล<textarea id="ovrReason" rows="2" style="border:1px solid var(--border);border-radius:7px;padding:6px;"></textarea></label></div>';
+        '<label>มอบเวรให้ (ใช้กับปุ่ม "เพิ่มเวร" เท่านั้น)<select id="ovrPid">' + opts + '</select></label>' +
+        '<label style="grid-column:1/-1;">เหตุผล<textarea id="ovrReason" rows="2" style="border:1px solid var(--border);border-radius:7px;padding:6px;"></textarea></label></div>' +
+        '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px;">' +
+        '<button class="btn btn-danger btn-sm" id="ovrRemoveBtn"><i class="ti ti-minus"></i> เอาเวรออก' + (clickedName ? (' จาก ' + clickedName) : '') + '</button>' +
+        '<button class="btn btn-primary btn-sm" id="ovrAddBtn"><i class="ti ti-plus"></i> เพิ่มเวร</button>' +
+        '</div>';
       body.querySelector('#ovrPreset').onchange = function (e) {
         var preset = OVR_BLOCK_PRESETS.filter(function (p) { return p.id === e.target.value; })[0];
         body.querySelectorAll('.ovrShiftChk').forEach(function (chk) { chk.checked = preset.shifts.indexOf(chk.value) > -1; });
       };
-      showModal('แก้ไข/สลับเวร — วันที่ ' + day + ' ' + monthLabel(), body, 'บันทึก Override', function () {
+      function pickedShifts() {
         var shifts = Array.prototype.slice.call(body.querySelectorAll('.ovrShiftChk:checked')).map(function (c) { return c.value; });
-        if (!shifts.length) { toast('กรุณาเลือกประเภทเวรอย่างน้อย 1 เวร', '', true); return; }
-        var toPid = document.getElementById('ovrPid').value, reason = document.getElementById('ovrReason').value;
+        if (!shifts.length) toast('กรุณาเลือกประเภทเวรอย่างน้อย 1 เวร', '', true);
+        return shifts;
+      }
+      function submit(shifts, toPid, ovrType, entryExtra, successMsg) {
+        var reason = document.getElementById('ovrReason').value;
+        var crossMonth = false;
         var calls = shifts.map(function (shift) {
-          return gsRun('api_addOverride', Session.token, current.year, current.month, {
-            day: day, type: 'manual-override', shift: shift, to: toPid, from: pid || null,
+          var storageDay = ovrStorageDay_(day, shift);
+          if (storageDay < 1) { crossMonth = true; return null; }
+          var entry = {
+            day: storageDay, type: ovrType, shift: shift, to: toPid || null, from: pid || null,
             reason: reason, time: new Date().toISOString(), aff: [pid, toPid].filter(Boolean)
-          });
-        });
+          };
+          Object.assign(entry, entryExtra(shift));
+          return gsRun('api_addOverride', Session.token, current.year, current.month, entry);
+        }).filter(Boolean);
+        if (crossMonth) toast('เวร ด ของวันที่ 1 เป็นเวรข้ามเดือนจากเดือนก่อน กรุณาแก้ไขที่ตารางเดือนก่อนหน้าแทน', '', true);
+        if (!calls.length) { if (!crossMonth) closeModal(); return; }
         Promise.all(calls).then(function () {
           invalidateMonthCache();
-          toast('บันทึก Override แล้ว (' + shifts.length + ' เวร)'); closeModal(); loadAndRenderGrid();
+          toast(successMsg + ' (' + calls.length + ' เวร)'); closeModal(); loadAndRenderGrid();
         }).catch(function () { closeModal(); });
-      });
+      }
+      body.querySelector('#ovrAddBtn').onclick = function () {
+        var shifts = pickedShifts(); if (!shifts.length) return;
+        var toPid = document.getElementById('ovrPid').value;
+        submit(shifts, toPid, 'manual-override', function () { return {}; }, 'บันทึก Override แล้ว');
+      };
+      body.querySelector('#ovrRemoveBtn').onclick = function () {
+        var shifts = pickedShifts(); if (!shifts.length) return;
+        submit(shifts, null, 'manual-remove', function (shift) {
+          return { shiftLabel: 'เอา ' + clickedName + ' ออกจากเวร ' + (OVR_SHIFT_LABEL_[shift] || shift) };
+        }, 'เอาเวรออกแล้ว');
+      };
+      showModal('แก้ไข/สลับเวร — วันที่ ' + day + ' ' + monthLabel(), body, false);
     });
   }
 
@@ -1241,10 +1279,9 @@ var Schedule = (function () {
       d0: 'เวรดึก On call 00.00-04.00', d1: 'เวรดึก On call 04.00-08.00',
       n: 'เวรคลินิกนอกเวลา 07-08', b1: 'บ1 เวรเสริมบ่าย 16-20'
     };
+    var ROLE_LABEL_ = { MT: 'MT/HT', LA: 'ผู้ช่วย (LA)' };
     var rateRow = function (role, label) {
       return '<tr><td class="l">' + label + '</td>' + SH.map(function (sh) {
-        var applicable = (role === 'MT' && sh !== 'b1') || (role === 'LA' && (sh === 'ch' || sh === 'b1' || sh === 'n'));
-        if (!applicable) return '<td style="color:#ccc;">—</td>';
         var v = (rates[role] || {})[sh];
         v = (v === undefined || v === null || v === '') ? '0.00' : Number(v).toFixed(2);
         return '<td style="padding:4px 6px;"><input type="number" step="0.01" min="0" inputmode="decimal" data-rate-role="' + role + '" data-rate-sh="' + sh + '" value="' + v + '" ' +
@@ -1256,7 +1293,7 @@ var Schedule = (function () {
       '<div class="tbl-wrap"><table class="tbl" style="table-layout:fixed;"><tr><th style="width:18%;">กลุ่ม</th><th>ช</th><th>บ</th><th>ด (00.00-04.00)</th><th>ด (04.00-08.00)</th><th>น</th><th>บ1</th></tr>' + rateRow('MT', 'MT/HT') + rateRow('LA', 'ผู้ช่วย (LA)') + '</table></div>' +
       '<button class="btn btn-primary btn-sm" id="ratesSaveBtn" style="margin-top:10px;">บันทึกอัตรา</button>' +
       '<div class="card-title" style="margin-top:18px;">อัตราพิเศษ (Override)</div>' +
-      '<p style="font-size:11.5px;color:var(--mut);margin-bottom:8px;">เจาะจงมากกว่า = ใช้ก่อน: บุคคล &gt; ช่วงวันที่ &gt; อัตรามาตรฐาน</p>' +
+      '<p style="font-size:11.5px;color:var(--mut);margin-bottom:8px;">เจาะจงมากกว่า = ใช้ก่อน: บุคคล &gt; บทบาท &gt; ช่วงวันที่ &gt; อัตรามาตรฐาน</p>' +
       '<div style="display:flex;justify-content:flex-end;margin-bottom:8px;"><button class="btn btn-sm" id="addRateOvrBtn"><i class="ti ti-plus"></i> เพิ่มอัตราพิเศษ</button></div>' +
       '<div class="tbl-wrap"><table class="tbl" id="rateOvrTbl"></table></div>';
 
@@ -1268,11 +1305,11 @@ var Schedule = (function () {
 
     var byId = {}; people.forEach(function (p) { byId[p.id] = p; });
     function paintOvr() {
-      document.getElementById('rateOvrTbl').innerHTML = '<tr><th>เวร</th><th>บุคคล</th><th>ช่วงวันที่</th><th>จำนวน</th><th></th></tr>' +
+      document.getElementById('rateOvrTbl').innerHTML = '<tr><th>เวร</th><th>บุคคล</th><th>บทบาท</th><th>ช่วงวันที่</th><th>จำนวน</th><th></th></tr>' +
         rateOvr.map(function (o) {
-          return '<tr><td>' + (SH_FULL_LABEL[o.shift] || o.shift) + '</td><td class="l">' + (o.pid ? (byId[o.pid] ? fullN(byId[o.pid]) : o.pid) : 'ทุกคน') + '</td><td>' + (o.from ? (o.from + '-' + (o.to || '')) : 'ทั้งเดือน') + '</td><td>' + o.amount + '</td>' +
+          return '<tr><td>' + (SH_FULL_LABEL[o.shift] || o.shift) + '</td><td class="l">' + (o.pid ? (byId[o.pid] ? fullN(byId[o.pid]) : o.pid) : 'ทุกคน') + '</td><td>' + (o.role ? (ROLE_LABEL_[o.role] || o.role) : 'ทุกบทบาท') + '</td><td>' + (o.from ? (o.from + '-' + (o.to || '')) : 'ทั้งเดือน') + '</td><td>' + o.amount + '</td>' +
             '<td><button class="btn btn-sm btn-danger" data-del="' + o.id + '"><i class="ti ti-trash"></i></button></td></tr>';
-        }).join('') || '<tr><td colspan="5" style="color:var(--mut)">ไม่มีอัตราพิเศษ</td></tr>';
+        }).join('') || '<tr><td colspan="6" style="color:var(--mut)">ไม่มีอัตราพิเศษ</td></tr>';
       document.querySelectorAll('#rateOvrTbl [data-del]').forEach(function (b) {
         b.onclick = function () { gsRun('api_crud', Session.token, 'rateOvr', 'delete', { id: b.dataset.del }).then(function () { rateOvr = rateOvr.filter(function (o) { return o.id !== b.dataset.del; }); paintOvr(); }); };
       });
@@ -1282,11 +1319,12 @@ var Schedule = (function () {
       f.innerHTML = '<div class="frm-grid">' +
         '<label>เวร<select data-f="shift">' + SH.map(function (s) { return '<option value="' + s + '">' + SH_FULL_LABEL[s] + '</option>'; }).join('') + '</select></label>' +
         '<label>บุคคล (เว้นว่าง=ทุกคน)<select data-f="pid"><option value="">ทุกคน</option>' + people.map(function (p) { return '<option value="' + p.id + '">' + fullN(p) + '</option>'; }).join('') + '</select></label>' +
+        '<label>บทบาท (เว้นว่าง=ทุกบทบาท ใช้ตอนไม่ระบุบุคคล)<select data-f="role"><option value="">ทุกบทบาท</option><option value="MT">' + ROLE_LABEL_.MT + '</option><option value="LA">' + ROLE_LABEL_.LA + '</option></select></label>' +
         '<label>วันที่เริ่ม<input data-f="from" type="number"></label><label>ถึงวันที่<input data-f="to" type="number"></label>' +
         '<label>จำนวน (บาท)<input data-f="amount" type="number" step="0.01" min="0" inputmode="decimal"></label></div>';
       showModal('เพิ่มอัตราพิเศษ', f, 'บันทึก', function () {
         var payload = {};
-        ['shift', 'pid', 'from', 'to', 'amount'].forEach(function (k) { payload[k] = f.querySelector('[data-f="' + k + '"]').value; });
+        ['shift', 'pid', 'role', 'from', 'to', 'amount'].forEach(function (k) { payload[k] = f.querySelector('[data-f="' + k + '"]').value; });
         payload.from = payload.from ? +payload.from : null; payload.to = payload.to ? +payload.to : null; payload.amount = Math.round((+payload.amount || 0) * 100) / 100;
         gsRun('api_crud', Session.token, 'rateOvr', 'create', payload).then(function (r) { closeModal(); toast('บันทึกแล้ว'); rateOvr.push(r); paintOvr(); });
       });

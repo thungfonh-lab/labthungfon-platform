@@ -55,14 +55,15 @@ var BusinessService = (function () {
     return h < 4 ? 'd0' : 'd1';
   }
 
-  /** Ported from rateFor() (lines 1676-1685). */
+  /** Ported from rateFor() (lines 1676-1685). ความเจาะจง: บุคคล > บทบาท > (ทุกคน) แล้วเสริมด้วยช่วงวันที่ */
   function rateFor_(rateOvr, rates, p, shift, day) {
     var best = null, score = -1;
     rateOvr.forEach(function (o) {
       if (o.shift !== shift) return;
-      if (o.pid && o.pid !== p.id) return;
+      if (o.pid) { if (o.pid !== p.id) return; }
+      else if (o.role) { if (o.role !== roleOf_(p)) return; }
       if (o.from && day && (day < o.from || (o.to && day > o.to))) return;
-      var s = (o.pid ? 2 : 0) + (o.from ? 1 : 0);
+      var s = (o.pid ? 3 : (o.role ? 2 : 0)) * 10 + (o.from ? 1 : 0);
       if (s > score) { score = s; best = o.amount; }
     });
     if (best !== null) return best;
