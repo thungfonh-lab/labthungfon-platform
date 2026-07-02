@@ -167,7 +167,7 @@ tbody tr:last-child td{border-bottom:none}
 .sched th.dow{height:16px;font-size:10px;color:var(--ink2)}
 .sched td.wknd,.sched th.wknd{background:var(--coral-l)}
 .sched td.holi,.sched th.holi{background:var(--coral-l)}
-.sched .nm{text-align:left;white-space:nowrap;padding:4px 8px;font-weight:600;font-size:12px;position:sticky;left:0;background:var(--surface);z-index:3;border-right:1px solid var(--border);min-width:120px;max-width:160px}
+.sched .nm{text-align:left;white-space:nowrap;padding:4px 8px;font-weight:600;font-size:12px;position:sticky;left:0;background:var(--surface);z-index:3;min-width:120px;max-width:160px}
 .sched .sumcol{font-weight:700;background:var(--tl-vl);color:var(--tl-d);font-size:11px;min-width:26px;white-space:nowrap}
 .sched .cell{cursor:pointer;height:30px;display:flex;align-items:center;justify-content:center;gap:1px;flex-wrap:wrap;padding:1px;position:relative}
 .sched .cell:hover{outline:2px solid var(--tl);outline-offset:-2px;z-index:2}
@@ -429,7 +429,7 @@ tbody tr:last-child td{border-bottom:none}
      ใส่กรอบระดับ table ไม่ได้ (จะครอบหัวรายงานตามที่อธิบายไว้ด้านบน) จึงแก้ด้วยการหด width ลง 1px แทน ให้ขอบขวา/ล่าง
      ของตารางขยับเข้ามาไม่ชิดขอบกระดาษพอดีเป๊ะ หลบบั๊กการตัดเส้นของ Chrome ได้โดยไม่ต้องพึ่งกรอบระดับ table */
   .sched,.tbl,.rep-tbl{border-collapse:separate!important;border-spacing:0!important;box-sizing:border-box!important}
-  .sched,.tbl{border:1px solid #000!important}
+  .sched,.tbl{border:.5px solid #000!important}
   .rep-tbl-sig{width:calc(100% - 1px)!important}
   /* รอบหก: รอบสี่/ห้าพยายามให้ตัว <table> วาดกรอบนอกเอง (ซ้อนทับเซลล์ขอบพอดีตำแหน่ง คาดว่า Chrome จะเรนเดอร์เป็น
      เส้นเดียว) แต่ทดสอบพิมพ์จริงแล้วขอบขวายังหายอยู่ดี — สรุปว่า border ระดับ <table> ไม่น่าเชื่อถือใน Chrome
@@ -447,16 +447,15 @@ tbody tr:last-child td{border-bottom:none}
      ไม่ได้ช่วยอะไรเลยจริงๆ แถมพบว่าโหมดแนวตั้ง/แนวนอนใช้ margin กระดาษคนละค่า (portrait 9mm, landscape 6mm — ดู
      printWithPageSize() ใน script-schedule.html) ทำให้ผลต่างกัน หด width ของ wrapper ลงจริงๆ ด้วยหน่วย mm (แม่นยำ
      กว่า px ตอนคำนวณระยะจากขอบกระดาษ) ให้เผื่อระยะพอจะพ้นเขตที่ Chrome ตัดเส้น ไม่ว่าจะ margin ค่าไหน */
-  .rep-tbl-wrap{width:calc(100% - 2mm)!important;border:1px solid #000!important;box-sizing:border-box!important;box-shadow:inset 0 0 0 1px #000!important}
-  .sched th,.sched td,.tbl th,.tbl td{border:1px solid #000!important}
-  .rep-tbl th,.rep-tbl td{border-width:0 0 1px 1px!important;border-style:solid!important;border-color:#000!important}
-  .rep-tbl th{border-top-width:1px!important}
-  .rep-tbl th:last-child,.rep-tbl td:last-child{border-right-width:1px!important}
-  .rep-tbl td,.rep-tbl th{box-shadow:inset -1px 0 0 #000,inset 0 -1px 0 0 #000!important}
-  .rep-tbl th{box-shadow:inset -1px 0 0 #000,inset 0 -1px 0 0 #000,inset 0 1px 0 0 #000!important}
-  .rep-tbl td:first-child{box-shadow:inset -1px 0 0 #000,inset 0 -1px 0 0 #000,inset 1px 0 0 #000!important}
-  .rep-tbl th:first-child{box-shadow:inset -1px 0 0 #000,inset 0 -1px 0 0 #000,inset 1px 0 0 #000,inset 0 1px 0 0 #000!important}
-  .rep-tbl-sig .rt-head-row th{box-shadow:none!important}
+  .rep-tbl-wrap{width:calc(100% - 2mm)!important;border:.5px solid #000!important;box-sizing:border-box!important;box-shadow:inset 0 0 0 .5px #000!important}
+  .sched th,.sched td,.tbl th,.tbl td{border:.5px solid #000!important}
+  /* เดิมวาดกรอบครบ 4 ด้านทุกเซลล์ + box-shadow ทาบซ้อนอีกชั้นบนขอบเดียวกัน (ขวา/ล่าง/ซ้ายคอลัมน์แรก/บนแถวหัว)
+     ซ้ำซ้อนกันเปล่าๆ (ตอน 1px ทับกันสนิทพอดี พิกเซลเลยมองไม่ออก แต่ตอนลดเหลือ .5px เส้นที่ทับกันไม่สนิท
+     ระดับ subpixel อาจเบลอ/ดูเป็นเส้นคู่ได้) ตัด box-shadow ออก ใช้ border ล้วนวาดแค่ขวา+ล่างทุกเซลล์
+     (พอสำหรับเส้นภายในเพราะเซลล์ติดกันแชร์เส้นเดียว) แล้วเติมซ้ายเฉพาะคอลัมน์แรก บนเฉพาะแถวหัว ให้ครบกรอบนอก */
+  .rep-tbl th,.rep-tbl td{border-style:solid!important;border-color:#000!important;border-width:0 .5px .5px 0!important}
+  .rep-tbl th{border-top-width:.5px!important}
+  .rep-tbl td:first-child,.rep-tbl th:first-child{border-left-width:.5px!important}
   /* บันทึก on-call (รายละเอียด) — ตัดหัวรายงานย่อยออก เพิ่มระยะห่างระหว่างบรรทัดให้อ่านง่าย */
   .oc-claim-blk{line-height:2;padding:10px 0!important}
   .oc-claim-blk>div{margin-bottom:3px}
