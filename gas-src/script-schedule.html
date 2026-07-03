@@ -270,6 +270,7 @@ var Schedule = (function () {
   var OVR_TYPE_LABEL = {
     'manual-override': 'แก้ไขด้วยตนเอง',
     'manual-remove': 'เอาเวรออก',
+    'manual-swap': 'สลับเวร',
     'balance-swap': 'สลับสมดุลอัตโนมัติ',
     'cross-month-unlock': 'ปลดล็อกข้ามเดือน'
   };
@@ -350,10 +351,11 @@ var Schedule = (function () {
             ' <span style="color:var(--mut);font-size:11px;">(ปัจจุบัน: ' + (occ.length ? occ.join(', ') : 'ว่าง') + ')</span></label>';
         }).join('') +
         '</div></label>' +
-        '<label>มอบเวรให้ (ใช้กับปุ่ม "เพิ่มเวร" เท่านั้น)<select id="ovrPid">' + opts + '</select></label>' +
+        '<label>มอบเวรให้ (ใช้กับปุ่ม "เพิ่มเวร"/"สลับเวร")<select id="ovrPid">' + opts + '</select></label>' +
         '<label style="grid-column:1/-1;">เหตุผล<textarea id="ovrReason" rows="2" style="border:1px solid var(--border);border-radius:7px;padding:6px;"></textarea></label></div>' +
         '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px;">' +
         '<button class="btn btn-danger btn-sm" id="ovrRemoveBtn"><i class="ti ti-minus"></i> เอาเวรออก' + (clickedName ? (' จาก ' + clickedName) : '') + '</button>' +
+        '<button class="btn btn-sm" id="ovrSwapBtn"><i class="ti ti-arrows-right-left"></i> สลับเวร</button>' +
         '<button class="btn btn-primary btn-sm" id="ovrAddBtn"><i class="ti ti-plus"></i> เพิ่มเวร</button>' +
         '</div>';
       body.querySelector('#ovrPreset').onchange = function (e) {
@@ -391,6 +393,18 @@ var Schedule = (function () {
             shiftLabel: 'เพิ่ม ' + toName + ' เข้าเวร ' + (OVR_SHIFT_LABEL_[shift] || shift)
           };
         }, 'บันทึก Override แล้ว');
+      };
+      body.querySelector('#ovrSwapBtn').onclick = function () {
+        var shifts = pickedShifts(); if (!shifts.length) return;
+        var toPid = document.getElementById('ovrPid').value;
+        if (toPid === pid) { toast('เลือกคนอื่นให้ต่างจากคนที่คลิก', '', true); return; }
+        var reason = document.getElementById('ovrReason').value;
+        submit(shifts, function (shift, storageDay) {
+          return {
+            day: storageDay, type: 'manual-swap', shift: shift, to: toPid, from: pid,
+            reason: reason, time: new Date().toISOString(), aff: [pid, toPid]
+          };
+        }, 'สลับเวรแล้ว');
       };
       body.querySelector('#ovrRemoveBtn').onclick = function () {
         var shifts = pickedShifts(); if (!shifts.length) return;

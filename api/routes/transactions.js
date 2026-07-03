@@ -91,7 +91,10 @@ router.post('/overrides', wrap(async (req, res) => {
   await authService.requirePermission(session.user, 'override', false);
   const { year, month, entry } = req.body;
   if (entry.type === 'manual-remove') await dataService.removeAssignment(year, month, entry.day, entry.shift, entry.from);
-  else await dataService.addAssignment(year, month, entry.day, entry.shift, entry.to);
+  else if (entry.type === 'manual-swap') {
+    await dataService.removeAssignment(year, month, entry.day, entry.shift, entry.from);
+    await dataService.addAssignment(year, month, entry.day, entry.shift, entry.to);
+  } else await dataService.addAssignment(year, month, entry.day, entry.shift, entry.to);
   await dataService.addOverride(year, month, entry, session.user.userId);
   invalidateCalCache(year, month);
   await auditService.logAction(session.user.userId, 'UPDATE', 'Overrides', 'day-' + entry.day, null, entry);
