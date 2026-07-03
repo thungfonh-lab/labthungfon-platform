@@ -27,8 +27,8 @@ var Schedule = (function () {
   /* ── shift token defs, identical colors to the original .tok.* classes ── */
   var SHIFT_DEFS = {
     ch: { short: 'ช', name: 'เวรเช้า 08-16', bg: '#d9ebe8', color: '#0a4f47' },
-    b: { short: 'บ', name: 'เวรบ่าย 16-24', bg: '#e7eef8', color: '#2f5fa0' },
-    d: { short: 'ด', name: 'เวรดึก On call 24-08', bg: '#f7ecd6', color: '#7a5618' },
+    b: { short: 'บ', name: 'เวรบ่าย 16-00', bg: '#e7eef8', color: '#2f5fa0' },
+    d: { short: 'ด', name: 'เวรดึก On call 00-08', bg: '#f7ecd6', color: '#7a5618' },
     n: { short: 'x', name: 'เวรคลินิกนอกเวลา 07-08', bg: '#ede0c4', color: '#6b4e16' },
     b1: { short: 'บ1', name: 'บ1 เวรเสริมบ่าย 16-20', bg: '#efe7f7', color: '#7a4fa0' }
   };
@@ -99,9 +99,11 @@ var Schedule = (function () {
       '<div class="legend" id="legend"></div>' +
       '<div class="sched-wrap"><table class="sched" id="schedTbl"></table></div>' +
       '<div id="violationsPanel" style="margin-top:12px;"></div>' +
+      '<div class="info-row">' +
       '<div class="card" id="contactCard" style="margin-top:14px;"><div class="card-title"><i class="ti ti-address-book"></i>จุดปฏิบัติงาน & ข้อมูลติดต่อ</div>' +
       '<div class="contact-grid" id="contactGrid"></div></div>' +
       '<div class="card print-only" id="workHoursPrint" style="display:none;"></div>' +
+      '</div>' +
       '<div class="card" id="ovrLogCard" style="display:none;"><div class="card-title"><i class="ti ti-history"></i>Override Log</div>' +
       '<div class="tbl-wrap"><table class="tbl" id="ovrLogTbl"></table></div></div>' +
       '<div class="print-sign" id="printSign"></div>';
@@ -185,7 +187,7 @@ var Schedule = (function () {
 
   /* ตารางสรุปเวลาในการปฏิบัติงาน — แสดงเฉพาะตอนพิมพ์ (ported per attached sample sheet)
      เวลาแสดงแบบเต็ม เช่น 08.00-16.00 ตามฟีดแบ็ก (ไม่ใช่แบบย่อ 08-16) */
-  var WORK_HOURS_FULL_ = { ch: { s: '08.00', e: '16.00' }, b1: { s: '16.00', e: '20.00' }, b: { s: '16.00', e: '24.00' }, d: { s: '24.00', e: '08.00' }, n: { s: '07.00', e: '08.00' } };
+  var WORK_HOURS_FULL_ = { ch: { s: '08.00', e: '16.00' }, b1: { s: '16.00', e: '20.00' }, b: { s: '16.00', e: '00.00' }, d: { s: '00.00', e: '08.00' }, n: { s: '07.00', e: '08.00' } };
   function renderWorkHoursPrint() {
     var el = document.getElementById('workHoursPrint');
     if (!el) return;
@@ -204,7 +206,7 @@ var Schedule = (function () {
   function isHolD(d) { return (calendarData.holidays || []).some(function (h) { return h.day === d; }); }
   function dowCls(d) { return isHolD(d) ? 'holi' : (isWknd(current.year, current.month, d) ? 'wknd' : ''); }
 
-  /* เรียงตามเวลาเริ่มเวรจริง: ด (ต่อเนื่องจากเมื่อคืน จบ 08:00) · น 07-08 · ช 08-16 · บ1 16-20 · บ 16-24 */
+  /* เรียงตามเวลาเริ่มเวรจริง: ด (ต่อเนื่องจากเมื่อคืน จบ 08:00) · น 07-08 · ช 08-16 · บ1 16-20 · บ 16-00 */
   var TOK_TIME_ORDER = { d: 0, n: 1, ch: 2, b1: 3, b: 4 };
   function cellToks(p, d, cal) {
     var t = [];
@@ -1310,7 +1312,7 @@ var Schedule = (function () {
     var body = document.getElementById('accRates');
     var SH = ['ch', 'b', 'd0', 'd1', 'n', 'b1'];
     var SH_FULL_LABEL = {
-      ch: 'เวรเช้า 08-16', b: 'เวรบ่าย 16-24',
+      ch: 'เวรเช้า 08-16', b: 'เวรบ่าย 16-00',
       d0: 'เวรดึก On call 00.00-04.00', d1: 'เวรดึก On call 04.00-08.00',
       n: 'เวรคลินิกนอกเวลา 07-08', b1: 'บ1 เวรเสริมบ่าย 16-20'
     };

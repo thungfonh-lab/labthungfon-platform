@@ -10,10 +10,10 @@ var TH_M = ['มกราคม', 'กุมภาพันธ์', 'มีน�
 var TH_DOW = ['อา', 'จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส'];
 var SHIFT_DEFS = {
   ch: { name: 'เวรเช้า', short: 'ช', color: '#0a4f47', bg: '#d9ebe8' },
-  b: { name: 'เวรบ่าย 16-24', short: 'บ', color: '#2f5fa0', bg: '#e7eef8' },
+  b: { name: 'เวรบ่าย 16-00', short: 'บ', color: '#2f5fa0', bg: '#e7eef8' },
   b1: { name: 'บ1 เวรเสริมบ่าย 16-20', short: 'บ1', color: '#7a4fa0', bg: '#efe7f7' },
   n: { name: 'เวรคลินิกนอกเวลา 07-08', short: 'น', color: '#6b4e16', bg: '#ede0c4' },
-  d: { name: 'เวรดึก On call (24-08)', short: 'ด', color: '#7a5618', bg: '#f7ecd6' },
+  d: { name: 'เวรดึก On call (00-08)', short: 'ด', color: '#7a5618', bg: '#f7ecd6' },
   d0: { name: 'เวรดึก On call (00.00-04.00)', short: 'ด', color: '#7a5618', bg: '#f7ecd6' },
   d1: { name: 'เวรดึก On call (04.00-08.00)', short: 'ด', color: '#7a5618', bg: '#f7ecd6' }
 };
@@ -93,7 +93,7 @@ var ReportService = (function () {
       var a = scheduleAssign[d];
       if (!a) continue;
       if (BusinessService.isOff_(year, month, d, [])) (a.ch || []).forEach(function (pid) { rows.push([d, pid, 'ch', '08.00', '16.00']); });
-      (a.b || []).forEach(function (pid) { rows.push([d, pid, 'b', '16.00', '24.00']); });
+      (a.b || []).forEach(function (pid) { rows.push([d, pid, 'b', '16.00', '00.00']); });
     }
     var h = '<table class="rep-tbl rep-tbl-sig"><thead>' + reportHeaderRows_(settings, year, month, 8) + SIG_HEAD_ROW_ + '</thead><tbody>';
     rows.forEach(function (row) {
@@ -209,9 +209,9 @@ var ReportService = (function () {
   var PAY_SECTION_LABEL_ = {
     n: 'เวรคลินิกนอกเวลา (07.00-08.00 น.)',
     ch: 'เวรเช้า (08.00-16.00 น.)',
-    b: 'เวรบ่าย (16.00-24.00 น.)',
+    b: 'เวรบ่าย (16.00-00.00 น.)',
     b1: 'เวรเสริมบ่าย (16.00-20.00 น.)',
-    d: 'เวรดึก (24.00-08.00 น.)'
+    d: 'เวรดึก (00.00-08.00 น.)'
   };
 
   /** หัวรายงานเฉพาะใบเบิกเงินรวม — ชื่อรายงาน (ตัวหนา) อยู่บรรทัดเดียวกับชื่อหน่วยงาน/เดือน

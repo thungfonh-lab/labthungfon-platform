@@ -388,14 +388,17 @@ tbody tr:last-child td{border-bottom:none}
   #app{display:block!important;height:auto!important}
   #main{overflow:visible!important}
   /* ข้อมูลติดต่อ + เวลาปฏิบัติงาน = ส่วนรอง วางคู่กันแบบ 2 คอลัมน์บีบให้ใช้พื้นที่กระดาษน้อยที่สุด
-     เพื่อให้ตารางเวรเป็นจุดสนใจหลักของหน้าและกินพื้นที่ส่วนใหญ่ */
-  #contactCard,#workHoursPrint{float:left;width:48.5%;margin-top:5px!important;box-sizing:border-box;page-break-inside:avoid}
-  #contactCard{margin-right:3%}
+     เพื่อให้ตารางเวรเป็นจุดสนใจหลักของหน้าและกินพื้นที่ส่วนใหญ่
+     ใช้ flex แทน float เดิม เพื่อให้ทั้ง 2 กล่องสูงเท่ากันอัตโนมัติ (align-items:stretch ค่าเริ่มต้นของ flex)
+     แล้วให้เนื้อหาเวลาปฏิบัติงานจัด center ในแนวตั้ง/แนวนอนภายในความสูงที่เท่ากันนั้น ให้ดูสมดุลกับข้อมูลติดต่อ */
+  .info-row{display:flex;gap:3%}
+  #contactCard,#workHoursPrint{width:48.5%;margin-top:5px!important;box-sizing:border-box;page-break-inside:avoid}
   #contactGrid,.contact-grid{grid-template-columns:repeat(2,1fr)!important;gap:3px!important}
   .contact{font-size:7.5px;padding:3px 5px;line-height:1.3;border:none!important;background:none!important}
   .contact b{font-size:7.8px}
-  #workHoursPrint .whr-list{font-size:9.5px;line-height:1.6}
-  #workHoursPrint .whr-list div{padding:1.5px 5px}
+  #workHoursPrint{display:flex;flex-direction:column}
+  #workHoursPrint .whr-list{flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;font-size:13px;line-height:2}
+  #workHoursPrint .whr-list div{padding:2px 6px}
   .card-title{margin-bottom:2px!important;font-size:9.5px!important}
   /* เลื่อนลงนามลงไปด้านล่างของหน้า — ใช้ position:fixed ยึดกับขอบล่างกระดาษจริง
      ไม่พึ่ง margin-top (ซึ่งระยะที่เห็นผลขึ้นกับความสูงเนื้อหาก่อนหน้า ไม่แน่นอน) */
@@ -1257,8 +1260,8 @@ var Schedule = (function () {
   /* ── shift token defs, identical colors to the original .tok.* classes ── */
   var SHIFT_DEFS = {
     ch: { short: 'ช', name: 'เวรเช้า 08-16', bg: '#d9ebe8', color: '#0a4f47' },
-    b: { short: 'บ', name: 'เวรบ่าย 16-24', bg: '#e7eef8', color: '#2f5fa0' },
-    d: { short: 'ด', name: 'เวรดึก On call 24-08', bg: '#f7ecd6', color: '#7a5618' },
+    b: { short: 'บ', name: 'เวรบ่าย 16-00', bg: '#e7eef8', color: '#2f5fa0' },
+    d: { short: 'ด', name: 'เวรดึก On call 00-08', bg: '#f7ecd6', color: '#7a5618' },
     n: { short: 'x', name: 'เวรคลินิกนอกเวลา 07-08', bg: '#ede0c4', color: '#6b4e16' },
     b1: { short: 'บ1', name: 'บ1 เวรเสริมบ่าย 16-20', bg: '#efe7f7', color: '#7a4fa0' }
   };
@@ -1329,9 +1332,11 @@ var Schedule = (function () {
       '<div class="legend" id="legend"></div>' +
       '<div class="sched-wrap"><table class="sched" id="schedTbl"></table></div>' +
       '<div id="violationsPanel" style="margin-top:12px;"></div>' +
+      '<div class="info-row">' +
       '<div class="card" id="contactCard" style="margin-top:14px;"><div class="card-title"><i class="ti ti-address-book"></i>จุดปฏิบัติงาน & ข้อมูลติดต่อ</div>' +
       '<div class="contact-grid" id="contactGrid"></div></div>' +
       '<div class="card print-only" id="workHoursPrint" style="display:none;"></div>' +
+      '</div>' +
       '<div class="card" id="ovrLogCard" style="display:none;"><div class="card-title"><i class="ti ti-history"></i>Override Log</div>' +
       '<div class="tbl-wrap"><table class="tbl" id="ovrLogTbl"></table></div></div>' +
       '<div class="print-sign" id="printSign"></div>';
@@ -1479,7 +1484,7 @@ var Schedule = (function () {
 
   /* ตารางสรุปเวลาในการปฏิบัติงาน — แสดงเฉพาะตอนพิมพ์ (ported per attached sample sheet)
      เวลาแสดงแบบเต็ม เช่น 08.00-16.00 ตามฟีดแบ็ก (ไม่ใช่แบบย่อ 08-16) */
-  var WORK_HOURS_FULL_ = { ch: { s: '08.00', e: '16.00' }, b1: { s: '16.00', e: '20.00' }, b: { s: '16.00', e: '24.00' }, d: { s: '24.00', e: '08.00' }, n: { s: '07.00', e: '08.00' } };
+  var WORK_HOURS_FULL_ = { ch: { s: '08.00', e: '16.00' }, b1: { s: '16.00', e: '20.00' }, b: { s: '16.00', e: '00.00' }, d: { s: '00.00', e: '08.00' }, n: { s: '07.00', e: '08.00' } };
   function renderWorkHoursPrint() {
     var el = document.getElementById('workHoursPrint');
     if (!el) return;
@@ -1498,7 +1503,7 @@ var Schedule = (function () {
   function isHolD(d) { return (calendarData.holidays || []).some(function (h) { return h.day === d; }); }
   function dowCls(d) { return isHolD(d) ? 'holi' : (isWknd(current.year, current.month, d) ? 'wknd' : ''); }
 
-  /* เรียงตามเวลาเริ่มเวรจริง: ด (ต่อเนื่องจากเมื่อคืน จบ 08:00) · น 07-08 · ช 08-16 · บ1 16-20 · บ 16-24 */
+  /* เรียงตามเวลาเริ่มเวรจริง: ด (ต่อเนื่องจากเมื่อคืน จบ 08:00) · น 07-08 · ช 08-16 · บ1 16-20 · บ 16-00 */
   var TOK_TIME_ORDER = { d: 0, n: 1, ch: 2, b1: 3, b: 4 };
   function cellToks(p, d, cal) {
     var t = [];
@@ -2604,7 +2609,7 @@ var Schedule = (function () {
     var body = document.getElementById('accRates');
     var SH = ['ch', 'b', 'd0', 'd1', 'n', 'b1'];
     var SH_FULL_LABEL = {
-      ch: 'เวรเช้า 08-16', b: 'เวรบ่าย 16-24',
+      ch: 'เวรเช้า 08-16', b: 'เวรบ่าย 16-00',
       d0: 'เวรดึก On call 00.00-04.00', d1: 'เวรดึก On call 04.00-08.00',
       n: 'เวรคลินิกนอกเวลา 07-08', b1: 'บ1 เวรเสริมบ่าย 16-20'
     };
