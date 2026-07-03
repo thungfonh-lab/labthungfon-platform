@@ -185,19 +185,20 @@ var Schedule = (function () {
 
   /* ตารางสรุปเวลาในการปฏิบัติงาน — แสดงเฉพาะตอนพิมพ์ (ported per attached sample sheet)
      เวลาแสดงแบบเต็ม เช่น 08.00-16.00 ตามฟีดแบ็ก (ไม่ใช่แบบย่อ 08-16) */
-  var WORK_HOURS_FULL_ = { ch: '08.00-16.00 น.', b1: '16.00-20.00 น.', b: '16.00-24.00 น.', d: '24.00-08.00 น.', n: '07.00-08.00 น.' };
+  var WORK_HOURS_FULL_ = { ch: { s: '08.00', e: '16.00' }, b1: { s: '16.00', e: '20.00' }, b: { s: '16.00', e: '24.00' }, d: { s: '24.00', e: '08.00' }, n: { s: '07.00', e: '08.00' } };
   function renderWorkHoursPrint() {
     var el = document.getElementById('workHoursPrint');
     if (!el) return;
     var order = ['ch', 'b1', 'b', 'd', 'n'];
     el.innerHTML = '<div class="card-title">เวลาในการปฏิบัติงาน</div>' +
-      '<table class="tbl"><tr><th>เวร</th><th>เวลาในการปฏิบัติงาน</th></tr>' +
+      '<div class="whr-list">' +
       order.map(function (k) {
         var s = SHIFT_DEFS[k];
         var label = s.name.replace(/\s*\d+-\d+$/, '');
         if (label.indexOf(s.short) !== 0) label = s.short + ' ' + label;
-        return '<tr><td>' + label + '</td><td class="l">' + WORK_HOURS_FULL_[k] + '</td></tr>';
-      }).join('') + '</table>';
+        var t = WORK_HOURS_FULL_[k];
+        return '<div>' + label + ' ตั้งแต่เวลา ' + t.s + ' น.-' + t.e + ' น.</div>';
+      }).join('') + '</div>';
   }
 
   function isHolD(d) { return (calendarData.holidays || []).some(function (h) { return h.day === d; }); }
