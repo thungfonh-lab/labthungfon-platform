@@ -196,8 +196,9 @@ var Schedule = (function () {
       '<div class="whr-list">' +
       order.map(function (k) {
         var s = SHIFT_DEFS[k];
+        var short = k === 'n' ? 'X' : s.short;
         var label = s.name.replace(/\s*\d+-\d+$/, '');
-        if (label.indexOf(s.short) !== 0) label = s.short + ' ' + label;
+        if (label.indexOf(short) !== 0) label = short + ' ' + label;
         var t = WORK_HOURS_FULL_[k];
         return '<div>' + label + ' ตั้งแต่เวลา ' + t.s + ' น.-' + t.e + ' น.</div>';
       }).join('') + '</div>';
