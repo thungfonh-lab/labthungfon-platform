@@ -398,7 +398,7 @@ tbody tr:last-child td{border-bottom:none}
   .contact{font-size:7.5px;padding:3px 5px;line-height:1.3;border:none!important;background:none!important}
   .contact b{font-size:7.8px}
   #workHoursPrint{display:flex;flex-direction:column}
-  #workHoursPrint .whr-list{flex:1;display:flex;flex-direction:column;justify-content:center;align-items:stretch;text-align:right;font-size:13px;line-height:2}
+  #workHoursPrint .whr-list{flex:1;display:flex;flex-direction:column;justify-content:center;align-items:stretch;text-align:left;font-size:13px;line-height:2}
   #workHoursPrint .whr-list div{padding:2px 6px}
   .card-title{margin-bottom:2px!important;font-size:9.5px!important}
   /* เลื่อนลงนามลงไปด้านล่างของหน้า — ใช้ position:fixed ยึดกับขอบล่างกระดาษจริง
@@ -409,11 +409,9 @@ tbody tr:last-child td{border-bottom:none}
   .sig-row{margin-top:140px!important}
   /* ตัดเส้นคั่นเหนือช่องลงนามออกตามฟีดแบ็ก (ใบเบิกเงินรวม/รายบุคคล) */
   .sig{border-top:none!important}
-  /* ตารางเวร: ตัดไอคอนหัวกล่อง + กรอบนอกของกล่องข้อมูลติดต่อออกตามฟีดแบ็ก
-     ส่วนกล่องเวลาปฏิบัติงานใส่กรอบบางกลับคืนตามฟีดแบ็กถัดมา ให้แยกจากส่วนอื่นของหน้าชัดเจน */
+  /* ตารางเวร: ตัดไอคอนหัวกล่อง + กรอบนอกของกล่องข้อมูลติดต่อ/เวลาปฏิบัติงาน ออกตามฟีดแบ็ก */
   #contactCard .card-title i,#workHoursPrint .card-title i{display:none!important}
-  #contactCard{border:none!important}
-  #workHoursPrint{border:0.5px solid var(--border)!important;padding:6px 10px!important}
+  #contactCard,#workHoursPrint{border:none!important}
   /* ใบเบิกเงินรวม (แนวนอน A4) — ตามฟีดแบ็กล่าสุดให้ใช้ฟอนต์/ระยะเท่ารายงานอื่น (16px, line-height สูง)
      แม้จะไม่พอ 1 หน้าเสมอไป อ่านง่ายสำคัญกว่า */
   .pay-landscape .sig-row{margin-top:20px!important}
