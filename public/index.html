@@ -189,6 +189,9 @@ tbody tr:last-child td{border-bottom:none}
 .doc{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:22px;overflow-x:auto;font-size:12.5px}
 .dtitle{text-align:center;font-weight:700;font-size:15px;margin-bottom:4px}
 .dline{text-align:center;font-size:12.5px;color:var(--mut);margin-bottom:2px}
+/* บันทึกขอเบิกเงิน on-call (รายละเอียด) — เส้นใต้บางๆ ใต้ค่าที่กรอก (ชื่อผู้ป่วย/HN/LAB/หน่วยงาน) ตามฟีดแบ็ก
+   เพื่อให้ดูเป็นช่องกรอกแบบฟอร์มกระดาษ ใช้ currentColor แทนสีตายตัว จะได้ปรับตามธีมสว่าง/มืด และเป็นสีดำเองตอนพิมพ์ (grayscale filter) */
+.oc-uline{border-bottom:1px solid currentColor;padding-bottom:1px}
 .rep-tbl{border-collapse:collapse;width:100%;font-size:12px}
 .rep-tbl th,.rep-tbl td{border:1px solid var(--border);padding:6px 9px}
 .rep-tbl th{background:var(--surface2);font-weight:600;text-align:center}
@@ -471,7 +474,9 @@ tbody tr:last-child td{border-bottom:none}
   .rep-tbl-wrap .rep-tbl td:last-child,.rep-tbl-wrap .rep-tbl th:last-child{border-right-width:0!important}
   .rep-tbl-wrap .rep-tbl tbody tr:last-child td{border-bottom-width:0!important}
   /* บันทึก on-call (รายละเอียด) — ตัดหัวรายงานย่อยออก เพิ่มระยะห่างระหว่างบรรทัดให้อ่านง่าย */
-  .oc-claim-blk{line-height:2;padding:10px 0!important}
+  /* เดิม padding:10px 0 ทำให้ข้อความชิดขอบกระดาษ (.doc เองก็ padding:0 ตอนพิมพ์) ตามฟีดแบ็ก
+     เติม padding ซ้าย/ขวาเป็น mm (แม่นยำกว่า px ตอนคำนวณระยะจากขอบกระดาษ เหมือนจุดอื่นในไฟล์นี้) */
+  .oc-claim-blk{line-height:2;padding:10px 5mm!important}
   .oc-claim-blk>div{margin-bottom:3px}
 }
 </style>

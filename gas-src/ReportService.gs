@@ -79,9 +79,9 @@ var ReportService = (function () {
       '<tr class="rt-head-row"><th colspan="' + colspan + '" class="dline">ประจำเดือน ' + TH_M[month] + ' พ.ศ.' + year + '</th></tr>';
   }
 
-  var OT_TYPE_LABEL_ = { ch: 'นอกเวลาเช้า', b: 'นอกเวลาบ่าย' };
+  var OT_TYPE_LABEL_ = { ch: 'เวรเช้า', b: 'เวรบ่าย' };
   /* ตัดคอลัมน์ "หมายเหตุ" ออกตามฟีดแบ็ก — พื้นที่ที่ว่างยกให้ช่องลายมือชื่อ (.sig-col) แทน (ดู .rep-tbl-sig .sig-col ใน style.html) */
-  var SIG_HEAD_ROW_ = '<tr><th>วัน เดือน ปี</th><th>ชื่อ-สกุล</th><th>ตำแหน่ง</th><th>ประเภทเวร</th><th>เวลามา</th><th class="sig-col">ลายมือชื่อ</th><th>เวลากลับ</th><th class="sig-col">ลายมือชื่อ</th></tr>';
+  var SIG_HEAD_ROW_ = '<tr><th>วัน เดือน ปี</th><th>ชื่อ-สกุล</th><th>ตำแหน่ง</th><th>ประเภท</th><th>เวลามา</th><th class="sig-col">ลายมือชื่อ</th><th>เวลากลับ</th><th class="sig-col">ลายมือชื่อ</th></tr>';
   /* table-layout:fixed อ่านความกว้างคอลัมน์จากแถวแรกของตารางเท่านั้น (CSS spec) — แถวแรกในที่นี้คือ
      แถวหัวรายงาน (colspan=8, ไม่มี width ระบุ) ทำให้ทุกคอลัมน์ถูกหารเท่ากันโดยไม่สนใจ % ที่ตั้งไว้ใน CSS
      ต้องระบุความกว้างผ่าน <colgroup><col> แทน ซึ่งมีผลเหนือกว่าทุกแถวเสมอ (% ต้องตรงกับ .rep-tbl-sig th:nth-child ใน style.html) */
@@ -117,7 +117,7 @@ var ReportService = (function () {
       var p = workload.people.filter(function (x) { return x.id === row[1]; })[0];
       if (!p) return;
       h += '<tr><td class="c">' + dStr_(row[0], year, month) + '</td><td class="l">' + fullN_(p) + '</td><td class="c">' + p.title + '</td>' +
-        '<td class="c">นอกเวลาเสริมบ่าย</td><td class="c">' + row[3] + '</td><td class="sig-col"></td><td class="c">' + row[4] + '</td><td class="sig-col"></td></tr>';
+        '<td class="c">เวรเสริมบ่าย</td><td class="c">' + row[3] + '</td><td class="sig-col"></td><td class="c">' + row[4] + '</td><td class="sig-col"></td></tr>';
     });
     return h + '</tbody></table>';
   }
@@ -130,7 +130,7 @@ var ReportService = (function () {
       var dt = new Date(o.date);
       return (dt.getFullYear() === year - 543 && dt.getMonth() === month) ? dt.getDate() : null;
     }
-    var PERIOD_TIME_ = { d0: ['00.00', '04.00'], d1: ['04.00', '08.00'] };
+    var PERIOD_TIME_ = { d0: ['00.00', '04.00'], d1: ['04.01', '08.00'] };
     var PERIOD_LABEL_ = { d0: 'เวรดึก On call', d1: 'เวรดึก On call' };
     var seen = {}, rows = [];
     oncall.forEach(function (o) {
@@ -421,15 +421,15 @@ var ReportService = (function () {
     var h = '<div style="text-align:center;font-size:15px;margin-bottom:10px">' +
       'ชื่อเจ้าหน้าที่ <b>' + fullN_(per) + '</b> &nbsp; ตำแหน่ง <b>' + per.title + '</b></div>';
     if (!list.length) return h + '<div style="padding:20px;color:var(--mut)">ยังไม่มีข้อมูล On Call</div>';
-    list.forEach(function (o) {
+    list.forEach(function (o, i) {
       var d = ocDayOf(o);
       var period = BusinessService.onCallPeriod_(o.time);
       h += '<div class="oc-claim-blk" style="border-bottom:1px dashed var(--border);padding:10px 0;font-size:15px;line-height:1.9">' +
-        '<div style="margin-bottom:3px">วัน เดือน ปี ' + d + ' ' + TH_M[month] + ' ' + year + ' &nbsp; เวลา <b>' + (o.time || '............') + '</b> น.' +
+        '<div style="margin-bottom:3px"><b>' + (i + 1) + '.</b> วัน เดือน ปี <span class="oc-uline">' + d + ' ' + TH_M[month] + ' ' + year + '</span> &nbsp; เวลา <b class="oc-uline">' + (o.time || '............') + '</b> น.' +
         ' &nbsp; ' + periodCheckbox_(period === 'd0', '00.00-04.00') + periodCheckbox_(period === 'd1', '04.01-08.00') + '</div>' +
-        '<div style="margin-bottom:3px">ชื่อผู้ป่วย ' + (o.name || '......................................') + ' &nbsp; HN ' + (o.hn || '............') + '</div>' +
-        '<div style="margin-bottom:3px">ส่วนที่ตรวจ/LAB ที่ตรวจ ' + ((o.labs || []).join(', ') || '......................................') + '</div>' +
-        '<div>หน่วยงานที่ส่งตรวจ ' + (o.unit || 'ER/IPD') + '</div></div>';
+        '<div style="margin-bottom:3px">ชื่อผู้ป่วย <span class="oc-uline">' + (o.name || '......................................') + '</span> &nbsp; HN <span class="oc-uline">' + (o.hn || '............') + '</span></div>' +
+        '<div style="margin-bottom:3px">ส่วนที่ตรวจ/LAB ที่ตรวจ <span class="oc-uline">' + ((o.labs || []).join(', ') || '......................................') + '</span></div>' +
+        '<div>หน่วยงานที่ส่งตรวจ <span class="oc-uline">' + (o.unit || 'ER/IPD') + '</span></div></div>';
     });
     return h;
   }
