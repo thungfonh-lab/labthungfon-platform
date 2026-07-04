@@ -191,10 +191,7 @@ tbody tr:last-child td{border-bottom:none}
 .dline{text-align:center;font-size:12.5px;color:var(--mut);margin-bottom:2px}
 /* บันทึกขอเบิกเงิน on-call (รายละเอียด) — เส้นใต้บางๆ ใต้ค่าที่กรอก (ชื่อผู้ป่วย/HN/LAB/หน่วยงาน) ตามฟีดแบ็ก
    เพื่อให้ดูเป็นช่องกรอกแบบฟอร์มกระดาษ ใช้ currentColor แทนสีตายตัว จะได้ปรับตามธีมสว่าง/มืด และเป็นสีดำเองตอนพิมพ์ (grayscale filter) */
-/* border-bottom:dotted ของ browser คำนวณขนาด/ระยะห่างจุดจากความกว้างของ element เอง ทำให้ span สั้น (เช่น
-   ช่องเวลา "00:09") ได้จุดถี่/เข้มกว่า span ยาว (เช่น วันที่) ดูไม่สม่ำเสมอกันตามฟีดแบ็ก
-   ใช้ background gradient กำหนดขนาดจุดคงที่แทน (4px ต่อจุด) ให้เส้นจุดบางสม่ำเสมอทุกที่ไม่ว่า element จะกว้างแค่ไหน */
-.oc-uline{padding-bottom:1px;background-image:linear-gradient(to right,currentColor 40%,transparent 0%);background-position:bottom;background-size:4px 1px;background-repeat:repeat-x}
+.oc-uline{border-bottom:1px solid currentColor;padding-bottom:1px}
 .rep-tbl{border-collapse:collapse;width:100%;font-size:12px}
 .rep-tbl th,.rep-tbl td{border:1px solid var(--border);padding:6px 9px}
 .rep-tbl th{background:var(--surface2);font-weight:600;text-align:center}
