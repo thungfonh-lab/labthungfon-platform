@@ -263,6 +263,9 @@ function _dispatchApi(fnName, token, args) {
     case 'api_setUserActive': return apiCall('/api/users/' + encodeURIComponent(args[0]) + '/set-active', 'POST', { token: token, active: args[1] });
     case 'api_resetUserPassword': return apiCall('/api/users/' + encodeURIComponent(args[0]) + '/reset-password', 'POST', { token: token, newPlainPassword: args[1] });
 
+    case 'api_previewArchive': return apiCall('/api/archive/preview' + qs({ token: token, keepMonths: args[0] }), 'GET');
+    case 'api_archiveOldData': return apiCall('/api/archive', 'POST', { token: token, keepMonths: args[0] });
+
     case 'api_getAuditLogs': return apiCall('/api/audit-logs' + qs(Object.assign({ token: token }, args[0] || {})), 'GET');
     case 'api_purgeAuditLogs': return apiCall('/api/audit-logs/purge', 'POST', { token: token, olderThanDays: args[0] });
 

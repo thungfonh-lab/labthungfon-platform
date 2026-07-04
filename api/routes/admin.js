@@ -92,6 +92,35 @@ router.post('/users/:userId/reset-password', wrap(async (req, res) => {
   ok(res, { ok: true });
 }));
 
+// ---------------- Archive / cleanup ----------------
+
+function calcArchiveCutoff(keepMonths) {
+  const now = new Date();
+  const totalMonths = now.getFullYear() * 12 + now.getMonth() - keepMonths; // getMonth() = 0-based ทำให้ current month ไม่ถูกลบ
+  return { year: Math.floor(totalMonths / 12), month: (totalMonths % 12) + 1 };
+}
+
+// GET /api/archive/preview — api_previewArchive(token, keepMonths)
+router.get('/archive/preview', wrap(async (req, res) => {
+  const session = authService.requireSession(getToken(req));
+  await authService.requirePermission(session.user, 'manageSettings', false);
+  const cutoff = calcArchiveCutoff(Number(req.query.keepMonths));
+  const preview = await dataService.previewArchive(cutoff.year, cutoff.month);
+  preview.cutoffYear = cutoff.year;
+  preview.cutoffMonth = cutoff.month;
+  ok(res, preview);
+}));
+
+// POST /api/archive — api_archiveOldData(token, keepMonths)
+router.post('/archive', wrap(async (req, res) => {
+  const session = authService.requireSession(getToken(req));
+  await authService.requirePermission(session.user, 'manageSettings', false);
+  const cutoff = calcArchiveCutoff(Number(req.body.keepMonths));
+  const result = await dataService.archiveOldData(cutoff.year, cutoff.month);
+  await auditService.logAction(session.user.userId, 'DELETE', 'Archive', 'keepMonths=' + req.body.keepMonths, null, result);
+  ok(res, result);
+}));
+
 // ---------------- Audit logs ----------------
 
 // GET /api/audit-logs — api_getAuditLogs(token, filters)
