@@ -418,13 +418,13 @@ var ReportService = (function () {
     if (!per) return '<div style="padding:20px;color:var(--mut)">กรุณาเลือกเจ้าหน้าที่</div>';
     var list = oncall.filter(function (o) { return o.pid === pid && ocDayOf(o); });
     list.sort(function (a, b) { return ocDayOf(a) - ocDayOf(b); });
-    var h = '<div style="text-align:center;font-size:15px;margin-bottom:10px">' +
+    var h = '<div style="text-align:center;font-size:14px;margin-bottom:10px">' +
       'ชื่อเจ้าหน้าที่ <b>' + fullN_(per) + '</b> &nbsp; ตำแหน่ง <b>' + per.title + '</b></div>';
     if (!list.length) return h + '<div style="padding:20px;color:var(--mut)">ยังไม่มีข้อมูล On Call</div>';
     list.forEach(function (o, i) {
       var d = ocDayOf(o);
       var period = BusinessService.onCallPeriod_(o.time);
-      h += '<div class="oc-claim-blk" style="border-bottom:1px dashed var(--border);padding:10px 0;font-size:15px;line-height:1.9">' +
+      h += '<div class="oc-claim-blk" style="border-bottom:1px dashed var(--border);padding:10px 0;font-size:14px;line-height:1.9">' +
         '<div style="margin-bottom:3px"><b>' + (i + 1) + '.</b> วัน เดือน ปี <span class="oc-uline">' + d + ' ' + TH_M[month] + ' ' + year + '</span> &nbsp; เวลา <b class="oc-uline">' + (o.time || '............') + '</b> น.' +
         ' &nbsp; ' + periodCheckbox_(period === 'd0', '00.00-04.00') + periodCheckbox_(period === 'd1', '04.01-08.00') + '</div>' +
         '<div style="margin-bottom:3px">ชื่อผู้ป่วย <span class="oc-uline">' + (o.name || '......................................') + '</span> &nbsp; HN <span class="oc-uline">' + (o.hn || '............') + '</span></div>' +
