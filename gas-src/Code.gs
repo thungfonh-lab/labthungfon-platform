@@ -110,6 +110,19 @@ function api_generateSchedule(token, year, month) {
   });
 }
 
+/** เคลียร์ตารางเวรเดือนนี้ทั้งหมด — เหมือนไม่เคยกด "สร้างตารางเวร" มาก่อน ใช้สิทธิ์เดียวกับ generate
+ *  (ทำลายข้อมูลถาวร กู้คืนไม่ได้ ฝั่ง client ต้อง confirm ก่อนเรียกเสมอ) */
+function api_clearSchedule(token, year, month) {
+  var session = AuthService.requireSession(token);
+  AuthService.requirePermission(session.user, 'publish', true);
+  return LockService_run('schedule_' + year + '_' + month, function () {
+    var result = DataService.clearSchedule(year, month);
+    invalidateCalCache_(year, month);
+    AuditService.logAction(session.user.userId, 'DELETE', 'Schedules', year + '-' + month, null, result);
+    return result;
+  });
+}
+
 function api_saveSchedule(token, year, month, assignments, status) {
   var session = AuthService.requireSession(token);
   AuthService.requirePermission(session.user, 'collect', true);

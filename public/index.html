@@ -811,6 +811,7 @@ function _dispatchApi(fnName, token, args) {
     case 'api_bootstrap': return apiCall('/api/bootstrap' + qs({ token: token }), 'GET');
 
     case 'api_generateSchedule': return apiCall('/api/schedule/generate', 'POST', { token: token, year: args[0], month: args[1] });
+    case 'api_clearSchedule': return apiCall('/api/schedule/clear', 'POST', { token: token, year: args[0], month: args[1] });
     case 'api_saveSchedule': return apiCall('/api/schedule/save', 'POST', { token: token, year: args[0], month: args[1], assignments: args[2], status: args[3] });
     case 'api_publishSchedule': return apiCall('/api/schedule/publish', 'POST', { token: token, year: args[0], month: args[1] });
     case 'api_getDutyRoster': return apiCall('/api/schedule/duty-roster' + qs({ token: token, year: args[0], month: args[1] }), 'GET');
@@ -1332,6 +1333,7 @@ var Schedule = (function () {
       '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">' +
       '<span id="statusBadge"></span>' +
       '<button class="btn btn-primary btn-sm" id="genBtn"><i class="ti ti-refresh"></i> สร้างตารางเวร</button>' +
+      '<button class="btn btn-danger btn-sm" id="clearBtn"><i class="ti ti-eraser"></i> เคลียร์</button>' +
       '<button class="btn btn-sm" id="balanceBtn" style="background:var(--tl-l);color:var(--tl-d);border-color:var(--tl);"><i class="ti ti-scale"></i> สมดุลเวร</button>' +
       '<button class="btn btn-sm" id="pubBtn"><i class="ti ti-send"></i> เผยแพร่</button>' +
       '<button class="btn btn-sm" id="printBtn"><i class="ti ti-printer"></i> พิมพ์</button>' +
@@ -1356,6 +1358,14 @@ var Schedule = (function () {
 
     document.getElementById('genBtn').onclick = function () {
       showGenConfirm();
+    };
+    document.getElementById('clearBtn').onclick = function () {
+      if (!confirm('ยืนยันเคลียร์ตารางเวรเดือน ' + monthLabel() + '?\n\nจะลบตารางเวร, ประวัติ Override, และข้อควรตรวจสอบทั้งหมดของเดือนนี้ เหมือนไม่เคยกด "สร้างตารางเวร" มาก่อน\n\nการกระทำนี้ไม่สามารถย้อนกลับได้')) return;
+      gsRun('api_clearSchedule', Session.token, current.year, current.month).then(function (result) {
+        invalidateMonthCache();
+        toast('เคลียร์ตารางเวรแล้ว', 'ลบตารางเวร ' + result.deletedSchedules + ' รายการ · ลบประวัติ ' + result.deletedTransactions + ' รายการ');
+        loadAndRenderGrid();
+      });
     };
 
     function showGenConfirm() {

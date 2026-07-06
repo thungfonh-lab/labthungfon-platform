@@ -219,6 +219,7 @@ function _dispatchApi(fnName, token, args) {
     case 'api_bootstrap': return apiCall('/api/bootstrap' + qs({ token: token }), 'GET');
 
     case 'api_generateSchedule': return apiCall('/api/schedule/generate', 'POST', { token: token, year: args[0], month: args[1] });
+    case 'api_clearSchedule': return apiCall('/api/schedule/clear', 'POST', { token: token, year: args[0], month: args[1] });
     case 'api_saveSchedule': return apiCall('/api/schedule/save', 'POST', { token: token, year: args[0], month: args[1], assignments: args[2], status: args[3] });
     case 'api_publishSchedule': return apiCall('/api/schedule/publish', 'POST', { token: token, year: args[0], month: args[1] });
     case 'api_getDutyRoster': return apiCall('/api/schedule/duty-roster' + qs({ token: token, year: args[0], month: args[1] }), 'GET');

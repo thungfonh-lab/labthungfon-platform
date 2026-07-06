@@ -320,6 +320,24 @@ var DataService = (function () {
     invalidateReadAllCache_(SHEETS.TRANSACTIONS);
   }
 
+  /** เคลียร์ตารางเวรเดือนนี้ทั้งหมด (Schedules + ประวัติ Override ทุกชนิด + ข้อควรตรวจสอบ + trailInfo)
+   *  ให้เหมือนไม่เคยกด "สร้างตารางเวร" มาก่อน — ไม่แตะ availability/oncall/payAdj/dutyRoster
+   *  เพราะเป็นข้อมูล/ตั้งค่าที่ผู้ใช้กรอกแยกจากผลลัพธ์การจัดตาราง ไม่ใช่สิ่งที่ generate สร้างขึ้น */
+  function clearSchedule(year, month) {
+    var schSheet = getSheet_(SHEETS.SCHEDULES);
+    var schRows = getScheduleAssignments(year, month);
+    if (schRows.length) { deleteRowsBulk_(schSheet, schRows.map(function (r) { return r.__rowIndex; })); invalidateReadAllCache_(SHEETS.SCHEDULES); }
+
+    var CLEAR_CATEGORIES = [TX_CATEGORY.OVERRIDE, TX_CATEGORY.RULE_VIOLATION, TX_CATEGORY.TRAIL_INFO];
+    var txSheet = getSheet_(SHEETS.TRANSACTIONS);
+    var txRows = readAll(SHEETS.TRANSACTIONS).filter(function (r) {
+      return r.year === year && r.month === month && CLEAR_CATEGORIES.indexOf(r.category) > -1;
+    });
+    if (txRows.length) { deleteRowsBulk_(txSheet, txRows.map(function (r) { return r.__rowIndex; })); invalidateReadAllCache_(SHEETS.TRANSACTIONS); }
+
+    return { deletedSchedules: schRows.length, deletedTransactions: txRows.length };
+  }
+
   /** ท้าย generateSchedule(): trailInfo + ruleViolations + auto-overrides ทั้งหมดล้วน
    *  อยู่ใน sheet TRANSACTIONS เดียวกัน — เดิมเรียก setTrailInfo/clearRuleViolations/addRuleViolations/
    *  clearAutoOverrides/addOverridesBulk แยกกัน 5 ครั้ง แต่ละครั้งที่มีการเขียน (write) จะ invalidate
@@ -620,6 +638,7 @@ var DataService = (function () {
     updateTransactionById_: updateTransactionById_,
     getPayAdjustments: getPayAdjustments, setPayAdjustment: setPayAdjustment,
     getOverrides: getOverrides, addOverride: addOverride, addOverridesBulk: addOverridesBulk, clearAutoOverrides: clearAutoOverrides,
+    clearSchedule: clearSchedule,
     getRuleViolations: getRuleViolations, clearRuleViolations: clearRuleViolations, addRuleViolations: addRuleViolations,
     finalizeGenerateWrites: finalizeGenerateWrites,
     getTrailInfo: getTrailInfo, setTrailInfo: setTrailInfo,
