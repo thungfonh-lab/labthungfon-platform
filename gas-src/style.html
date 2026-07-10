@@ -338,10 +338,16 @@ tbody tr:last-child td{border-bottom:none}
      ขนาดตัวอักษรเท่ากับตัวเลขสรุปท้ายแถว (.sumcol = 11px) ตามฟีดแบ็ก (เดิม 7px เล็กกว่ามาก)
      โหมดพิมพ์สี (html.print-color) ข้ามการบังคับขาวดำนี้ ให้ใช้สีจริงตาม inline style ของแต่ละโทเค็นแทน */
   .tok{font-size:11px;padding:0 1px;font-weight:700;border:none!important;line-height:1.3}
-  /* ช่องที่มี 3 เวรขึ้นไป (เช่น ดชบ) — ฟอนต์ 11px ล้นช่องพิมพ์ (~24px) จนตัวอักษรซ้อนกัน
-     ทำให้ดูเข้ม/หนากว่าช่องอื่น ลดฟอนต์เฉพาะช่องพวกนี้ให้พอดีช่อง ตัวอักษรไม่ทับกัน */
-  .sched .cell .tok:first-child:nth-last-child(n+3),
-  .sched .cell .tok:first-child:nth-last-child(n+3) ~ .tok{font-size:8.5px}
+  /* ตัวอักษรเวรขนาดเท่ากันทุกช่อง (11px) — กันตัวอักษรซ้อนกันด้วยการตัด padding แนวนอน
+     ของช่องวัน และตัด gap/padding ของช่องที่มี 3 เวรขึ้นไป แทนการย่อฟอนต์
+     (วัดที่ความกว้างพิมพ์ A4 แนวนอน: 1-3 เวรไม่ทับกันที่ 11px)
+     ช่องหายาก 4-5 เวร (เกิดจาก override ซ้อนหลายเวร) เกินความกว้างช่องจริงๆ จึงย่อเฉพาะช่องนั้น */
+  .sched td:not(.nm):not(.sumcol){padding:1.5px 0}
+  .sched .cell:has(.tok:nth-child(3)){gap:0;padding:0}
+  .sched .cell .tok:first-child:nth-last-child(n+4),
+  .sched .cell .tok:first-child:nth-last-child(n+4) ~ .tok{font-size:9px}
+  .sched .cell .tok:first-child:nth-last-child(n+5),
+  .sched .cell .tok:first-child:nth-last-child(n+5) ~ .tok{font-size:7px}
   html:not(.print-color) .tok{background:none!important;color:#000!important}
   html:not(.print-color) .sched th,html:not(.print-color) .sched td{color:#000!important}
   html:not(.print-color) .sched .sumcol{background:#fff!important;color:#000!important}
