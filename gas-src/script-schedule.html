@@ -21,7 +21,7 @@ function printWithPageSize(size) {
 
 var Schedule = (function () {
   var current = { year: new Date().getFullYear() + 543, month: new Date().getMonth() };
-  var calendarData = null, peopleCache = null, rolePermsCache = null;
+  var calendarData = null, peopleCache = null, rolePermsCache = null, leaveMap = {};
   var printColorListenerAdded = false;
 
   /* ── shift token defs, identical colors to the original .tok.* classes ── */
@@ -57,7 +57,7 @@ var Schedule = (function () {
   function ymKey(prefix) { return prefix + '_' + current.year + '_' + current.month; }
   function loadCalendarCached() { return cachedGsRun(ymKey('cal'), 15000, 'api_loadCalendar', Session.token, current.year, current.month); }
   function loadWorkloadCached() { return cachedGsRun(ymKey('wl'), 15000, 'api_calculateWorkload', Session.token, current.year, current.month); }
-  function invalidateMonthCache() { invalidateCache(ymKey('cal')); invalidateCache(ymKey('wl')); }
+  function invalidateMonthCache() { invalidateCache(ymKey('cal')); invalidateCache(ymKey('wl')); invalidateCache(ymKey('av')); }
 
   function render(sub) {
     var page = document.getElementById('schedInner');
@@ -112,7 +112,7 @@ var Schedule = (function () {
     document.getElementById('legend').innerHTML = Object.keys(SHIFT_DEFS).map(function (k) {
       var s = SHIFT_DEFS[k];
       return '<span>' + tokEl(k) + ' ' + s.name + '</span>';
-    }).join('');
+    }).join('') + '<span><span class="tok" style="background:#c8c8c8;color:#c8c8c8;">&nbsp;&nbsp;</span> ลาทั้งวัน</span>';
 
     document.getElementById('genBtn').onclick = function () {
       gsRun('api_generateSchedule', Session.token, current.year, current.month).then(function (result) {
@@ -155,7 +155,15 @@ var Schedule = (function () {
     /* stations ไม่ได้ขึ้นกับ cal เลยยิงคู่กันได้ — เดิมซ้อนอยู่ใน .then() ของ cal ทำให้
        ต้องรอ round trip นึงจบก่อนค่อยยิงอีกอัน (เพิ่ม latency โดยไม่จำเป็น) */
     var stationsP = cachedGsRun('stations_' + current.year + '_' + current.month, 60000, 'api_getStationsForMonth', Session.token, current.year, current.month);
-    loadCalendarCached().then(function (cal) {
+    /* วันลา (display-only) — ดึงขนานกับ cal เพื่อทาพื้นเทาช่องวันลาในตาราง ไม่กระทบ logic จัดเวร */
+    var availP = cachedGsRun(ymKey('av'), 15000, 'api_listAvailability', Session.token, current.year, current.month);
+    Promise.all([loadCalendarCached(), availP]).then(function (res) {
+      var cal = res[0];
+      leaveMap = {};
+      (res[1] || []).forEach(function (r) {
+        if (r.type !== 'leave') return;
+        (leaveMap[r.pid] = leaveMap[r.pid] || {})[r.day] = true;
+      });
       calendarData = cal;
       peopleCache = cal.people;
       renderGridTable(calendarData);
@@ -255,7 +263,8 @@ var Schedule = (function () {
           if ((o.aff || []).indexOf(p.id) === -1) return false;
           return (o.shift === 'd' ? o.day + 1 : o.day) === d2;
         });
-        row += '<td class="' + dowCls(d2) + '"><div class="cell' + (ovrd ? ' ovrd' : '') + '" data-day="' + d2 + '" data-pid="' + p.id + '">' + toks.map(tokEl).join('') + '</div></td>';
+        var onLeave = leaveMap[p.id] && leaveMap[p.id][d2];
+        row += '<td class="' + dowCls(d2) + (onLeave ? ' lv' : '') + '"><div class="cell' + (ovrd ? ' ovrd' : '') + '" data-day="' + d2 + '" data-pid="' + p.id + '">' + toks.map(tokEl).join('') + '</div></td>';
       }
       var isLA = p.role === 'LA';
       var rmt = isLA ? sums.ch + sums.b1 : sums.ch + sums.b;

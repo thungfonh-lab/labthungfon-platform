@@ -162,14 +162,20 @@ tbody tr:last-child td{border-bottom:none}
 .sched-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:var(--r);background:var(--surface);-webkit-overflow-scrolling:touch}
 .sched{border-collapse:collapse;font-size:11px;min-width:900px}
 .sched th,.sched td{border:1px solid var(--border);text-align:center;padding:0;min-width:30px}
+/* คอลัมน์วันกว้างเท่ากันทุกช่อง — ไม่ให้ช่องที่มีหลายเวร (ชบด) ดันคอลัมน์กว้างกว่าช่องอื่น */
+.sched td:not(.nm):not(.sumcol){width:30px;max-width:30px}
 .sched thead th{background:var(--tl-vl);color:var(--tl-d);font-weight:600;position:sticky;top:0;z-index:4}
 .sched th.dnum{height:20px;font-size:11px;font-weight:700}
 .sched th.dow{height:16px;font-size:10px;color:var(--ink2)}
 .sched td.wknd,.sched th.wknd{background:var(--coral-l)}
 .sched td.holi,.sched th.holi{background:var(--coral-l)}
+/* วันลาทั้งวัน — พื้นเทาทึบ (display-only, ไม่มีตัวอักษร) ประกาศหลัง wknd/holi ให้ชนะ */
+.sched td.lv{background:#c8c8c8}
 .sched .nm{text-align:left;white-space:nowrap;padding:4px 8px;font-weight:600;font-size:12px;position:sticky;left:0;background:var(--surface);z-index:3;min-width:120px;max-width:160px}
 .sched .sumcol{font-weight:700;background:var(--tl-vl);color:var(--tl-d);font-size:11px;min-width:26px;white-space:nowrap}
-.sched .cell{cursor:pointer;height:30px;display:flex;align-items:center;justify-content:center;gap:1px;flex-wrap:wrap;padding:1px;position:relative}
+.sched .cell{cursor:pointer;height:30px;display:flex;align-items:center;justify-content:center;gap:1px;flex-wrap:nowrap;padding:1px;position:relative}
+/* โทเค็นในช่องแบ่งความกว้างเท่าๆกัน — 1 ตัวเต็มช่อง, 2 ตัวคนละครึ่ง, 3 ตัวคนละ 1/3 */
+.sched .cell .tok{flex:1 1 0;min-width:0;padding:1px 0;text-align:center}
 .sched .cell:hover{outline:2px solid var(--tl);outline-offset:-2px;z-index:2}
 .sched .cell.ovrd{box-shadow:inset 0 0 0 1.5px var(--coral)}
 .sched tr.sum-row td{background:var(--surface2);font-weight:700;font-size:11px;border-top:2px solid var(--tl-l)}
@@ -337,6 +343,7 @@ tbody tr:last-child td{border-bottom:none}
   .sched .nm{min-width:0;max-width:none;width:11%;font-size:8.8px;position:static}
   .sched .sumcol{min-width:0;width:3%}
   .sched .cell{height:auto;min-height:20px;gap:2px}
+  .sched .cell .tok{flex:1 1 0;min-width:0;padding:0;text-align:center}
   .sched .cell.ovrd{box-shadow:none}
   /* โทเค็นเวรเป็นตัวอักษรล้วน ไม่มีกรอบครอบ (ตัดกรอบออกตามฟีดแบ็ก — มีกรอบอ่านยาก)
      ขนาดตัวอักษรเท่ากับตัวเลขสรุปท้ายแถว (.sumcol = 11px) ตามฟีดแบ็ก (เดิม 7px เล็กกว่ามาก)
@@ -351,6 +358,12 @@ tbody tr:last-child td{border-bottom:none}
      -webkit-print-color-adjust/print-color-adjust:exact บังคับให้พิมพ์พื้นหลังจริง แม้ผู้ใช้ไม่ติ๊ก "Background graphics" ใน Chrome print dialog */
   .sched td.wknd,.sched th.wknd,.sched td.holi,.sched th.holi{
     background:#d4d4d4!important;
+    -webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;color-adjust:exact!important;
+  }
+  /* วันลาทั้งวัน — เทาเข้มกว่าพื้นวันหยุด (#d4d4d4) ให้แยกกันออกตอนพิมพ์ขาวดำ
+     บังคับพิมพ์พื้นหลังจริงทั้งโหมดขาวดำและโหมดสี */
+  .sched td.lv{
+    background:#adadad!important;
     -webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;color-adjust:exact!important;
   }
   /* วันราชการ/วันหยุด/นักขัตฤกษ์ ใต้หัวตารางเวร — เดิมสีเทาอ่อนตาม --mut อ่านยากเมื่อพิมพ์ ปรับเป็นสีดำ */
@@ -1263,7 +1276,7 @@ function printWithPageSize(size) {
 
 var Schedule = (function () {
   var current = { year: new Date().getFullYear() + 543, month: new Date().getMonth() };
-  var calendarData = null, peopleCache = null, rolePermsCache = null;
+  var calendarData = null, peopleCache = null, rolePermsCache = null, leaveMap = {};
   var printColorListenerAdded = false;
 
   /* ── shift token defs, identical colors to the original .tok.* classes ── */
@@ -1299,7 +1312,7 @@ var Schedule = (function () {
   function ymKey(prefix) { return prefix + '_' + current.year + '_' + current.month; }
   function loadCalendarCached() { return cachedGsRun(ymKey('cal'), 15000, 'api_loadCalendar', Session.token, current.year, current.month); }
   function loadWorkloadCached() { return cachedGsRun(ymKey('wl'), 15000, 'api_calculateWorkload', Session.token, current.year, current.month); }
-  function invalidateMonthCache() { invalidateCache(ymKey('cal')); invalidateCache(ymKey('wl')); }
+  function invalidateMonthCache() { invalidateCache(ymKey('cal')); invalidateCache(ymKey('wl')); invalidateCache(ymKey('av')); }
 
   function render(sub) {
     var page = document.getElementById('schedInner');
@@ -1354,7 +1367,7 @@ var Schedule = (function () {
     document.getElementById('legend').innerHTML = Object.keys(SHIFT_DEFS).map(function (k) {
       var s = SHIFT_DEFS[k];
       return '<span>' + tokEl(k) + ' ' + s.name + '</span>';
-    }).join('');
+    }).join('') + '<span><span class="tok" style="background:#c8c8c8;color:#c8c8c8;">&nbsp;&nbsp;</span> ลาทั้งวัน</span>';
 
     document.getElementById('genBtn').onclick = function () {
       showGenConfirm();
@@ -1461,7 +1474,15 @@ var Schedule = (function () {
     /* stations ไม่ได้ขึ้นกับ cal เลยยิงคู่กันได้ — เดิมซ้อนอยู่ใน .then() ของ cal ทำให้
        ต้องรอ round trip นึงจบก่อนค่อยยิงอีกอัน (เพิ่ม latency โดยไม่จำเป็น) */
     var stationsP = cachedGsRun('stations_' + current.year + '_' + current.month, 60000, 'api_getStationsForMonth', Session.token, current.year, current.month);
-    loadCalendarCached().then(function (cal) {
+    /* วันลา (display-only) — ดึงขนานกับ cal เพื่อทาพื้นเทาช่องวันลาในตาราง ไม่กระทบ logic จัดเวร */
+    var availP = cachedGsRun(ymKey('av'), 15000, 'api_listAvailability', Session.token, current.year, current.month);
+    Promise.all([loadCalendarCached(), availP]).then(function (res) {
+      var cal = res[0];
+      leaveMap = {};
+      (res[1] || []).forEach(function (r) {
+        if (r.type !== 'leave') return;
+        (leaveMap[r.pid] = leaveMap[r.pid] || {})[r.day] = true;
+      });
       calendarData = cal;
       peopleCache = cal.people;
       renderGridTable(calendarData);
@@ -1561,7 +1582,8 @@ var Schedule = (function () {
           if ((o.aff || []).indexOf(p.id) === -1) return false;
           return (o.shift === 'd' ? o.day + 1 : o.day) === d2;
         });
-        row += '<td class="' + dowCls(d2) + '"><div class="cell' + (ovrd ? ' ovrd' : '') + '" data-day="' + d2 + '" data-pid="' + p.id + '">' + toks.map(tokEl).join('') + '</div></td>';
+        var onLeave = leaveMap[p.id] && leaveMap[p.id][d2];
+        row += '<td class="' + dowCls(d2) + (onLeave ? ' lv' : '') + '"><div class="cell' + (ovrd ? ' ovrd' : '') + '" data-day="' + d2 + '" data-pid="' + p.id + '">' + toks.map(tokEl).join('') + '</div></td>';
       }
       var isLA = p.role === 'LA';
       var rmt = isLA ? sums.ch + sums.b1 : sums.ch + sums.b;
