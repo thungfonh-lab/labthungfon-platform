@@ -338,6 +338,10 @@ tbody tr:last-child td{border-bottom:none}
      ขนาดตัวอักษรเท่ากับตัวเลขสรุปท้ายแถว (.sumcol = 11px) ตามฟีดแบ็ก (เดิม 7px เล็กกว่ามาก)
      โหมดพิมพ์สี (html.print-color) ข้ามการบังคับขาวดำนี้ ให้ใช้สีจริงตาม inline style ของแต่ละโทเค็นแทน */
   .tok{font-size:11px;padding:0 1px;font-weight:700;border:none!important;line-height:1.3}
+  /* ช่องที่มี 3 เวรขึ้นไป (เช่น ดชบ) — ฟอนต์ 11px ล้นช่องพิมพ์ (~24px) จนตัวอักษรซ้อนกัน
+     ทำให้ดูเข้ม/หนากว่าช่องอื่น ลดฟอนต์เฉพาะช่องพวกนี้ให้พอดีช่อง ตัวอักษรไม่ทับกัน */
+  .sched .cell .tok:first-child:nth-last-child(n+3),
+  .sched .cell .tok:first-child:nth-last-child(n+3) ~ .tok{font-size:8.5px}
   html:not(.print-color) .tok{background:none!important;color:#000!important}
   html:not(.print-color) .sched th,html:not(.print-color) .sched td{color:#000!important}
   html:not(.print-color) .sched .sumcol{background:#fff!important;color:#000!important}
