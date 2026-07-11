@@ -322,9 +322,11 @@ tbody tr:last-child td{border-bottom:none}
   html:not(.print-color){filter:grayscale(1)}
   #sb,#topbar,#appFooter,.btn,.rtabs,#violationsPanel,#ovrLogCard,.modal-overlay,#toastWrap,.loading-overlay,#repPersonSel{display:none!important}
   /* แถบคำอธิบายสัญลักษณ์ — พิมพ์ออกมาด้วยตามฟีดแบ็ก (เดิมถูกซ่อน)
-     swatch "ลาทั้งวัน" ต้องบังคับพื้นเทา ไม่งั้นโดน rule ล้าง background ของโหมดขาวดำจนหาย */
+     swatch "ลาทั้งวัน" ต้องบังคับพื้นเทา ไม่งั้นโดน rule ล้าง background ของโหมดขาวดำจนหาย
+     ใช้ .tok.lv-swatch (3 คลาส) ให้ specificity สูงกว่า "html:not(.print-color) .tok" ด้านล่าง
+     ไม่งั้นกฎนั้นชนะ (มาทีหลัง + specificity เท่ากัน) ทำให้ background หายตอนพิมพ์ขาวดำ */
   .legend{font-size:9.5px;margin:3px 0;gap:8px;color:#000}
-  .legend .lv-swatch{background:#adadad!important;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;color-adjust:exact!important}
+  .legend .tok.lv-swatch{background:#adadad!important;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;color-adjust:exact!important}
   .contact i{display:none!important}
   .print-only{display:block!important}
   #content{overflow:visible}
