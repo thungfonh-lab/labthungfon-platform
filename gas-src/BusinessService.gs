@@ -39,12 +39,12 @@ var BusinessService = (function () {
   /** Ported from avOff()/avNo() in original (lines 2058-2059). */
   function avOff_(availability, pid, day, month, year) {
     return (availability[pid] || []).some(function (a) {
-      return a.day === day && a.mon === month && a.yr === year && a.type === 'leave';
+      return a.day === day && a.mon === month && a.yr === year && (a.type === 'leave' || a.type === 'offAll');
     });
   }
   function avNo_(availability, pid, day, month, year, type) {
     return (availability[pid] || []).some(function (a) {
-      return a.day === day && a.mon === month && a.yr === year && (a.type === 'leave' || a.type === type);
+      return a.day === day && a.mon === month && a.yr === year && (a.type === 'leave' || a.type === 'offAll' || a.type === type);
     });
   }
 
@@ -106,6 +106,15 @@ var BusinessService = (function () {
     var maxC = +settings.maxC || 4;
     var lastDuty = null;
 
+    var shiftDisabled = settings.shiftDisabled || { n_mt: [], n_la: [], ch: [], b: [], d: [], b1: [] };
+    var mn1 = month + 1;
+    var disCH = (shiftDisabled.ch || []).indexOf(mn1) > -1;
+    var disB = (shiftDisabled.b || []).indexOf(mn1) > -1;
+    var disD = (shiftDisabled.d || []).indexOf(mn1) > -1;
+    var disB1 = (shiftDisabled.b1 || []).indexOf(mn1) > -1;
+    var disMT = (shiftDisabled.n_mt || []).indexOf(mn1) > -1;
+    var disLA = (shiftDisabled.n_la || []).indexOf(mn1) > -1;
+
     function consec(pid, day) {
       var n = 1, x = day - 1;
       while (x >= 1 && assign[x] && assign[x].b === pid) { n++; x--; }
@@ -115,7 +124,8 @@ var BusinessService = (function () {
       return days.every(function (d) {
         return !avOff_(availability, pid, d, month, year) &&
           !avNo_(availability, pid, d, month, year, 'noB') &&
-          !avNo_(availability, pid, d, month, year, 'noD');
+          !avNo_(availability, pid, d, month, year, 'noD') &&
+          !(!disCH && isOff(d) && avNo_(availability, pid, d, month, year, 'noCh'));
       });
     }
     function isOff(d) { return isOff_(year, month, d, holidays); }
@@ -213,16 +223,7 @@ var BusinessService = (function () {
       }
     }
 
-    /* ══ Clinic (น) — shiftDisabled ══ */
-    var shiftDisabled = settings.shiftDisabled || { n_mt: [], n_la: [], ch: [], b: [], d: [], b1: [] };
-    var mn1 = month + 1;
-    var disCH = (shiftDisabled.ch || []).indexOf(mn1) > -1;
-    var disB = (shiftDisabled.b || []).indexOf(mn1) > -1;
-    var disD = (shiftDisabled.d || []).indexOf(mn1) > -1;
-    var disB1 = (shiftDisabled.b1 || []).indexOf(mn1) > -1;
-    var disMT = (shiftDisabled.n_mt || []).indexOf(mn1) > -1;
-    var disLA = (shiftDisabled.n_la || []).indexOf(mn1) > -1;
-
+    /* ══ Clinic (น) — shiftDisabled (ค่า dis* ประกาศไว้ด้านบนก่อน canDuty) ══ */
     if (disCH || disB || disD) {
       for (var d3 = 1; d3 <= N; d3++) {
         if (!assign[d3]) continue;
@@ -246,7 +247,7 @@ var BusinessService = (function () {
       if (!disMT) {
         var prevD = assign[day - 1] ? assign[day - 1].d : null;
         var todD = assign[day] ? assign[day].d : null;
-        var cands = cp.filter(function (p) { return !avOff_(availability, p.id, day, month, year); });
+        var cands = cp.filter(function (p) { return !avNo_(availability, p.id, day, month, year, 'noN'); });
         var cands2 = cands.filter(function (p) { return p.id !== prevD; });
         if (!cands2.length) cands2 = cands;
         cands2.sort(function (a, b) {
@@ -262,7 +263,7 @@ var BusinessService = (function () {
           /* no LA assistant configured — skip */
         } else if (settings.clinicLa === 'auto') {
           var laCands = laPool.filter(function (p) {
-            if (avOff_(availability, p.id, day, month, year)) return false;
+            if (avNo_(availability, p.id, day, month, year, 'noN')) return false;
             if (laB[day] === p.id) return false;
             return true;
           });
@@ -274,7 +275,7 @@ var BusinessService = (function () {
           }
         } else {
           var lp = byId_(people, settings.clinicLa);
-          if (lp && lp.active && !avOff_(availability, settings.clinicLa, day, month, year)) clinicLa[day] = settings.clinicLa;
+          if (lp && lp.active && !avNo_(availability, settings.clinicLa, day, month, year, 'noN')) clinicLa[day] = settings.clinicLa;
         }
       }
     }
@@ -307,7 +308,7 @@ var BusinessService = (function () {
         if (isOff(day2) || w === 5) continue;
         var la = (w === 1 || w === 2) ? laMonPer : (w === 3 || w === 4) ? laWedPer : null;
         var laPerson = la ? byId_(people, la) : null;
-        if (la && laPerson && laPerson.active && !avOff_(availability, la, day2, month, year)) laB[day2] = la;
+        if (la && laPerson && laPerson.active && !avNo_(availability, la, day2, month, year, 'noB1')) laB[day2] = la;
       }
     }
 

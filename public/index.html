@@ -1884,7 +1884,7 @@ var Schedule = (function () {
       '<div class="oc-form-grid">' +
       '<label>เจ้าหน้าที่<select id="avPid"></select></label>' +
       '<label>วันที่<input id="avDay" type="number" min="1" max="31"></label>' +
-      '<label>ประเภท<select id="avType"><option value="leave">ลาทั้งวัน</option><option value="noB">ไม่สะดวกเวร บ</option><option value="noD">ไม่สะดวกเวร ด</option><option value="noCh">ไม่สะดวกเวร ช (วันหยุด)</option></select></label>' +
+      '<label>ประเภท<select id="avType"><option value="leave">ลาทั้งวัน</option><option value="noB">ไม่สะดวกเวร บ</option><option value="noD">ไม่สะดวกเวร ด</option><option value="noCh">ไม่สะดวกเวร ช (วันหยุด)</option><option value="noN">ไม่สะดวกเวรคลินิกนอกเวลา (07-08)</option><option value="noB1">ไม่สะดวกเวรเสริมบ่าย (16-20)</option><option value="offAll">ไม่ขึ้นเวรทุกเวร (off)</option></select></label>' +
       '</div><button class="btn btn-primary" id="avAddBtn"><i class="ti ti-plus"></i> เพิ่มรายการ</button>' +
       '<div class="card" style="margin-top:14px;"><div class="card-title"><i class="ti ti-list"></i>รายการที่แจ้งไว้</div><div class="tbl-wrap"><table class="tbl" id="avTable"></table></div></div>';
 
@@ -1906,7 +1906,7 @@ var Schedule = (function () {
     Promise.all([gsRun('api_listAvailability', Session.token, current.year, current.month), loadPeople()]).then(function (res) {
       var rows = res[0], people = res[1];
       var byId = {}; people.forEach(function (p) { byId[p.id] = p; });
-      var TYPE_LABEL = { leave: 'ลาทั้งวัน', noB: 'ไม่สะดวก บ', noD: 'ไม่สะดวก ด', noCh: 'ไม่สะดวก ช' };
+      var TYPE_LABEL = { leave: 'ลาทั้งวัน', noB: 'ไม่สะดวก บ', noD: 'ไม่สะดวก ด', noCh: 'ไม่สะดวก ช', noN: 'ไม่สะดวก น', noB1: 'ไม่สะดวก <u>บ</u>', offAll: 'ไม่ขึ้นเวรทุกเวร (off)' };
       var body = rows.sort(function (a, b) { return a.day - b.day; }).map(function (r) {
         var p = byId[r.pid];
         return '<tr><td class="l">' + (p ? fullN(p) : r.pid) + '</td><td>' + r.day + '</td><td><span class="badge none">' + (TYPE_LABEL[r.type] || r.type) + '</span></td>' +
