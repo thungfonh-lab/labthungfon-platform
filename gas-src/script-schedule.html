@@ -557,9 +557,9 @@ var Schedule = (function () {
 
     document.getElementById('avAddBtn').onclick = function () {
       var entry = { pid: document.getElementById('avPid').value, day: +document.getElementById('avDay').value, type: document.getElementById('avType').value, mon: current.month, yr: current.year };
-      if (!entry.day) return;
+      if (!entry.day) { toast('กรุณากรอกวันที่', 'ยังไม่ได้ระบุวันที่ที่ต้องการแจ้ง', true); document.getElementById('avDay').focus(); return; }
       gsRun('api_addAvailability', Session.token, current.year, current.month, entry).then(function () {
-        toast('บันทึกแล้ว'); loadAvailTable();
+        toast('บันทึกแล้ว'); document.getElementById('avDay').value = ''; loadAvailTable();
       });
     };
     loadAvailTable();
