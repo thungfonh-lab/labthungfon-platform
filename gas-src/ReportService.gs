@@ -11,7 +11,8 @@ var TH_DOW = ['อา', 'จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส'];
 var SHIFT_DEFS = {
   ch: { name: 'เวรเช้า', short: 'ช', color: '#0a4f47', bg: '#d9ebe8' },
   b: { name: 'เวรบ่าย 16-00', short: 'บ', color: '#2f5fa0', bg: '#e7eef8' },
-  b1: { name: 'บ1 เวรเสริมบ่าย 16-20', short: 'บ1', color: '#7a4fa0', bg: '#efe7f7' },
+  /* สัญลักษณ์ บ1 → "บ ขีดเส้นใต้" ตามฟีดแบ็ก — short ใช้เฉพาะใน HTML ของรายงาน (chip/หัวตาราง) */
+  b1: { name: 'เวรเสริมบ่าย 16-20', short: '<u>บ</u>', color: '#7a4fa0', bg: '#efe7f7' },
   n: { name: 'เวรคลินิกนอกเวลา 07-08', short: 'น', color: '#6b4e16', bg: '#ede0c4' },
   d: { name: 'เวรดึก On call (00-08)', short: 'ด', color: '#7a5618', bg: '#f7ecd6' },
   d0: { name: 'เวรดึก On call (00.00-04.00)', short: 'ด', color: '#7a5618', bg: '#f7ecd6' },

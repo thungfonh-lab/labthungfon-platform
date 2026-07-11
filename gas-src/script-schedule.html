@@ -30,10 +30,12 @@ var Schedule = (function () {
     b: { short: 'บ', name: 'เวรบ่าย 16-00', bg: '#e7eef8', color: '#2f5fa0' },
     d: { short: 'ด', name: 'เวรดึก On call 00-08', bg: '#f7ecd6', color: '#7a5618' },
     n: { short: 'x', name: 'เวรคลินิกนอกเวลา 07-08', bg: '#ede0c4', color: '#6b4e16' },
-    b1: { short: 'บ1', name: 'บ1 เวรเสริมบ่าย 16-20', bg: '#efe7f7', color: '#7a4fa0' }
+    /* สัญลักษณ์ บ1 เปลี่ยนเป็น "บ ขีดเส้นใต้" ตามฟีดแบ็ก — u:true ให้ tokEl ใส่เส้นใต้
+       (key 'b1' และข้อความที่บันทึกลง log/option ยังคง "บ1" เดิม ไม่กระทบข้อมูล) */
+    b1: { short: 'บ', u: true, name: 'เวรเสริมบ่าย 16-20', bg: '#efe7f7', color: '#7a4fa0' }
   };
   var REPORT_TABS = [
-    { id: 'otsheet', label: 'OT timesheet' }, { id: 'otsheetb1', label: 'OT timesheet (บ1)' }, { id: 'otsheetd', label: 'OT timesheet (เวรดึก)' }, { id: 'nsheet', label: 'เวรคลินิก (น)' },
+    { id: 'otsheet', label: 'OT timesheet' }, { id: 'otsheetb1', label: 'OT timesheet (<u>บ</u>)' }, { id: 'otsheetd', label: 'OT timesheet (เวรดึก)' }, { id: 'nsheet', label: 'เวรคลินิก (น)' },
     { id: 'pay', label: 'ใบเบิกเงินรวม' }, { id: 'payLandscape', label: 'ใบเบิกเงินรวม (แนวนอน A4)' },
     { id: 'payperson', label: 'รายบุคคล' },
     { id: 'shiftsummary', label: 'สรุปรายเวร' }, { id: 'teamoverview', label: 'ภาพรวมทีม' },
@@ -45,7 +47,7 @@ var Schedule = (function () {
   function dowLabel() { return ['อา', 'จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส']; }
   function isWknd(year, month, d) { var w = new Date(year - 543, month, d).getDay(); return w === 0 || w === 6; }
 
-  function tokEl(t) { var s = SHIFT_DEFS[t]; return '<span class="tok" style="background:' + s.bg + ';color:' + s.color + '">' + s.short + '</span>'; }
+  function tokEl(t) { var s = SHIFT_DEFS[t]; return '<span class="tok" style="background:' + s.bg + ';color:' + s.color + (s.u ? ';text-decoration:underline;text-underline-offset:2px' : '') + '">' + s.short + '</span>'; }
 
   function loadPeople() {
     if (peopleCache) return Promise.resolve(peopleCache);
@@ -112,7 +114,7 @@ var Schedule = (function () {
     document.getElementById('legend').innerHTML = Object.keys(SHIFT_DEFS).map(function (k) {
       var s = SHIFT_DEFS[k];
       return '<span>' + tokEl(k) + ' ' + s.name + '</span>';
-    }).join('') + '<span><span class="tok" style="background:#c8c8c8;color:#c8c8c8;">&nbsp;&nbsp;</span> ลาทั้งวัน</span>';
+    }).join('') + '<span><span class="tok lv-swatch" style="background:#c8c8c8;color:#c8c8c8;">&nbsp;&nbsp;</span> ลาทั้งวัน</span>';
 
     document.getElementById('genBtn').onclick = function () {
       gsRun('api_generateSchedule', Session.token, current.year, current.month).then(function (result) {
@@ -213,7 +215,7 @@ var Schedule = (function () {
       '<div class="whr-list">' +
       order.map(function (k) {
         var s = SHIFT_DEFS[k];
-        var short = k === 'n' ? 'X' : s.short;
+        var short = k === 'n' ? 'X' : (s.u ? '<u>' + s.short + '</u>' : s.short);
         var label = s.name.replace(/\s*\d+-\d+$/, '');
         if (label.indexOf(short) !== 0) label = short + ' ' + label;
         var t = WORK_HOURS_FULL_[k];
@@ -249,7 +251,7 @@ var Schedule = (function () {
       r1 += '<th class="dnum ' + c + '">' + d + '</th>';
       r2 += '<th class="dow ' + c + '">' + dl[new Date(cal.year - 543, cal.month, d).getDay()] + '</th>';
     }
-    r1 += '<th class="sumcol" rowspan="2">x</th><th class="sumcol" rowspan="2">ช</th><th class="sumcol" rowspan="2">บ1</th><th class="sumcol" rowspan="2">บ</th><th class="sumcol" rowspan="2">ด</th><th class="sumcol" rowspan="2">รวม</th>';
+    r1 += '<th class="sumcol" rowspan="2">x</th><th class="sumcol" rowspan="2">ช</th><th class="sumcol" rowspan="2"><u>บ</u></th><th class="sumcol" rowspan="2">บ</th><th class="sumcol" rowspan="2">ด</th><th class="sumcol" rowspan="2">รวม</th>';
     var h = '<thead><tr>' + r1 + '</tr><tr>' + r2 + '</tr></thead><tbody>';
 
     var totals = { ch: 0, b: 0, b1: 0, n: 0, d: 0 };
@@ -336,7 +338,7 @@ var Schedule = (function () {
   /* ── manual override modal (ported from openOvr()/applyOvr()) ── */
   var OVR_SHIFT_OPTS = [
     ['ch', 'เวรเช้า (วันหยุด)'], ['b', 'เวรบ่าย'], ['d', 'เวรดึก On call'],
-    ['n_mt', 'เวรคลินิกนอกเวลา (MT)'], ['n_la', 'เวรคลินิกนอกเวลา (LA)'], ['b1', 'บ1 เวรเสริมบ่าย']
+    ['n_mt', 'เวรคลินิกนอกเวลา (MT)'], ['n_la', 'เวรคลินิกนอกเวลา (LA)'], ['b1', '<u>บ</u> เวรเสริมบ่าย']
   ];
   var OVR_SHIFT_LABEL_ = {}; OVR_SHIFT_OPTS.forEach(function (o) { OVR_SHIFT_LABEL_[o[0]] = o[1]; });
   var OVR_BLOCK_PRESETS = [
@@ -507,7 +509,7 @@ var Schedule = (function () {
             'เวร ช จำนวน ' + g.ch + ' วัน',
             'เวร บ จำนวน ' + g.b + ' วัน'
           ];
-          if (g.b1) lines.push('เวร บ1 จำนวน ' + g.b1 + ' วัน');
+          if (g.b1) lines.push('เวร <u>บ</u> จำนวน ' + g.b1 + ' วัน');
           if (g.n) lines.push('เวร น จำนวน ' + g.n + ' วัน');
           lines.push('on call ' + (oncallByRole[role] || 0) + ' ครั้ง');
           return '<div class="stat" style="text-align:left;padding:14px;">' +
@@ -527,7 +529,7 @@ var Schedule = (function () {
             'เวร ช จำนวน ' + counts.ch + ' วัน',
             'เวร บ จำนวน ' + counts.b + ' วัน'
           ];
-          if (counts.b1) lines.push('เวร บ1 จำนวน ' + counts.b1 + ' วัน');
+          if (counts.b1) lines.push('เวร <u>บ</u> จำนวน ' + counts.b1 + ' วัน');
           if (counts.n) lines.push('เวร น จำนวน ' + counts.n + ' วัน');
           lines.push('on call ' + (oncallByPid[p.id] || 0) + ' ครั้ง');
           return '<div class="stat" style="text-align:left;padding:14px;">' +
@@ -771,7 +773,7 @@ var Schedule = (function () {
     if (b.autoUnlocks.length) {
       crossHtml += '<div class="bp-alert warn" style="margin-bottom:8px"><i class="ti ti-lock-open"></i><span><strong>ปล่อย cross-month lock ' + b.autoUnlocks.length + ' วัน</strong> — lock ทำให้ไม่สมดุล ระบบเลือกคนใหม่อัตโนมัติ</span></div>';
     }
-    var shiftName = function (sh) { return { b: 'บ่าย', ch: 'เช้า(วันหยุด)', b1: 'บ1', n: 'คลินิก', d: 'On call' }[sh] || sh; };
+    var shiftName = function (sh) { return { b: 'บ่าย', ch: 'เช้า(วันหยุด)', b1: '<u>บ</u>', n: 'คลินิก', d: 'On call' }[sh] || sh; };
     var autoBody;
     if (b.autoSwaps.length) {
       autoBody = crossHtml + '<div class="bp-alert ok" style="margin-bottom:10px"><i class="ti ti-check"></i><span><strong>ปรับสมดุล ' + b.autoSwaps.length + ' เวรอัตโนมัติ</strong> — บันทึกใน Override Log แล้ว เป็นส่วนหนึ่งของตารางเวร</span></div>' +
@@ -833,7 +835,7 @@ var Schedule = (function () {
           '<td><span class="bp-diff ' + over + '">' + dlbl + '</span></td><td>' + sb + '</td></tr>';
       }).join('');
     }
-    var thead = '<thead><tr><th>#</th><th>ชื่อ</th><th>บทบาท</th><th title="เวรเช้า(วันหยุด)">ช</th><th title="เวรบ่าย">บ</th><th title="คลินิก">น</th><th title="ผู้ช่วย บ1">บ1</th><th>เงินรวม</th><th style="min-width:140px">เทียบเฉลี่ยกลุ่ม</th><th>ส่วนต่าง</th><th>สถานะ</th></tr></thead>';
+    var thead = '<thead><tr><th>#</th><th>ชื่อ</th><th>บทบาท</th><th title="เวรเช้า(วันหยุด)">ช</th><th title="เวรบ่าย">บ</th><th title="คลินิก">น</th><th title="ผู้ช่วย เวรเสริมบ่าย"><u>บ</u></th><th>เงินรวม</th><th style="min-width:140px">เทียบเฉลี่ยกลุ่ม</th><th>ส่วนต่าง</th><th>สถานะ</th></tr></thead>';
     function secHdr(label, color, avg) { return '<tr><td colspan="11" style="padding:6px 10px;background:' + color + '22;color:' + color + ';font-size:12px;font-weight:700;border-left:3px solid ' + color + '">' + label + ' — ค่าเฉลี่ย ' + bpMoney(avg) + '</td></tr>'; }
     var tblBody = secHdr('กลุ่ม MT / HT', 'var(--tl)', b.mtAvg) +
       (b.mtStats.length ? renderRows(b.mtStats, b.mtAvg) : '<tr><td colspan="11" style="text-align:center;color:var(--mut);padding:8px">ไม่มีข้อมูล</td></tr>') +
@@ -843,7 +845,7 @@ var Schedule = (function () {
     /* ── swap suggestions ── */
     function explainDiff(pair) {
       var rate = pair.sRate || pair.uRate || 0;
-      var sLbl = { b: 'เวรบ่าย', ch: 'เวรเช้า(วันหยุด)', b1: 'เวรบ1', n: 'คลินิก' }[pair.bestShift] || pair.bestShift;
+      var sLbl = { b: 'เวรบ่าย', ch: 'เวรเช้า(วันหยุด)', b1: 'เวร<u>บ</u>', n: 'คลินิก' }[pair.bestShift] || pair.bestShift;
       return pair.ovName + ' มี' + sLbl + 'มากกว่า · มูลค่าประมาณ ' + bpMoney(rate) + '/วัน';
     }
     function buildSwaps(pairs, label) {
@@ -853,7 +855,7 @@ var Schedule = (function () {
         var imp = p.impact > 0 ? 'ลด ' + bpMoney(p.impact) : 'ผลเล็กน้อย';
         var rs = p.reasons.map(function (r) { return '<span class="ctag-bp ' + (r.ok ? 'good' : 'bad') + '"><i class="ti ' + (r.ok ? 'ti-check' : 'ti-alert-circle') + '" style="font-size:11px"></i>' + r.label + '</span>'; }).join(' ');
         var why = explainDiff(p);
-        var shLbl = { b: 'บ่าย', ch: 'เช้า(วันหยุด)', b1: 'บ1', n: 'คลินิก' }[p.bestShift] || p.bestShift;
+        var shLbl = { b: 'บ่าย', ch: 'เช้า(วันหยุด)', b1: '<u>บ</u>', n: 'คลินิก' }[p.bestShift] || p.bestShift;
         return '<div class="swap-card-bp" id="bpSwap_' + label.replace(/\s/g, '') + idx + '">' +
           '<div class="swap-head-bp"><span class="swap-person-bp over"><i class="ti ti-arrow-up" style="font-size:12px"></i>' + p.ovName + ' <small>' + bpMoney(p.ovMoney) + '</small></span>' +
           '<i class="ti ti-arrows-exchange" style="color:var(--mut);font-size:16px"></i>' +
@@ -1279,9 +1281,9 @@ var Schedule = (function () {
     document.getElementById('accRules').innerHTML = '<div class="frm-grid">' +
       '<label>การกระจายเวร' + sel('cfDist', [['equal', 'สมดุลที่สุด (พักผ่อนมากสุด)'], ['priority', 'ตาม Priority']], s.dist) + '</label>' +
       '<label>วันติดต่อกันสูงสุด<input id="cfMaxC" type="number" min="1" value="' + (s.maxC || 4) + '"></label>' +
-      '<label>เวร บ1 เวรเสริมบ่าย — สลับสัปดาห์' + sel('cfLaB', [['A', 'A: จ-อ · B: พ-พฤ'], ['B', 'A: พ-พฤ · B: จ-อ']], s.laB) + '</label>' +
-      '<label>ผู้ช่วย A (เวร บ1)' + sel('cfLaA', [['no', '(ไม่กำหนด)']].concat(mtla.map(function (p) { return [p.id, fullN(p)]; })), s.laA) + '</label>' +
-      '<label>ผู้ช่วย B (เวร บ1)' + sel('cfLaB2', [['no', '(ไม่กำหนด)']].concat(mtla.map(function (p) { return [p.id, fullN(p)]; })), s.laB2) + '</label>' +
+      '<label>เวร <u>บ</u> เวรเสริมบ่าย — สลับสัปดาห์' + sel('cfLaB', [['A', 'A: จ-อ · B: พ-พฤ'], ['B', 'A: พ-พฤ · B: จ-อ']], s.laB) + '</label>' +
+      '<label>ผู้ช่วย A (เวร <u>บ</u>)' + sel('cfLaA', [['no', '(ไม่กำหนด)']].concat(mtla.map(function (p) { return [p.id, fullN(p)]; })), s.laA) + '</label>' +
+      '<label>ผู้ช่วย B (เวร <u>บ</u>)' + sel('cfLaB2', [['no', '(ไม่กำหนด)']].concat(mtla.map(function (p) { return [p.id, fullN(p)]; })), s.laB2) + '</label>' +
       '<label>ผู้ช่วยประจำคลินิก (น)' + sel('cfClinicLa', [['auto', 'เลือกอัตโนมัติ (เท่ากันไม่ซ้อนบ1)'], ['', 'ไม่จัด']].concat(mtla.filter(function (p) { return p.role === 'LA'; }).map(function (p) { return [p.id, fullN(p)]; })), s.clinicLa) + '</label>' +
       '</div><button class="btn btn-primary btn-sm" id="rulesSaveBtn" style="margin-top:10px;">บันทึกกฎ</button>' +
       '<div style="margin-top:18px;border-top:1px solid var(--border);padding-top:14px;">' +
@@ -1333,7 +1335,9 @@ var Schedule = (function () {
     var SH_FULL_LABEL = {
       ch: 'เวรเช้า 08-16', b: 'เวรบ่าย 16-00',
       d0: 'เวรดึก On call 00.00-04.00', d1: 'เวรดึก On call 04.00-08.00',
-      n: 'เวรคลินิกนอกเวลา 07-08', b1: 'บ1 เวรเสริมบ่าย 16-20'
+      /* SH_FULL_LABEL[b1] ใช้ทั้งใน <td> และ <option> (บรรทัด 1378) — <option> render HTML ไม่ได้
+         จึงคงเป็น text ล้วน (ตัด "1" ออกแทนใส่ <u>) ไม่ใช้ tag ที่นี่ */
+      n: 'เวรคลินิกนอกเวลา 07-08', b1: 'บ เวรเสริมบ่าย 16-20'
     };
     var ROLE_LABEL_ = { MT: 'MT/HT', LA: 'ผู้ช่วย (LA)' };
     var rateRow = function (role, label) {
@@ -1346,7 +1350,7 @@ var Schedule = (function () {
     };
     body.innerHTML = '<div class="card-title" style="margin-top:0;">อัตรามาตรฐาน</div>' +
       '<p style="font-size:11px;color:var(--mut);margin:-4px 0 8px;">เวร ด (on call) แยก 2 อัตราตามช่วงเวลา — ใครมี on call หลายเวลาในช่วงเดียวกันของวันเดียวกัน นับเป็น 1 ครั้งของช่วงนั้น · กรอกได้ทศนิยม 2 ตำแหน่ง (เช่น 41.25)</p>' +
-      '<div class="tbl-wrap"><table class="tbl" style="table-layout:fixed;"><tr><th style="width:18%;">กลุ่ม</th><th>ช</th><th>บ</th><th>ด (00.00-04.00)</th><th>ด (04.00-08.00)</th><th>น</th><th>บ1</th></tr>' + rateRow('MT', 'MT/HT') + rateRow('LA', 'ผู้ช่วย (LA)') + '</table></div>' +
+      '<div class="tbl-wrap"><table class="tbl" style="table-layout:fixed;"><tr><th style="width:18%;">กลุ่ม</th><th>ช</th><th>บ</th><th>ด (00.00-04.00)</th><th>ด (04.00-08.00)</th><th>น</th><th><u>บ</u></th></tr>' + rateRow('MT', 'MT/HT') + rateRow('LA', 'ผู้ช่วย (LA)') + '</table></div>' +
       '<button class="btn btn-primary btn-sm" id="ratesSaveBtn" style="margin-top:10px;">บันทึกอัตรา</button>' +
       '<div class="card-title" style="margin-top:18px;">อัตราพิเศษ (Override)</div>' +
       '<p style="font-size:11.5px;color:var(--mut);margin-bottom:8px;">เจาะจงมากกว่า = ใช้ก่อน: บุคคล &gt; บทบาท &gt; ช่วงวันที่ &gt; อัตรามาตรฐาน</p>' +

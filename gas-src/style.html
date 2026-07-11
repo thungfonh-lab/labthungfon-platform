@@ -320,7 +320,11 @@ tbody tr:last-child td{border-bottom:none}
   /* ค่าเริ่มต้น = พิมพ์ขาวดำ (กดปุ่ม "พิมพ์") — กดปุ่ม "พิมพ์สี" จะเติม class print-color ที่ <html> ก่อนสั่งพิมพ์
      เพื่อข้ามฟิลเตอร์ grayscale และคืนสีจริงของโทเค็นเวร/หัวตาราง (ดู printColorBtn ใน script-schedule.html) */
   html:not(.print-color){filter:grayscale(1)}
-  #sb,#topbar,#appFooter,.btn,.legend,.rtabs,#violationsPanel,#ovrLogCard,.modal-overlay,#toastWrap,.loading-overlay,#repPersonSel{display:none!important}
+  #sb,#topbar,#appFooter,.btn,.rtabs,#violationsPanel,#ovrLogCard,.modal-overlay,#toastWrap,.loading-overlay,#repPersonSel{display:none!important}
+  /* แถบคำอธิบายสัญลักษณ์ — พิมพ์ออกมาด้วยตามฟีดแบ็ก (เดิมถูกซ่อน)
+     swatch "ลาทั้งวัน" ต้องบังคับพื้นเทา ไม่งั้นโดน rule ล้าง background ของโหมดขาวดำจนหาย */
+  .legend{font-size:9.5px;margin:3px 0;gap:8px;color:#000}
+  .legend .lv-swatch{background:#adadad!important;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;color-adjust:exact!important}
   .contact i{display:none!important}
   .print-only{display:block!important}
   #content{overflow:visible}
@@ -329,21 +333,23 @@ tbody tr:last-child td{border-bottom:none}
   /* ตารางเวรคือตัวหลักของรายงาน — ให้ฟอนต์/ระยะใหญ่กว่าส่วนอื่น ส่วนข้อมูลรองบีบให้เล็กลงแทน */
   .sched{font-size:7.8px;width:100%;min-width:0;table-layout:fixed}
   .sched th,.sched td{padding:1.5px 2px;min-width:0;width:auto;border-width:0.5px}
-  .sched .nm{min-width:0;max-width:none;width:11%;font-size:8.8px;position:static}
-  .sched .sumcol{min-width:0;width:3%}
+  /* หดคอลัมน์ชื่อ/สรุปลงเล็กน้อย เพื่อขยายคอลัมน์วันให้ตัวอักษรหลายเวรมีช่องไฟ */
+  .sched .nm{min-width:0;max-width:none;width:10%;font-size:8.8px;position:static;white-space:nowrap}
+  .sched .sumcol{min-width:0;width:2.6%}
   .sched .cell{height:auto;min-height:20px;gap:2px}
   .sched .cell .tok{flex:1 1 0;min-width:0;padding:0;text-align:center}
   .sched .cell.ovrd{box-shadow:none}
   /* โทเค็นเวรเป็นตัวอักษรล้วน ไม่มีกรอบครอบ (ตัดกรอบออกตามฟีดแบ็ก — มีกรอบอ่านยาก)
      ขนาดตัวอักษรเท่ากับตัวเลขสรุปท้ายแถว (.sumcol = 11px) ตามฟีดแบ็ก (เดิม 7px เล็กกว่ามาก)
      โหมดพิมพ์สี (html.print-color) ข้ามการบังคับขาวดำนี้ ให้ใช้สีจริงตาม inline style ของแต่ละโทเค็นแทน */
-  .tok{font-size:11px;padding:0 1px;font-weight:700;border:none!important;line-height:1.3}
+  /* น้ำหนักตัวอักษร 600 (เดิม 700) — ตามฟีดแบ็ก "เวร ด/ดชบ ดูเข้ม" ให้บางลงเท่ากันทุกช่อง */
+  .tok{font-size:11px;padding:0 1px;font-weight:600;border:none!important;line-height:1.3}
   /* ตัวอักษรเวรขนาดเท่ากันทุกช่อง (11px) — กันตัวอักษรซ้อนกันด้วยการตัด padding แนวนอน
      ของช่องวัน และตัด gap/padding ของช่องที่มี 3 เวรขึ้นไป แทนการย่อฟอนต์
      (วัดที่ความกว้างพิมพ์ A4 แนวนอน: 1-3 เวรไม่ทับกันที่ 11px)
      ช่องหายาก 4-5 เวร (เกิดจาก override ซ้อนหลายเวร) เกินความกว้างช่องจริงๆ จึงย่อเฉพาะช่องนั้น */
   .sched td:not(.nm):not(.sumcol){padding:1.5px 0}
-  .sched .cell:has(.tok:nth-child(3)){gap:0;padding:0}
+  .sched .cell:has(.tok:nth-child(3)){gap:1px;padding:0}
   .sched .cell .tok:first-child:nth-last-child(n+4),
   .sched .cell .tok:first-child:nth-last-child(n+4) ~ .tok{font-size:9px}
   .sched .cell .tok:first-child:nth-last-child(n+5),
