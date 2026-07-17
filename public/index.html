@@ -104,6 +104,15 @@ a{color:var(--tl);text-decoration:none}
 .kpi-lbl{font-size:11px;color:var(--mut);margin-bottom:5px}
 .kpi-val{font-size:22px;font-weight:700;line-height:1;font-family:'IBM Plex Sans Thai'}
 .kpi-sub{font-size:11px;color:var(--mut);margin-top:3px}
+/* ── module picker (หน้าหลักหลังล็อกอิน) ── */
+.modpick-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px}
+.modpick-card{display:flex;align-items:center;gap:14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r2);padding:18px 16px;cursor:pointer;box-shadow:var(--shadow);transition:transform .12s,box-shadow .12s,border-color .12s}
+.modpick-card:hover,.modpick-card:focus-visible{transform:translateY(-2px);box-shadow:var(--shadow-lg);border-color:var(--tl);outline:none}
+.modpick-icon{width:46px;height:46px;flex:none;border-radius:12px;background:var(--tl-vl);color:var(--tl);display:grid;place-items:center;font-size:22px}
+.modpick-body{flex:1;min-width:0}
+.modpick-name{font-size:14px;font-weight:700;font-family:'IBM Plex Sans Thai';display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.modpick-desc{font-size:11.5px;color:var(--mut);margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.modpick-go{color:var(--mut);font-size:16px;flex:none}
 .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r2);padding:16px;margin-bottom:12px}
 .card-title{font-size:13px;font-weight:600;display:flex;align-items:center;gap:7px;margin-bottom:12px;color:var(--ink)}
 .card-title i{color:var(--mut);font-size:16px}
@@ -416,8 +425,8 @@ tbody tr:last-child td{border-bottom:none}
      (คงที่ 15px/12.5px ทั้งจอ/พิมพ์) ต้อง override คืนขนาดเดิมเฉพาะที่นี่ ให้ตรงกับใบเบิกเงินรวมตอนพิมพ์จริง */
   .rep-tbl-sig .rt-head-row th.dtitle{font-size:15px!important}
   .rep-tbl-sig .rt-head-row th.dline{font-size:12.5px!important;line-height:1.55!important}
-  /* ใบเบิกเงินรวม (แนวตั้ง) — เพิ่ม line-height เฉพาะรายงานนี้ตามฟีดแบ็ก แต่ 2.2/5px ดูหลวมเกินไปตามฟีดแบ็กถัดมา
-     ("ลด line-height/padding ให้พอดี A4") ลดกลับมาอยู่กึ่งกลางระหว่างค่าเดิม (1.5/3px) กับค่าที่ขยายไปก่อนหน้า */
+  /* ใบเบิกเงินรวม (แนวตั้ง) — เพิ่ม line-height เฉพาะรายงานนี้ตามฟีดแบ็ก มีที่ว่างเหลือเยอะก่อนถึงลายเซ็น
+     (margin-top:140px ของ .sig-row ด้านล่าง) จึงขยายแถวให้อ่านง่ายขึ้นได้อีกโดยยังพอดี 1 หน้า */
   .pay-portrait .rep-tbl{line-height:1.6}
   .pay-portrait .rep-tbl th,.pay-portrait .rep-tbl td{padding:3px 6px}
   body,html{overflow:visible!important;height:auto!important}
@@ -476,7 +485,7 @@ tbody tr:last-child td{border-bottom:none}
      เส้นเดียว) แต่ทดสอบพิมพ์จริงแล้วขอบขวายังหายอยู่ดี — สรุปว่า border ระดับ <table> ไม่น่าเชื่อถือใน Chrome
      "Save as PDF" เมื่อ border-collapse:separate เลยเลิกพึ่งมันสำหรับ .rep-tbl ไปเลย (ต่างจาก .sched/.tbl ที่ยังคง
      ของเดิมไว้ก่อน เพราะยังไม่มีรายงานว่าเสียเหมือนกัน) แทนที่ด้วยการห่อ <table class="rep-tbl"> อีกชั้นด้วย
-     <div class="rep-tbl-wrap"> (ดู reportService.js — repPay/payperson/teamoverview/oncall record) แล้วให้ div
+     <div class="rep-tbl-wrap"> (ดู ReportService.gs — repPay_/payperson/teamoverview/oncall record) แล้วให้ div
      เป็นคนวาดกรอบนอกแทน เพราะ border ของ div เป็นคนละ rendering path จาก table ไม่ผ่าน border-collapse เลย
      ไม่น่าจะเจอบั๊กเดียวกัน — .rep-tbl-sig ห่อ div ไม่ได้เหมือนกัน (จะครอบหัวรายงานที่ฝังใน thead เข้าไปด้วย) เลย
      ยังต้องพึ่ง width shrink เหมือนเดิม ส่วนเซลล์ของทั้ง .rep-tbl และ .rep-tbl-sig กลับไปใช้สูตรเดียวกัน (วาดแค่
@@ -509,7 +518,9 @@ tbody tr:last-child td{border-bottom:none}
   /* บันทึก on-call (รายละเอียด) — ตัดหัวรายงานย่อยออก เพิ่มระยะห่างระหว่างบรรทัดให้อ่านง่าย */
   /* เดิม padding:10px 0 ทำให้ข้อความชิดขอบกระดาษ (.doc เองก็ padding:0 ตอนพิมพ์) ตามฟีดแบ็ก
      เติม padding ซ้าย/ขวาเป็น mm (แม่นยำกว่า px ตอนคำนวณระยะจากขอบกระดาษ เหมือนจุดอื่นในไฟล์นี้) */
-  .oc-claim-blk{line-height:2;padding:10px 5mm!important}
+  /* ไม่มีกฎห้ามแบ่งหน้ากลางบล็อกมาก่อน ทำให้ Chrome ตัดหน้าพิมพ์กลางรายการพอดี (เช่น หัวรายการอยู่หน้าหนึ่ง
+     แต่ LAB/หน่วยงานตกไปอีกหน้า) ตามฟีดแบ็ก — ห้ามแบ่งกลางรายการ ให้ทั้งบล็อกขึ้นหน้าใหม่พร้อมกันแทน */
+  .oc-claim-blk{line-height:2;padding:10px 5mm!important;page-break-inside:avoid;break-inside:avoid}
   .oc-claim-blk>div{margin-bottom:3px}
 }
 </style>
@@ -588,13 +599,6 @@ tbody tr:last-child td{border-bottom:none}
       <div class="frame" id="frame-schedule"><div id="schedInner"></div></div>
       <div class="frame" id="frame-admin"></div>
       <div class="frame" id="frame-guide"></div>
-      <div class="frame" id="frame-ext">
-        <div class="card" style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:0;">
-          <div style="font-size:12px;color:var(--mut);"><i class="ti ti-link"></i> โมดูลภายนอก: <span id="extUrlLabel" style="color:var(--ink);font-weight:600;"></span></div>
-          <a id="extOpenNewTab" href="#" target="_blank" rel="noopener" class="btn btn-sm"><i class="ti ti-external-link"></i> เปิดแท็บใหม่</a>
-        </div>
-        <iframe id="extFrame" src="about:blank" style="width:100%;height:calc(100vh - 140px);border:1px solid var(--border);border-radius:var(--r2);margin-top:10px;background:var(--surface);"></iframe>
-      </div>
     </div>
     <div id="appFooter" style="text-align:center;padding:10px 16px 14px;font-size:11px;color:var(--mut);border-top:1px solid var(--border);background:var(--surface);">
       labthungfon-platform โรงพยาบาลทุ่งฝน · พัฒนาโดย ทนพญ.เบญญาภา ธรา กลุ่มงานเทคนิคการแพทย์
@@ -632,7 +636,7 @@ var Session = { token: null, user: null, permissions: {}, settings: {} };
 var TH_M = ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน', 'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'];
 
 var BUILTIN_MODULES = [
-  { id: 'dashboard', label: 'แดชบอร์ด', icon: 'ti-layout-dashboard', removable: false },
+  { id: 'dashboard', label: 'หน้าหลัก', icon: 'ti-apps', removable: false },
   { id: 'schedule', label: 'ตารางเวร', icon: 'ti-calendar-event', removable: false, subnav: [
     { id: 'setup', label: 'ตั้งค่า', icon: 'ti-settings' },
     { id: 'dash', label: 'แดชบอร์ด', icon: 'ti-chart-bar' },
@@ -661,6 +665,9 @@ function asArray_(v) {
 /* moduleLabels = ชื่อเมนู/โมดูลที่ผู้ดูแลระบบแก้ไขเอง — เก็บแบบ {moduleId: label} สำหรับเมนูหลัก
    และ {parentId+'.'+subId: label} สำหรับเมนูย่อย (เช่น subnav ของตารางเวร) */
 var ModuleLabels = {};
+/* ModulePerms = สิทธิ์เข้าถึงรายโมดูลตามบทบาท เก็บใน Settings.modulePerms แบบ {moduleId: ['HT','MT',...]}
+   ไม่มี key หรือ array ว่าง = ทุกบทบาทเข้าถึงได้ · บทบาท admin เข้าถึงได้เสมอ (ตั้งค่าที่ ผู้ดูแลระบบ > โมดูล) */
+var ModulePerms = {};
 function asObj_(v) {
   if (v && typeof v === 'object' && !Array.isArray(v)) return v;
   if (typeof v === 'string') { try { var p = JSON.parse(v); return (p && typeof p === 'object') ? p : {}; } catch (e) { return {}; } }
@@ -671,6 +678,7 @@ function loadModuleRegistry(settings) {
   var urlMods = saved.filter(function (m) { return m.kind === 'url'; });
   var disabled = asArray_(settings.moduleDisabled);
   ModuleLabels = asObj_(settings.moduleLabels);
+  ModulePerms = asObj_(settings.modulePerms);
   /* clone builtins so toggling enabled doesn't mutate the shared BUILTIN_MODULES defs,
      and apply the persisted disabled-state from Settings (fixes toggle ไม่ถูกบันทึก) */
   MODULE_REGISTRY = BUILTIN_MODULES.map(function (m) {
@@ -882,6 +890,7 @@ function _dispatchApi(fnName, token, args) {
     case 'api_setPermission': return apiCall('/api/permissions', 'POST', { token: token, role: args[0], action: args[1], allowed: args[2] });
 
     case 'api_listUsers': return apiCall('/api/users' + qs({ token: token }), 'GET');
+    case 'api_updateUser': return apiCall('/api/users/' + encodeURIComponent(args[0]), 'POST', { token: token, name: args[1].name, email: args[1].email, role: args[1].role });
     case 'api_setUserPerson': return apiCall('/api/users/' + encodeURIComponent(args[0]) + '/set-person', 'POST', { token: token, personId: args[1] });
     case 'api_createUser': return apiCall('/api/users', 'POST', { token: token, name: args[0], email: args[1], role: args[2], plainPassword: args[3] });
     case 'api_setUserActive': return apiCall('/api/users/' + encodeURIComponent(args[0]) + '/set-active', 'POST', { token: token, active: args[1] });
@@ -916,6 +925,7 @@ function doLogin() {
     Session.token = res.token;
     Session.user = res.user;
     sessionStorage.setItem('lo_token', res.token);
+    sessionStorage.removeItem('lo_last_page'); /* ล็อกอินใหม่ให้เริ่มที่หน้าเลือกโมดูลเสมอ */
     enterApp(res.bootstrap); /* ใช้ bootstrap ที่มากับผลล็อกอิน เลี่ยง round trip ที่ 2 */
   }).catch(function (err) {
     var el = document.getElementById('loginError');
@@ -1020,8 +1030,16 @@ function enterApp(prefetchedBoot) {
 
 function moduleAllowed(mod) {
   if (mod.enabled === false) return false;
-  if (!mod.permission) return true;
-  return !!Session.permissions[mod.permission];
+  if (mod.permission && !Session.permissions[mod.permission]) return false;
+  /* สิทธิ์รายโมดูลตามบทบาท: admin เข้าถึงได้เสมอ, รายการว่าง/ไม่มี = ทุกบทบาท */
+  var role = Session.user && Session.user.role;
+  if (role === 'admin') return true;
+  var roles = ModulePerms[mod.id];
+  /* roles === undefined = ไม่เคยตั้งค่า = ไม่จำกัด (ทุกบทบาทเข้าถึงได้)
+     roles = [] (ติ๊กออกหมด) ต้องถือเป็น "ไม่มีบทบาทใดเข้าถึงได้" ไม่ใช่ "ไม่จำกัด" —
+     เดิมเช็ก roles.length ทำให้ array ว่างถูกมองข้ามเหมือนไม่มีข้อจำกัดเลย (บั๊ก) */
+  if (roles !== undefined && roles.indexOf(role) === -1) return false;
+  return true;
 }
 
 function renderSidebar() {
@@ -1049,28 +1067,22 @@ function renderSidebar() {
 }
 
 function navTo(modId) {
-  _activeMod = modId;
   var m = MODULE_REGISTRY.filter(function (x) { return x.id === modId; })[0];
+
+  /* โมดูลภายนอก (ลิงก์ URL) เปิดแท็บใหม่เสมอ ไม่เปลี่ยนหน้าปัจจุบันในแอป */
+  if (m && m.kind === 'url') {
+    window.open(m.url, '_blank', 'noopener');
+    if (window.innerWidth <= 768) document.getElementById('sb').classList.remove('mob-open');
+    return;
+  }
+
+  _activeMod = modId;
   if (modId === 'schedule') _schedActiveTab = _schedActiveTab || 'grid';
   sessionStorage.setItem('lo_last_page', JSON.stringify({ mod: modId, sub: modId === 'schedule' ? _schedActiveTab : null }));
   _pageLoadStart = performance.now();
   _pageLoadMod = m ? m.label : modId;
   _pendingGs = 0;
   document.querySelectorAll('#content .frame').forEach(function (f) { f.classList.remove('active'); });
-
-  if (m && m.kind === 'url') {
-    document.getElementById('frame-ext').classList.add('active');
-    document.getElementById('extUrlLabel').textContent = m.label;
-    document.getElementById('extFrame').src = m.url;
-    document.getElementById('extOpenNewTab').href = m.url;
-    document.getElementById('tbTitle').textContent = m.label;
-    document.getElementById('tbSub').textContent = brandSub() + ' · โมดูลภายนอก';
-    document.getElementById('tbSchedMY').style.display = 'none';
-    renderSidebar();
-    _pageLoadStart = null; /* โมดูล URL โหลดผ่าน iframe ของตัวเอง ไม่ผ่าน gsRun จึงไม่นับเวลาที่นี่ */
-    if (window.innerWidth <= 768) document.getElementById('sb').classList.remove('mob-open');
-    return;
-  }
 
   var frame = document.getElementById('frame-' + modId);
   if (frame) frame.classList.add('active');
@@ -1175,95 +1187,53 @@ function openMyPerms() {
 </script>
 
 <script>
-/* script-dashboard.html — Executive dashboard: KPI cards, monthly trend,
-   workload distribution, alerts panel, recent activity feed.
-   New module (Restriction allows Dashboard improvements); does not replace
-   the original per-module dashboards (Scheduling pg-dash is in script-schedule.html). */
+/* script-dashboard.html — หน้าหลัก (module picker): แสดงหลังล็อกอินสำเร็จ ให้ผู้ใช้เลือก
+   โมดูลที่ต้องการใช้งาน โดยกรองตามสิทธิ์เข้าถึงรายโมดูล (moduleAllowed/ModulePerms ใน
+   script-core.html) — โมดูลภายนอก (kind:'url') เปิดเป็นแท็บใหม่เสมอ
+   (แทนที่แดชบอร์ดผู้บริหารเดิม — KPI/การแจ้งเตือนเชิงลึกดูได้ที่ ตารางเวร > แดชบอร์ด) */
 
 var Dashboard = (function () {
-  var trendChart = null, workloadChart = null;
 
-  function currentYM() {
-    var now = new Date();
-    return { year: now.getFullYear() + 543, month: now.getMonth() };
-  }
+  /* คำอธิบายสั้นของโมดูล builtin — โมดูล URL ที่ผู้ดูแลเพิ่มเองจะแสดง URL แทน */
+  var MOD_DESC = {
+    schedule: 'จัดตารางเวร เก็บวันลา รายงาน On Call และสมดุลเวร',
+    admin: 'บัญชีผู้ใช้ จัดการโมดูล สิทธิ์เข้าถึง และข้อมูลระบบ',
+    guide: 'คู่มือและวิธีใช้งานระบบ'
+  };
 
   function render() {
     var page = document.getElementById('frame-dashboard');
+    var user = Session.user || {};
+    var mods = MODULE_REGISTRY.filter(moduleAllowed).filter(function (m) { return m.id !== 'dashboard'; });
+
+    var cards = mods.map(function (m) {
+      var isUrl = m.kind === 'url';
+      var desc = isUrl ? (m.url || '') : (MOD_DESC[m.id] || '');
+      return '<div class="modpick-card" data-mod="' + m.id + '" role="button" tabindex="0">' +
+        '<div class="modpick-icon"><i class="ti ' + m.icon + '"></i></div>' +
+        '<div class="modpick-body">' +
+        '<div class="modpick-name">' + m.label +
+        (isUrl ? ' <span class="badge none" style="font-weight:500;"><i class="ti ti-external-link"></i> ลิงก์ภายนอก</span>' : '') +
+        '</div>' +
+        (desc ? '<div class="modpick-desc">' + desc + '</div>' : '') +
+        '</div>' +
+        '<i class="ti ' + (isUrl ? 'ti-external-link' : 'ti-chevron-right') + ' modpick-go"></i>' +
+        '</div>';
+    }).join('');
+
     page.innerHTML =
-      '<h2 style="margin:0 0 4px;font-size:18px;">แดชบอร์ดผู้บริหาร</h2>' +
-      '<p style="margin:0 0 16px;color:var(--mut);font-size:13px;">ภาพรวมระบบจัดเวร — ดูรายละเอียดเชิงลึกได้ที่ ตารางเวร &gt; แดชบอร์ด/สมดุลเวร</p>' +
-      '<div class="kpi-row" id="kpiGrid" style="margin-bottom:18px;"></div>' +
-      '<div class="card"><div class="card-title"><i class="ti ti-bell"></i>การแจ้งเตือน</div><div id="alertsPanel"></div></div>';
+      '<div class="modpick-head">' +
+      '<h2 style="margin:0 0 4px;font-size:19px;">สวัสดี, ' + (user.name || '') + '</h2>' +
+      '<p style="margin:0 0 18px;color:var(--mut);font-size:13px;">เลือกโมดูลที่ต้องการใช้งาน · แสดงเฉพาะโมดูลที่บัญชีของคุณมีสิทธิ์เข้าถึง</p>' +
+      '</div>' +
+      (mods.length
+        ? '<div class="modpick-grid">' + cards + '</div>'
+        : '<div class="card" style="color:var(--mut);font-size:13px;">บัญชีของคุณยังไม่มีสิทธิ์เข้าถึงโมดูลใด กรุณาติดต่อผู้ดูแลระบบ</div>');
 
-    var ym = currentYM();
-    loadKpis(ym.year, ym.month);
-    loadAlerts(ym.year, ym.month);
-  }
-
-  function loadKpis(year, month) {
-    Promise.all([gsRun('api_calculateWorkload', Session.token, year, month), gsRun('api_loadCalendar', Session.token, year, month)])
-      .then(function (res) {
-        var workload = res[0], cal = res[1];
-        var totalMoney = Object.keys(workload.money).reduce(function (s, k) { return s + workload.money[k]; }, 0);
-        var kpis = [
-          { label: 'เจ้าหน้าที่ Active', val: workload.people.filter(function (p) { return p.active; }).length },
-          { label: 'สถานะตารางเวร', val: cal.status === 'published' ? 'เผยแพร่แล้ว' : (cal.status === 'draft' ? 'ฉบับร่าง' : 'ยังไม่สร้าง') },
-          { label: 'Rule violations เปิดอยู่', val: cal.ruleViolations.length },
-          { label: 'ค่าตอบแทนรวม (บาท)', val: totalMoney.toLocaleString('en-US', { minimumFractionDigits: 2 }) }
-        ];
-        document.getElementById('kpiGrid').innerHTML = kpis.map(function (k) {
-          return '<div class="kpi"><div class="kpi-val">' + k.val + '</div><div class="kpi-lbl">' + k.label + '</div></div>';
-        }).join('');
-      });
-  }
-
-  function loadTrend(year, month) {
-    var months = [];
-    for (var i = 5; i >= 0; i--) {
-      var m = month - i, y = year;
-      if (m < 0) { m += 12; y -= 1; }
-      months.push({ year: y, month: m });
-    }
-    Promise.all(months.map(function (ym) {
-      return gsRun('api_calculateWorkload', Session.token, ym.year, ym.month)
-        .then(function (w) { return Object.keys(w.money).reduce(function (s, k) { return s + w.money[k]; }, 0); })
-        .catch(function () { return 0; });
-    })).then(function (totals) {
-      var labels = months.map(function (ym) { return ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'][ym.month]; });
-      if (trendChart) trendChart.destroy();
-      trendChart = new Chart(document.getElementById('trendCanvas'), {
-        type: 'bar',
-        data: { labels: labels, datasets: [{ label: 'บาท', data: totals, backgroundColor: '#13417a' }] },
-        options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
-      });
-
-      gsRun('api_calculateWorkload', Session.token, year, month).then(function (workload) {
-        var byRole = { HT: 0, MT: 0, LA: 0 };
-        workload.people.forEach(function (p) {
-          var d = workload.byPerson[p.id];
-          var days = ['ch', 'b', 'b1', 'n', 'd'].reduce(function (s, k) { return s + (d[k] || []).length; }, 0);
-          byRole[p.role] = (byRole[p.role] || 0) + days;
-        });
-        if (workloadChart) workloadChart.destroy();
-        workloadChart = new Chart(document.getElementById('workloadCanvas'), {
-          type: 'doughnut',
-          data: { labels: Object.keys(byRole), datasets: [{ data: Object.values(byRole), backgroundColor: ['#0c2d57', '#1d9e75', '#ba7517'] }] },
-          options: { plugins: { legend: { position: 'bottom' } } }
-        });
-      });
-    });
-  }
-
-  function loadAlerts(year, month) {
-    gsRun('api_loadCalendar', Session.token, year, month).then(function (cal) {
-      var panel = document.getElementById('alertsPanel');
-      if (!cal.ruleViolations.length) { panel.innerHTML = '<div style="color:var(--mut);font-size:13px;">ไม่มีข้อควรตรวจสอบ</div>'; return; }
-      panel.innerHTML = cal.ruleViolations.slice(0, 5).map(function (v) {
-        var cls = v.severity === 'warn' ? 'warn' : 'ok';
-        return '<div style="display:flex;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);font-size:12.5px;">' +
-          '<span class="badge ' + cls + '">' + v.type + '</span><span>' + v.msg + '</span></div>';
-      }).join('');
+    page.querySelectorAll('.modpick-card').forEach(function (el) {
+      var open = function () { navTo(el.dataset.mod); }; /* navTo จัดการโมดูล URL ให้เปิดแท็บใหม่เอง */
+      el.onclick = open;
+      el.onkeydown = function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); } };
     });
   }
 
@@ -1390,7 +1360,11 @@ var Schedule = (function () {
     }).join('') + '<span><span class="tok lv-swatch" style="background:#c8c8c8;color:#c8c8c8;">&nbsp;&nbsp;</span> ลาทั้งวัน</span>';
 
     document.getElementById('genBtn').onclick = function () {
-      showGenConfirm();
+      gsRun('api_generateSchedule', Session.token, current.year, current.month).then(function (result) {
+        invalidateMonthCache();
+        toast('สร้างตารางสำเร็จ', 'ปรับสมดุล ' + result.postBalanceSwaps + ' เวร · พบ ' + result.ruleViolations.length + ' ข้อควรตรวจสอบ');
+        loadAndRenderGrid();
+      });
     };
     document.getElementById('clearBtn').onclick = function () {
       if (!confirm('ยืนยันเคลียร์ตารางเวรเดือน ' + monthLabel() + '?\n\nจะลบตารางเวร, ประวัติ Override, และข้อควรตรวจสอบทั้งหมดของเดือนนี้ เหมือนไม่เคยกด "สร้างตารางเวร" มาก่อน\n\nการกระทำนี้ไม่สามารถย้อนกลับได้')) return;
@@ -1400,74 +1374,6 @@ var Schedule = (function () {
         loadAndRenderGrid();
       });
     };
-
-    function showGenConfirm() {
-      var MONTH_TH = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
-      var overlay = document.createElement('div');
-      overlay.id = 'genConfirmOverlay';
-      overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9999;display:flex;align-items:center;justify-content:center;';
-      overlay.innerHTML = '<div style="background:#fff;color:#1a1a1a;border-radius:12px;padding:24px 28px;max-width:520px;width:94%;max-height:88vh;overflow-y:auto;box-shadow:0 8px 40px rgba(0,0,0,.4);">' +
-        '<div style="font-weight:700;font-size:16px;margin-bottom:4px;"><i class="ti ti-calendar-check" style="margin-right:6px;"></i>ยืนยันสร้างตารางเวร</div>' +
-        '<div style="font-size:12.5px;color:var(--mut);margin-bottom:16px;">เดือน ' + MONTH_TH[current.month] + ' ' + current.year + '</div>' +
-        '<div id="genConfirmBody" style="font-size:13px;">กำลังโหลดข้อมูล...</div>' +
-        '<div style="margin-top:18px;padding-top:14px;border-top:1px solid var(--border);font-size:12px;color:var(--mut);">' +
-        '<i class="ti ti-info-circle" style="margin-right:4px;"></i>หากต้องการแก้ไขกฎการจัดเวร ให้ไปที่ ' +
-        '<a href="#" id="genGoSettings" style="color:var(--tl-d);font-weight:600;">ตั้งค่า</a> ก่อนกดสร้างตาราง</div>' +
-        '<div style="display:flex;gap:8px;margin-top:16px;justify-content:flex-end;">' +
-        '<button class="btn btn-sm" id="genConfirmCancel">ยกเลิก</button>' +
-        '<button class="btn btn-primary btn-sm" id="genConfirmOk"><i class="ti ti-check"></i> จัดตารางเวร</button>' +
-        '</div></div>';
-      document.body.appendChild(overlay);
-
-      function closeOverlay() { if (overlay.parentNode) overlay.parentNode.removeChild(overlay); }
-      document.getElementById('genConfirmCancel').onclick = closeOverlay;
-      overlay.addEventListener('click', function (e) { if (e.target === overlay) closeOverlay(); });
-      document.getElementById('genGoSettings').onclick = function (e) {
-        e.preventDefault(); closeOverlay();
-        schedSwitchTab('setup');
-      };
-      document.getElementById('genConfirmOk').onclick = function () {
-        closeOverlay();
-        gsRun('api_generateSchedule', Session.token, current.year, current.month).then(function (result) {
-          invalidateMonthCache();
-          toast('สร้างตารางสำเร็จ', 'ปรับสมดุล ' + result.postBalanceSwaps + ' เวร · พบ ' + result.ruleViolations.length + ' ข้อควรตรวจสอบ');
-          loadAndRenderGrid();
-        });
-      };
-
-      Promise.all([
-        gsRun('api_getSetupBundle', Session.token, current.year, current.month),
-        gsRun('api_getDutyRoster', Session.token, current.year, current.month)
-      ]).then(function (res) {
-        var s = res[0].settings, ppl = res[0].people || [], roster = res[1] || {};
-        var eligible = ppl.filter(function (p) { return p.active && (p.role === 'MT' || p.role === 'HT'); });
-        var incBd = roster.included;
-        var incCl = roster.includedClinic;
-        var bdList = eligible.filter(function (p) { return !incBd || incBd.indexOf(p.id) > -1; }).map(fullN).join(', ') || '(ทุกคน)';
-        var clList = eligible.filter(function (p) { return !incCl || incCl.indexOf(p.id) > -1; }).map(fullN).join(', ') || '(ทุกคน)';
-        var laAName = s.laA && s.laA !== 'no' ? (function () { var p = ppl.filter(function (x) { return x.id === s.laA; })[0]; return p ? fullN(p) : s.laA; })() : '—';
-        var laBName = s.laB2 && s.laB2 !== 'no' ? (function () { var p = ppl.filter(function (x) { return x.id === s.laB2; })[0]; return p ? fullN(p) : s.laB2; })() : '—';
-        var clinicLaName = !s.clinicLa ? 'ไม่จัด' : s.clinicLa === 'auto' ? 'เลือกอัตโนมัติ' : (function () { var p = ppl.filter(function (x) { return x.id === s.clinicLa; })[0]; return p ? fullN(p) : s.clinicLa; })();
-        var laBLabel = s.laB === 'A' ? 'A: จ-อ · B: พ-พฤ (ตามตั้งค่า)' : 'A: พ-พฤ · B: จ-อ (ตามตั้งค่า)';
-        function row(label, val) { return '<tr><td style="padding:5px 10px 5px 0;color:var(--mut);white-space:nowrap;vertical-align:top;">' + label + '</td><td style="padding:5px 0;font-weight:500;">' + val + '</td></tr>'; }
-        document.getElementById('genConfirmBody').innerHTML =
-          '<div style="font-weight:600;font-size:12.5px;color:var(--mut);letter-spacing:.5px;margin-bottom:8px;">กฎการจัดเวร</div>' +
-          '<table style="width:100%;border-collapse:collapse;font-size:12.5px;">' +
-          row('การกระจายเวร', s.dist === 'priority' ? 'ตาม Priority' : 'สมดุลที่สุด (พักผ่อนมากสุด)') +
-          row('วันติดต่อกันสูงสุด', (s.maxC || 4) + ' วัน') +
-          row('เวร <u>บ</u> สัปดาห์นี้ (สลับเดือน auto)', laBLabel) +
-          row('ผู้ช่วย A (เวร <u>บ</u>)', laAName) +
-          row('ผู้ช่วย B (เวร <u>บ</u>)', laBName) +
-          row('ผู้ช่วยคลินิก (น)', clinicLaName) +
-          '</table>' +
-          '<div style="font-weight:600;font-size:12.5px;color:var(--mut);letter-spacing:.5px;margin:14px 0 6px;">เจ้าหน้าที่ขึ้นเวร ช/บ/ด เดือนนี้</div>' +
-          '<div style="font-size:12.5px;">' + bdList + '</div>' +
-          '<div style="font-weight:600;font-size:12.5px;color:var(--mut);letter-spacing:.5px;margin:14px 0 6px;">เจ้าหน้าที่ขึ้นเวร น คลินิก เดือนนี้</div>' +
-          '<div style="font-size:12.5px;">' + clList + '</div>';
-      }).catch(function () {
-        document.getElementById('genConfirmBody').innerHTML = '<span style="color:var(--mut);">ไม่สามารถโหลดข้อมูลได้ — กดยืนยันเพื่อดำเนินการต่อได้เลย</span>';
-      });
-    }
     document.getElementById('pubBtn').onclick = function () {
       gsRun('api_publishSchedule', Session.token, current.year, current.month).then(function () {
         invalidateMonthCache();
@@ -2672,7 +2578,7 @@ var Schedule = (function () {
     var SH_FULL_LABEL = {
       ch: 'เวรเช้า 08-16', b: 'เวรบ่าย 16-00',
       d0: 'เวรดึก On call 00.00-04.00', d1: 'เวรดึก On call 04.00-08.00',
-      /* SH_FULL_LABEL[b1] ใช้ทั้งใน <td> และ <option> — <option> render HTML ไม่ได้
+      /* SH_FULL_LABEL[b1] ใช้ทั้งใน <td> และ <option> (บรรทัด 1378) — <option> render HTML ไม่ได้
          จึงคงเป็น text ล้วน (ตัด "1" ออกแทนใส่ <u>) ไม่ใช้ tag ที่นี่ */
       n: 'เวรคลินิกนอกเวลา 07-08', b1: 'บ เวรเสริมบ่าย 16-20'
     };
@@ -2943,6 +2849,7 @@ var Admin = (function () {
 
   var USER_ROLES = [['admin', 'admin'], ['HT', 'HT (หัวหน้าหน่วย)'], ['MT', 'MT'], ['LA', 'LA']];
   var usersPeople = [];
+  var usersList = []; /* cache ของ listUsers() ล่าสุด — ใช้เติมค่าฟอร์มแก้ไขโดยไม่ต้องยิง request ซ้ำ */
 
   function personOptions(selectedId) {
     return '<option value="">— ไม่ผูก —</option>' + usersPeople.map(function (p) {
@@ -2987,12 +2894,14 @@ var Admin = (function () {
 
   function loadUsers() {
     gsRun('api_listUsers', Session.token).then(function (users) {
+      usersList = users;
       document.getElementById('userTbl').innerHTML = '<tr><th>ชื่อ</th><th>อีเมล</th><th>บทบาท</th><th>เจ้าหน้าที่ (เชื่อมโยง)</th><th>สถานะ</th><th></th></tr>' +
         users.map(function (u) {
           return '<tr><td class="l">' + u.name + '</td><td class="l">' + u.email + '</td><td>' + u.role + '</td>' +
             '<td><select data-person="' + u.userId + '" style="padding:4px 6px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--ink);font-size:12px;">' + personOptions(u.personId) + '</select></td>' +
             '<td>' + (u.active ? '<span class="badge ok">ใช้งานได้</span>' : '<span class="badge none">ปิดใช้งาน</span>') + '</td>' +
             '<td style="display:flex;gap:4px;">' +
+            '<button class="btn btn-sm" data-edit="' + u.userId + '" title="แก้ไข"><i class="ti ti-pencil"></i></button>' +
             '<button class="btn btn-sm" data-reset="' + u.userId + '" title="รีเซ็ตรหัสผ่าน"><i class="ti ti-key"></i></button>' +
             '<button class="btn btn-sm ' + (u.active ? 'btn-danger' : '') + '" data-toggle="' + u.userId + '" data-active="' + u.active + '">' + (u.active ? 'ปิดใช้งาน' : 'เปิดใช้งาน') + '</button>' +
             '</td></tr>';
@@ -3014,6 +2923,35 @@ var Admin = (function () {
           gsRun('api_resetUserPassword', Session.token, b.dataset.reset, pw).then(function () { toast('รีเซ็ตรหัสผ่านแล้ว', 'แจ้งรหัสใหม่ให้เจ้าหน้าที่: ' + pw); });
         };
       });
+      document.querySelectorAll('#userTbl [data-edit]').forEach(function (b) {
+        b.onclick = function () { openEditUserModal(b.dataset.edit); };
+      });
+    });
+  }
+
+  /* ---------------- แก้ไขบัญชีผู้ใช้ (ชื่อ/อีเมล/บทบาท) ---------------- */
+
+  function openEditUserModal(userId) {
+    var u = usersList.filter(function (x) { return x.userId === userId; })[0];
+    if (!u) return;
+    var body =
+      '<div class="frm-grid">' +
+      '<label>ชื่อ-สกุล<input id="uEditName" value="' + u.name.replace(/"/g, '&quot;') + '"></label>' +
+      '<label>อีเมล<input id="uEditEmail" type="email" value="' + u.email.replace(/"/g, '&quot;') + '"></label>' +
+      '<label>บทบาท<select id="uEditRole">' + USER_ROLES.map(function (r) {
+        return '<option value="' + r[0] + '"' + (r[0] === u.role ? ' selected' : '') + '>' + r[1] + '</option>';
+      }).join('') + '</select></label>' +
+      '</div>';
+    showModal('แก้ไขบัญชีผู้ใช้', body, 'บันทึก', function () {
+      var name = document.getElementById('uEditName').value.trim();
+      var email = document.getElementById('uEditEmail').value.trim();
+      var role = document.getElementById('uEditRole').value;
+      if (!name || !email) { toast('กรุณากรอกชื่อและอีเมล', '', true); return; }
+      gsRun('api_updateUser', Session.token, userId, { name: name, email: email, role: role }).then(function () {
+        toast('บันทึกการแก้ไขแล้ว');
+        closeModal();
+        loadUsers();
+      });
     });
   }
 
@@ -3032,7 +2970,8 @@ var Admin = (function () {
       '<label>URL<input id="modNewUrl" placeholder="https://... (Google Sheets/เว็บภายนอก)"></label>' +
       '<label>ไอคอน (Tabler)<input id="modNewIcon" placeholder="ti-package" value="ti-package"></label>' +
       '<label>สิทธิ์ขั้นต่ำ<select id="modNewPerm"><option value="">ทุกคนเข้าถึงได้</option><option value="manageSettings">ผู้มีสิทธิ์ตั้งค่าเท่านั้น</option></select></label>' +
-      '</div><button class="btn btn-primary btn-sm" id="addUrlModBtn" style="margin-top:10px;"><i class="ti ti-plus"></i> เพิ่มโมดูล</button></div>';
+      '</div><button class="btn btn-primary btn-sm" id="addUrlModBtn" style="margin-top:10px;"><i class="ti ti-plus"></i> เพิ่มโมดูล</button>' +
+      '<p style="font-size:11.5px;color:var(--mut);margin-top:8px;">โมดูล URL จะเปิดเป็นแท็บใหม่เสมอ · กำหนดสิทธิ์เข้าถึงรายบทบาท (HT/MT/LA) ได้ที่แถว "สิทธิ์เข้าถึง" ในรายการโมดูลด้านบนหลังเพิ่มแล้ว</p></div>';
 
     paintModList();
     document.getElementById('addUrlModBtn').onclick = function () {
@@ -3050,6 +2989,35 @@ var Admin = (function () {
         paintModList(); renderSidebar();
       });
     };
+  }
+
+  /* บทบาทที่ตั้งค่าสิทธิ์เข้าถึงรายโมดูลได้ — admin เข้าถึงได้เสมอจึงไม่อยู่ในรายการ */
+  var MOD_PERM_ROLES = ['HT', 'MT', 'LA'];
+
+  /* แถวตั้งค่าสิทธิ์เข้าถึงของโมดูล: ติ๊กครบทุกบทบาท = ทุกคนเข้าถึงได้ (ไม่เก็บ key ใน Settings) */
+  function modPermsRow(m) {
+    if (m.id === 'dashboard') return ''; /* หน้าหลัก (หน้าเลือกโมดูล) ต้องเข้าถึงได้ทุกคน */
+    var roles = ModulePerms[m.id];
+    /* roles === undefined = ไม่จำกัด (ติ๊กครบ) · roles=[] ต้องแสดงว่าไม่ติ๊กเลย ไม่ใช่ติ๊กครบ
+       (เดิมเช็ก !roles.length ทำให้ array ว่างแสดงผลติ๊กครบผิดๆ ดูเหมือนตั้งค่าไม่ติดหลังรีเฟรช) */
+    var boxes = MOD_PERM_ROLES.map(function (r) {
+      var checked = roles === undefined || roles.indexOf(r) !== -1;
+      return '<label style="display:inline-flex;align-items:center;gap:4px;font-size:11.5px;cursor:pointer;">' +
+        '<input type="checkbox" data-perm-mod="' + m.id + '" data-perm-role="' + r + '"' + (checked ? ' checked' : '') + '> ' + r + '</label>';
+    }).join('');
+    return '<div style="display:flex;align-items:center;gap:12px;padding:5px 0 7px 28px;border-bottom:1px solid var(--border);flex-wrap:wrap;">' +
+      '<span style="font-size:11.5px;color:var(--mut);"><i class="ti ti-lock"></i> สิทธิ์เข้าถึง:</span>' + boxes +
+      '<span class="badge ok" style="font-weight:500;">admin เสมอ</span></div>';
+  }
+
+  function saveModPerms(modId) {
+    var checked = [];
+    document.querySelectorAll('#modList [data-perm-mod="' + modId + '"]').forEach(function (cb) {
+      if (cb.checked) checked.push(cb.dataset.permRole);
+    });
+    if (checked.length >= MOD_PERM_ROLES.length) delete ModulePerms[modId];
+    else ModulePerms[modId] = checked;
+    return gsRun('api_saveSettings', Session.token, { modulePerms: JSON.stringify(ModulePerms) });
   }
 
   function paintModList() {
@@ -3070,8 +3038,16 @@ var Admin = (function () {
           ? '<span class="badge ok" title="โมดูลหลัก ปิดไม่ได้">จำเป็น</span>'
           : '<label class="toggle" style="position:relative;width:36px;height:20px;"><input type="checkbox" data-toggle="' + m.id + '" ' + (m.enabled !== false ? 'checked' : '') + ' style="opacity:0;"><span style="position:absolute;inset:0;background:' + (m.enabled !== false ? 'var(--tl)' : 'var(--border2)') + ';border-radius:20px;"></span></label>') +
         (m.removable ? '<button class="btn btn-sm btn-danger" data-remove="' + m.id + '"><i class="ti ti-trash"></i></button>' : '') +
-        '</div>' + subRows;
+        '</div>' + modPermsRow(m) + subRows;
     }).join('');
+    document.querySelectorAll('#modList [data-perm-mod]').forEach(function (cb) {
+      cb.onchange = function () {
+        saveModPerms(cb.dataset.permMod).then(function () {
+          toast('บันทึกสิทธิ์เข้าถึงแล้ว', moduleLabel(cb.dataset.permMod));
+          renderSidebar();
+        });
+      };
+    });
     document.querySelectorAll('#modList [data-toggle]').forEach(function (cb) {
       cb.onchange = function () {
         var m = MODULE_REGISTRY.filter(function (x) { return x.id === cb.dataset.toggle; })[0];
@@ -3088,11 +3064,14 @@ var Admin = (function () {
       };
     });
     document.querySelectorAll('#modList [data-rename]').forEach(function (btn) {
-      btn.onclick = function () {
-        var v = prompt('ชื่อเมนูใหม่:', btn.dataset.cur);
-        if (v === null) return;
-        saveModuleLabel(btn.dataset.rename, v).then(function () { toast('เปลี่ยนชื่อเมนูแล้ว'); renderSidebar(); paintModList(); });
-      };
+      var m = MODULE_REGISTRY.filter(function (x) { return x.id === btn.dataset.rename; })[0];
+      btn.onclick = (m && m.kind === 'url')
+        ? function () { openEditUrlModuleModal(btn.dataset.rename); }
+        : function () {
+          var v = prompt('ชื่อเมนูใหม่:', btn.dataset.cur);
+          if (v === null) return;
+          saveModuleLabel(btn.dataset.rename, v).then(function () { toast('เปลี่ยนชื่อเมนูแล้ว'); renderSidebar(); paintModList(); });
+        };
     });
     document.querySelectorAll('#modList [data-rename-sub]').forEach(function (btn) {
       btn.onclick = function () {
@@ -3100,6 +3079,31 @@ var Admin = (function () {
         if (v === null) return;
         saveModuleLabel(btn.dataset.renameSub, v).then(function () { toast('เปลี่ยนชื่อเมนูย่อยแล้ว'); renderSidebar(); paintModList(); });
       };
+    });
+  }
+
+  /* ---------------- แก้ไขโมดูล URL (ชื่อ/URL/ไอคอน) ---------------- */
+
+  function openEditUrlModuleModal(modId) {
+    var m = MODULE_REGISTRY.filter(function (x) { return x.id === modId; })[0];
+    if (!m) return;
+    var body =
+      '<div class="frm-grid">' +
+      '<label>ชื่อโมดูล<input id="modEditLabel" value="' + m.label.replace(/"/g, '&quot;') + '"></label>' +
+      '<label>URL<input id="modEditUrl" value="' + (m.url || '').replace(/"/g, '&quot;') + '"></label>' +
+      '<label>ไอคอน (Tabler)<input id="modEditIcon" value="' + (m.icon || '').replace(/"/g, '&quot;') + '"></label>' +
+      '</div>';
+    showModal('แก้ไขโมดูล — ' + m.label, body, 'บันทึก', function () {
+      var label = document.getElementById('modEditLabel').value.trim();
+      var url = document.getElementById('modEditUrl').value.trim();
+      var icon = document.getElementById('modEditIcon').value.trim();
+      if (!label || !url) { toast('กรุณากรอกชื่อและ URL', '', true); return; }
+      m.label = label; m.url = url; m.icon = icon || 'ti-package';
+      saveModuleRegistry().then(function () {
+        toast('บันทึกการแก้ไขโมดูลแล้ว', label);
+        closeModal();
+        renderSidebar(); paintModList();
+      });
     });
   }
 

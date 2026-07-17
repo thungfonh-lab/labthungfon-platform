@@ -93,6 +93,15 @@ a{color:var(--tl);text-decoration:none}
 .kpi-lbl{font-size:11px;color:var(--mut);margin-bottom:5px}
 .kpi-val{font-size:22px;font-weight:700;line-height:1;font-family:'IBM Plex Sans Thai'}
 .kpi-sub{font-size:11px;color:var(--mut);margin-top:3px}
+/* ── module picker (หน้าหลักหลังล็อกอิน) ── */
+.modpick-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px}
+.modpick-card{display:flex;align-items:center;gap:14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r2);padding:18px 16px;cursor:pointer;box-shadow:var(--shadow);transition:transform .12s,box-shadow .12s,border-color .12s}
+.modpick-card:hover,.modpick-card:focus-visible{transform:translateY(-2px);box-shadow:var(--shadow-lg);border-color:var(--tl);outline:none}
+.modpick-icon{width:46px;height:46px;flex:none;border-radius:12px;background:var(--tl-vl);color:var(--tl);display:grid;place-items:center;font-size:22px}
+.modpick-body{flex:1;min-width:0}
+.modpick-name{font-size:14px;font-weight:700;font-family:'IBM Plex Sans Thai';display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.modpick-desc{font-size:11.5px;color:var(--mut);margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.modpick-go{color:var(--mut);font-size:16px;flex:none}
 .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r2);padding:16px;margin-bottom:12px}
 .card-title{font-size:13px;font-weight:600;display:flex;align-items:center;gap:7px;margin-bottom:12px;color:var(--ink)}
 .card-title i{color:var(--mut);font-size:16px}
@@ -498,7 +507,9 @@ tbody tr:last-child td{border-bottom:none}
   /* บันทึก on-call (รายละเอียด) — ตัดหัวรายงานย่อยออก เพิ่มระยะห่างระหว่างบรรทัดให้อ่านง่าย */
   /* เดิม padding:10px 0 ทำให้ข้อความชิดขอบกระดาษ (.doc เองก็ padding:0 ตอนพิมพ์) ตามฟีดแบ็ก
      เติม padding ซ้าย/ขวาเป็น mm (แม่นยำกว่า px ตอนคำนวณระยะจากขอบกระดาษ เหมือนจุดอื่นในไฟล์นี้) */
-  .oc-claim-blk{line-height:2;padding:10px 5mm!important}
+  /* ไม่มีกฎห้ามแบ่งหน้ากลางบล็อกมาก่อน ทำให้ Chrome ตัดหน้าพิมพ์กลางรายการพอดี (เช่น หัวรายการอยู่หน้าหนึ่ง
+     แต่ LAB/หน่วยงานตกไปอีกหน้า) ตามฟีดแบ็ก — ห้ามแบ่งกลางรายการ ให้ทั้งบล็อกขึ้นหน้าใหม่พร้อมกันแทน */
+  .oc-claim-blk{line-height:2;padding:10px 5mm!important;page-break-inside:avoid;break-inside:avoid}
   .oc-claim-blk>div{margin-bottom:3px}
 }
 </style>
