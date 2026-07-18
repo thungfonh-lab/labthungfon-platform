@@ -184,7 +184,7 @@ tbody tr:last-child td{border-bottom:none}
 /* วันลาทั้งวัน — เดิมพื้นเทาทึบ แต่สีใกล้เคียงกับพื้นวันหยุดตอนพิมพ์ขาวดำจนแยกไม่ออก (ตามฟีดแบ็ก)
    เปลี่ยนเป็นขีดเส้นทแยงทับแทน (background-image ไม่ใช่ background-color เพื่อไม่ทับสี wknd/holi เดิม
    ที่เซลล์นั้นอาจมีอยู่แล้ว — เส้นจะซ้อนทับบนสีพื้นเดิมได้ ไม่ต้องเลือกอย่างใดอย่างหนึ่ง) */
-.sched td.lv{background-image:linear-gradient(135deg, transparent calc(50% - 1px), var(--ink) calc(50% - 1px), var(--ink) calc(50% + 1px), transparent calc(50% + 1px))}
+.sched td.lv{background-image:linear-gradient(135deg, transparent calc(50% - 0.6px), var(--mut) calc(50% - 0.6px), var(--mut) calc(50% + 0.6px), transparent calc(50% + 0.6px))}
 .sched .nm{text-align:left;white-space:nowrap;padding:4px 8px;font-weight:600;font-size:12px;position:sticky;left:0;background:var(--surface);z-index:3;min-width:120px;max-width:160px}
 .sched .sumcol{font-weight:700;background:var(--tl-vl);color:var(--tl-d);font-size:11px;min-width:26px;white-space:nowrap}
 .sched .cell{cursor:pointer;height:30px;display:flex;align-items:center;justify-content:center;gap:1px;flex-wrap:nowrap;padding:1px;position:relative}
@@ -197,7 +197,12 @@ tbody tr:last-child td{border-bottom:none}
 .legend{display:flex;gap:12px;flex-wrap:wrap;margin:9px 2px;font-size:12px;color:var(--ink2);align-items:center}
 .legend span{display:inline-flex;align-items:center;gap:5px}
 /* swatch ตัวอย่าง "ลาทั้งวัน" ในแถบคำอธิบาย — ลายเส้นทแยงแบบเดียวกับ .sched td.lv จริง (ไม่ใช่พื้นเทาทึบ) */
-.tok.lv-swatch{background-color:#eee;background-image:linear-gradient(135deg, transparent calc(50% - 1px), var(--ink) calc(50% - 1px), var(--ink) calc(50% + 1px), transparent calc(50% + 1px));color:transparent}
+.tok.lv-swatch{background-color:#eee;background-image:linear-gradient(135deg, transparent calc(50% - 0.6px), var(--mut) calc(50% - 0.6px), var(--mut) calc(50% + 0.6px), transparent calc(50% + 0.6px));color:transparent}
+/* swatch เล็กจิ๋วต่อท้ายบรรทัดสรุป "วันราชการ.../วันหยุด.../นักขัตฤกษ์..." (#gridSub) — อธิบายสี "วันหยุด"/"ลา"
+   ในตาราง แยกจาก .tok.lv-swatch (ใช้กับแถบ legend เดิมที่ตอนนี้ซ่อนตอนพิมพ์แล้ว) */
+.mini-swatch{display:inline-block;width:13px;height:9px;vertical-align:middle;border:1px solid var(--border);border-radius:2px}
+.mini-swatch-holi{background:var(--coral-l)}
+.mini-swatch-lv{background-color:#eee;background-image:linear-gradient(135deg, transparent calc(50% - 0.6px), var(--mut) calc(50% - 0.6px), var(--mut) calc(50% + 0.6px), transparent calc(50% + 0.6px))}
 /* ── contact cards ── */
 .contact-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px}
 .contact{border:1px solid var(--border);border-radius:var(--r);padding:11px 13px;background:var(--tl-vl)}
@@ -357,7 +362,7 @@ tbody tr:last-child td{border-bottom:none}
   .legend{display:none!important}
   .legend .tok.lv-swatch{
     background-color:#eee!important;
-    background-image:linear-gradient(135deg, transparent calc(50% - 1.2px), #000 calc(50% - 1.2px), #000 calc(50% + 1.2px), transparent calc(50% + 1.2px))!important;
+    background-image:linear-gradient(135deg, transparent calc(50% - 0.7px), #999 calc(50% - 0.7px), #999 calc(50% + 0.7px), transparent calc(50% + 0.7px))!important;
     -webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;color-adjust:exact!important;
   }
   .contact i{display:none!important}
@@ -401,13 +406,22 @@ tbody tr:last-child td{border-bottom:none}
     -webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;color-adjust:exact!important;
   }
   /* วันลาทั้งวัน — ขีดเส้นทแยงทับแทนพื้นเทาทึบเดิม (สีเทาเดิมใกล้เคียงกับพื้นวันหยุด #d4d4d4 จนแยกไม่ออกตอนพิมพ์ขาวดำ
-     ตามฟีดแบ็ก) ใช้ background-image ไม่ใช่ background เพื่อไม่ทับสี wknd/holi ที่เซลล์นั้นอาจมีอยู่แล้ว */
+     ตามฟีดแบ็ก) ใช้ background-image ไม่ใช่ background เพื่อไม่ทับสี wknd/holi ที่เซลล์นั้นอาจมีอยู่แล้ว
+     เส้นบางลง (0.7px) สีอ่อนลง (#999 แทน #000) ตามฟีดแบ็ก "ขีดอ่อนๆสีจางๆ ไม่รกเกินไป" */
   .sched td.lv{
-    background-image:linear-gradient(135deg, transparent calc(50% - 1.2px), #000 calc(50% - 1.2px), #000 calc(50% + 1.2px), transparent calc(50% + 1.2px))!important;
+    background-image:linear-gradient(135deg, transparent calc(50% - 0.7px), #999 calc(50% - 0.7px), #999 calc(50% + 0.7px), transparent calc(50% + 0.7px))!important;
     -webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;color-adjust:exact!important;
   }
-  /* วันราชการ/วันหยุด/นักขัตฤกษ์ ใต้หัวตารางเวร — เดิมสีเทาอ่อนตาม --mut อ่านยากเมื่อพิมพ์ ปรับเป็นสีดำ */
+  /* วันราชการ/วันหยุด/นักขัตฤกษ์ ใต้หัวตารางเวร — เดิมสีเทาอ่อนตาม --mut อ่านยากเมื่อพิมพ์ ปรับเป็นสีดำ
+     mini-swatch ต่อท้าย (อธิบาย "วันหยุด"/"ลา") ต้องบังคับพิมพ์สีจริงเหมือน .tok.lv-swatch */
   #gridSub{color:#000!important;font-weight:600}
+  #gridSub .mini-swatch{border-color:#000!important}
+  #gridSub .mini-swatch-holi{background:#d4d4d4!important;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;color-adjust:exact!important}
+  #gridSub .mini-swatch-lv{
+    background-color:#eee!important;
+    background-image:linear-gradient(135deg, transparent calc(50% - 0.7px), #999 calc(50% - 0.7px), #999 calc(50% + 0.7px), transparent calc(50% + 0.7px))!important;
+    -webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;color-adjust:exact!important;
+  }
   .doc{border:none;padding:0;overflow:visible!important}
   .tbl-wrap{overflow:visible!important}
   /* รายงาน (.rep-tbl) ใช้ฟอนต์ TH Saraban (Sarabun) — ลด line-height ลงจาก 1.7 เพื่อให้พอดี A4
@@ -1464,7 +1478,11 @@ var Schedule = (function () {
       var N = calendarData.N;
       var nW = 0, nH = (calendarData.holidays || []).length;
       for (var d = 1; d <= N; d++) if (!isWknd(current.year, current.month, d) && !isHolD(d)) nW++;
-      document.getElementById('gridSub').textContent = 'วันราชการ ' + nW + ' · วันหยุด ' + (N - nW) + ' · นักขัตฤกษ์ ' + nH + ' วัน';
+      /* เพิ่ม swatch เล็กๆ อธิบายสัญลักษณ์ "วันหยุด"/"ลา" ต่อท้ายบรรทัดสรุป — ย้ายมาจากแถบ legend เดิม
+         (ที่ซ่อนไปตอนพิมพ์เพราะซ้ำกับการ์ด "เวลาในการปฏิบัติงาน") เหลือแค่ 2 อย่างนี้ที่การ์ดนั้นไม่ได้อธิบาย */
+      document.getElementById('gridSub').innerHTML = 'วันราชการ ' + nW + ' · วันหยุด ' + (N - nW) + ' · นักขัตฤกษ์ ' + nH + ' วัน' +
+        ' &nbsp; <span class="mini-swatch mini-swatch-holi"></span> วันหยุด' +
+        ' &nbsp; <span class="mini-swatch mini-swatch-lv"></span> ลา';
       var badge = document.getElementById('statusBadge');
       var map = { draft: ['draft', 'ดราฟต์ (รอตรวจสอบ)'], published: ['pub', 'ประกาศใช้แล้ว'], none: ['none', 'ยังไม่สร้าง'] };
       var m = map[calendarData.status] || map.none;
