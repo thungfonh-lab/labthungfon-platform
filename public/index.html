@@ -351,11 +351,10 @@ tbody tr:last-child td{border-bottom:none}
      ย้ายไปเป็น sibling ของ #app แล้ว (ดู index.html) จึงไม่โดน filter นี้ครอบอีกต่อไป */
   html:not(.print-color) #app{filter:grayscale(1)}
   #sb,#topbar,#appFooter,.btn,.rtabs,#violationsPanel,#ovrLogCard,.modal-overlay,#toastWrap,.loading-overlay,#repPersonSel{display:none!important}
-  /* แถบคำอธิบายสัญลักษณ์ — พิมพ์ออกมาด้วยตามฟีดแบ็ก (เดิมถูกซ่อน)
-     swatch "ลาทั้งวัน" ใช้ลายเส้นทแยงแบบเดียวกับ .sched td.lv (ไม่ใช่พื้นเทาทึบ) ต้องบังคับ !important
-     ไม่งั้นโดน rule ล้าง background ของโหมดขาวดำจนหาย ใช้ .tok.lv-swatch (3 คลาส) ให้ specificity สูงกว่า
-     "html:not(.print-color) .tok" ด้านล่าง ไม่งั้นกฎนั้นชนะ (มาทีหลัง + specificity เท่ากัน) ทำให้หายตอนพิมพ์ขาวดำ */
-  .legend{font-size:9.5px;margin:3px 0;gap:8px;color:#000}
+  /* แถบคำอธิบายสัญลักษณ์ — เดิมสั่งให้พิมพ์ออกมาด้วย แต่ตอนนี้ซ้ำซ้อนกับการ์ด "เวลาในการปฏิบัติงาน"
+     (workHoursPrint) ที่เพิ่มมาทีหลังแล้ว จึงซ่อนตอนพิมพ์อีกครั้งตามฟีดแบ็กล่าสุด
+     (.tok.lv-swatch ด้านล่างเลยไม่มีผลตอนพิมพ์อีกต่อไป แต่เก็บไว้เผื่อกลับมาใช้) */
+  .legend{display:none!important}
   .legend .tok.lv-swatch{
     background-color:#eee!important;
     background-image:linear-gradient(135deg, transparent calc(50% - 1.2px), #000 calc(50% - 1.2px), #000 calc(50% + 1.2px), transparent calc(50% + 1.2px))!important;
@@ -468,9 +467,14 @@ tbody tr:last-child td{border-bottom:none}
   .sig-row{margin-top:140px!important}
   /* ตัดเส้นคั่นเหนือช่องลงนามออกตามฟีดแบ็ก (ใบเบิกเงินรวม/รายบุคคล) */
   .sig{border-top:none!important}
-  /* ตารางเวร: ตัดไอคอนหัวกล่อง + กรอบนอกของกล่องข้อมูลติดต่อ/เวลาปฏิบัติงาน ออกตามฟีดแบ็ก */
+  /* ตารางเวร: ตัดไอคอนหัวกล่อง + กรอบนอกของกล่องข้อมูลติดต่อ/เวลาปฏิบัติงาน ออกตามฟีดแบ็ก
+     .info-row เป็น flex ที่ตั้งใจให้สองการ์ดสูงเท่ากัน (align-items:stretch ค่าเริ่มต้น — ดูคอมเมนต์ตรง .info-row)
+     เพื่อความสมดุลของหน้า — แต่การ์ดที่เนื้อหาสั้นกว่าจะถูกยืดจนมีพื้นที่ว่างเกินเนื้อหาจริง แล้วพื้นหลังขาวของ
+     .card (background:var(--surface)) เติมเต็มพื้นที่ว่างนั้น ต่างจากพื้นหลังหน้าเว็บที่เป็นสีครีมอ่อน (#F0EDE7)
+     พอผ่าน grayscale filter ตอนพิมพ์ขาวดำแล้วสองสีนี้แยกออกจากกันเป็นกล่องขาวเห็นได้ชัด (ตามฟีดแบ็ก) —
+     ตัด background ออกด้วย ไม่ใช่แค่ border ให้พื้นที่ว่างที่ถูกยืดโปร่งใสไปเลย ไม่ทิ้งร่องรอยให้เห็น */
   #contactCard .card-title i,#workHoursPrint .card-title i{display:none!important}
-  #contactCard,#workHoursPrint{border:none!important}
+  #contactCard,#workHoursPrint{border:none!important;background:none!important}
   /* ใบเบิกเงินรวม (แนวนอน A4) — ตามฟีดแบ็กล่าสุดให้ใช้ฟอนต์/ระยะเท่ารายงานอื่น (16px, line-height สูง)
      แม้จะไม่พอ 1 หน้าเสมอไป อ่านง่ายสำคัญกว่า */
   .pay-landscape .sig-row{margin-top:20px!important}
