@@ -446,9 +446,14 @@ var ReportService = (function () {
     if (!list.length) return '<div style="padding:20px;color:var(--mut)">ยังไม่มีข้อมูล On Call เดือนนี้</div>';
 
     function pct(n, total) { return total ? (n * 100 / total).toFixed(1) + '%' : '-'; }
+    /* แถบสัดส่วนเป็นอักขระ █ แทน div สี — เพราะรายงานนี้ถูกฝังลงไฟล์ exportExcel/exportWord ตรงๆ
+       ซึ่ง Excel/Word ไม่ render div ซ้อนใน cell และไม่รู้จัก var(--...) (แถบจะหายทั้งแถบ)
+       อักขระบล็อกสี literal แสดงผลเหมือนกันทั้งหน้าเว็บและไฟล์ export */
     function bar(n, max) {
-      var w = max ? Math.round(n * 100 / max) : 0;
-      return '<div style="background:var(--tl-l);height:10px;width:' + Math.max(w, 2) + '%;border-radius:3px"></div>';
+      var w = max ? Math.max(1, Math.round(n * 20 / max)) : 0;
+      var s = '';
+      for (var i = 0; i < w; i++) s += '█';
+      return '<span style="color:#138577;font-size:10px;letter-spacing:1px">' + s + '</span>';
     }
     function section(title) { return '<div style="font-weight:700;font-size:13px;margin:16px 0 6px">' + title + '</div>'; }
     function countTable(counts, colName, total) {
@@ -586,9 +591,13 @@ var ReportService = (function () {
    * here the server renders the same HTML and returns it base64-encoded so the
    * frontend can recreate the identical Blob-download (dl()) behavior.
    */
+  /* CSS ขั้นต่ำที่ Excel/Word เข้าใจ ฝังลงไฟล์ export ให้หน้าตาใกล้หน้าเว็บ — ปกติ report.html พึ่งคลาส
+     .rep-tbl ฯลฯ จาก stylesheet ของแอปซึ่งไม่ได้ติดไปกับไฟล์ ตารางเลยออกมาไม่มีเส้นขอบ/หัวตารางไม่เด่น */
+  var EXPORT_CSS = '<style>table{border-collapse:collapse}th,td{border:1px solid #999;padding:4px 8px;font-family:"TH Sarabun New","Sarabun",sans-serif;font-size:14px}th{background:#F5F3EE;font-weight:bold;text-align:center}td.l{text-align:left}td.c{text-align:center}td.r{text-align:right}</style>';
+
   function exportExcel(kind, year, month, pid) {
     var report = renderReport(kind, year, month, pid);
-    var html = '<html xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="utf-8"></head><body>' + report.html + '</body></html>';
+    var html = '<html xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="utf-8">' + EXPORT_CSS + '</head><body>' + report.html + '</body></html>';
     var settings = DataService.getSettings();
     var fname = 'รายงาน_' + kind + '_' + TH_M[month] + year + '.xls';
     return {
@@ -600,7 +609,7 @@ var ReportService = (function () {
 
   function exportWord(kind, year, month, pid) {
     var report = renderReport(kind, year, month, pid);
-    var html = '<html xmlns:w="urn:schemas-microsoft-com:office:word"><head><meta charset="utf-8"></head><body>' + report.html + '</body></html>';
+    var html = '<html xmlns:w="urn:schemas-microsoft-com:office:word"><head><meta charset="utf-8">' + EXPORT_CSS + '</head><body>' + report.html + '</body></html>';
     var fname = 'รายงาน_' + kind + '_' + TH_M[month] + year + '.doc';
     return {
       filename: fname,
