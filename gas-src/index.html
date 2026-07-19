@@ -84,19 +84,20 @@
       <div class="frame" id="frame-schedule"><div id="schedInner"></div></div>
       <div class="frame" id="frame-admin"></div>
       <div class="frame" id="frame-guide"></div>
-      <div class="frame" id="frame-ext">
-        <div class="card" style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:0;">
-          <div style="font-size:12px;color:var(--mut);"><i class="ti ti-link"></i> โมดูลภายนอก: <span id="extUrlLabel" style="color:var(--ink);font-weight:600;"></span></div>
-          <a id="extOpenNewTab" href="#" target="_blank" rel="noopener" class="btn btn-sm"><i class="ti ti-external-link"></i> เปิดแท็บใหม่</a>
-        </div>
-        <iframe id="extFrame" src="about:blank" style="width:100%;height:calc(100vh - 140px);border:1px solid var(--border);border-radius:var(--r2);margin-top:10px;background:var(--surface);"></iframe>
-      </div>
     </div>
     <div id="appFooter" style="text-align:center;padding:10px 16px 14px;font-size:11px;color:var(--mut);border-top:1px solid var(--border);background:var(--surface);">
       labthungfon-platform โรงพยาบาลทุ่งฝน · พัฒนาโดย ทนพญ.เบญญาภา ธรา กลุ่มงานเทคนิคการแพทย์
     </div>
   </div>
 </div>
+
+<!-- #printSign อยู่นอก #app โดยตั้งใจ (ไม่ใช่ในตัว renderGridPage() แบบเดิม) — ตอนพิมพ์ขาวดำ
+     ที่ html:not(.print-color) โดน filter:grayscale(1) ครอบ ถ้า #printSign (position:fixed) อยู่ใน
+     subtree ที่โดน filter ครอบด้วย Chrome จะวาดเส้น/กรอบเปล่าๆ แปลกๆ ทับตอนพิมพ์ (บั๊กที่ทราบกันของ Chromium
+     เรื่อง filter + position:fixed) ย้าย filter ไปอยู่ที่ #app แทน (ดู style.html) แล้วให้ #printSign
+     เป็น sibling ของ #app ที่ไม่โดน filter ครอบ ก็จะพ้นบั๊กนี้ — ต้องเคลียร์เนื้อหาเองตอนออกจากตารางเวร
+     (ดู render()/navTo() ใน script-schedule.html/script-core.html) เพราะไม่ได้อยู่ใน frame ระบบอีกต่อไป -->
+<div class="print-sign" id="printSign"></div>
 
 <?!= include('modals'); ?>
 

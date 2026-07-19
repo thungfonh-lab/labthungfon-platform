@@ -56,6 +56,17 @@ router.post('/users', wrap(async (req, res) => {
   ok(res, result);
 }));
 
+// POST /api/users/:userId — api_updateUser(token, userId, patch)
+router.post('/users/:userId', wrap(async (req, res) => {
+  const session = authService.requireSession(getToken(req));
+  await authService.requirePermission(session.user, 'manageSettings', false);
+  const { userId } = req.params;
+  const { name, email, role } = req.body;
+  const result = await dataService.updateUser(userId, { name, email, role });
+  await auditService.logAction(session.user.userId, 'UPDATE', 'Users', userId, null, { name, email, role });
+  ok(res, result);
+}));
+
 // POST /api/users/:userId/set-person — api_setUserPerson(token, userId, personId)
 router.post('/users/:userId/set-person', wrap(async (req, res) => {
   const session = authService.requireSession(getToken(req));

@@ -9,7 +9,7 @@ var Session = { token: null, user: null, permissions: {}, settings: {} };
 var TH_M = ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน', 'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'];
 
 var BUILTIN_MODULES = [
-  { id: 'dashboard', label: 'แดชบอร์ด', icon: 'ti-layout-dashboard', removable: false },
+  { id: 'dashboard', label: 'หน้าหลัก', icon: 'ti-apps', removable: false },
   { id: 'schedule', label: 'ตารางเวร', icon: 'ti-calendar-event', removable: false, subnav: [
     { id: 'setup', label: 'ตั้งค่า', icon: 'ti-settings' },
     { id: 'dash', label: 'แดชบอร์ด', icon: 'ti-chart-bar' },
@@ -38,6 +38,9 @@ function asArray_(v) {
 /* moduleLabels = ชื่อเมนู/โมดูลที่ผู้ดูแลระบบแก้ไขเอง — เก็บแบบ {moduleId: label} สำหรับเมนูหลัก
    และ {parentId+'.'+subId: label} สำหรับเมนูย่อย (เช่น subnav ของตารางเวร) */
 var ModuleLabels = {};
+/* ModulePerms = สิทธิ์เข้าถึงรายโมดูลตามบทบาท เก็บใน Settings.modulePerms แบบ {moduleId: ['HT','MT',...]}
+   ไม่มี key หรือ array ว่าง = ทุกบทบาทเข้าถึงได้ · บทบาท admin เข้าถึงได้เสมอ (ตั้งค่าที่ ผู้ดูแลระบบ > โมดูล) */
+var ModulePerms = {};
 function asObj_(v) {
   if (v && typeof v === 'object' && !Array.isArray(v)) return v;
   if (typeof v === 'string') { try { var p = JSON.parse(v); return (p && typeof p === 'object') ? p : {}; } catch (e) { return {}; } }
@@ -48,6 +51,7 @@ function loadModuleRegistry(settings) {
   var urlMods = saved.filter(function (m) { return m.kind === 'url'; });
   var disabled = asArray_(settings.moduleDisabled);
   ModuleLabels = asObj_(settings.moduleLabels);
+  ModulePerms = asObj_(settings.modulePerms);
   /* clone builtins so toggling enabled doesn't mutate the shared BUILTIN_MODULES defs,
      and apply the persisted disabled-state from Settings (fixes toggle ไม่ถูกบันทึก) */
   MODULE_REGISTRY = BUILTIN_MODULES.map(function (m) {
@@ -259,6 +263,7 @@ function _dispatchApi(fnName, token, args) {
     case 'api_setPermission': return apiCall('/api/permissions', 'POST', { token: token, role: args[0], action: args[1], allowed: args[2] });
 
     case 'api_listUsers': return apiCall('/api/users' + qs({ token: token }), 'GET');
+    case 'api_updateUser': return apiCall('/api/users/' + encodeURIComponent(args[0]), 'POST', { token: token, name: args[1].name, email: args[1].email, role: args[1].role });
     case 'api_setUserPerson': return apiCall('/api/users/' + encodeURIComponent(args[0]) + '/set-person', 'POST', { token: token, personId: args[1] });
     case 'api_createUser': return apiCall('/api/users', 'POST', { token: token, name: args[0], email: args[1], role: args[2], plainPassword: args[3] });
     case 'api_setUserActive': return apiCall('/api/users/' + encodeURIComponent(args[0]) + '/set-active', 'POST', { token: token, active: args[1] });
@@ -293,6 +298,7 @@ function doLogin() {
     Session.token = res.token;
     Session.user = res.user;
     sessionStorage.setItem('lo_token', res.token);
+    sessionStorage.removeItem('lo_last_page'); /* ล็อกอินใหม่ให้เริ่มที่หน้าเลือกโมดูลเสมอ */
     enterApp(res.bootstrap); /* ใช้ bootstrap ที่มากับผลล็อกอิน เลี่ยง round trip ที่ 2 */
   }).catch(function (err) {
     var el = document.getElementById('loginError');
@@ -397,8 +403,16 @@ function enterApp(prefetchedBoot) {
 
 function moduleAllowed(mod) {
   if (mod.enabled === false) return false;
-  if (!mod.permission) return true;
-  return !!Session.permissions[mod.permission];
+  if (mod.permission && !Session.permissions[mod.permission]) return false;
+  /* สิทธิ์รายโมดูลตามบทบาท: admin เข้าถึงได้เสมอ, รายการว่าง/ไม่มี = ทุกบทบาท */
+  var role = Session.user && Session.user.role;
+  if (role === 'admin') return true;
+  var roles = ModulePerms[mod.id];
+  /* roles === undefined = ไม่เคยตั้งค่า = ไม่จำกัด (ทุกบทบาทเข้าถึงได้)
+     roles = [] (ติ๊กออกหมด) ต้องถือเป็น "ไม่มีบทบาทใดเข้าถึงได้" ไม่ใช่ "ไม่จำกัด" —
+     เดิมเช็ก roles.length ทำให้ array ว่างถูกมองข้ามเหมือนไม่มีข้อจำกัดเลย (บั๊ก) */
+  if (roles !== undefined && roles.indexOf(role) === -1) return false;
+  return true;
 }
 
 function renderSidebar() {
@@ -426,28 +440,30 @@ function renderSidebar() {
 }
 
 function navTo(modId) {
-  _activeMod = modId;
   var m = MODULE_REGISTRY.filter(function (x) { return x.id === modId; })[0];
+
+  /* โมดูลภายนอก (ลิงก์ URL) เปิดแท็บใหม่เสมอ ไม่เปลี่ยนหน้าปัจจุบันในแอป */
+  if (m && m.kind === 'url') {
+    window.open(m.url, '_blank', 'noopener');
+    if (window.innerWidth <= 768) document.getElementById('sb').classList.remove('mob-open');
+    return;
+  }
+
+  /* #printSign (ลายเซ็นท้ายตารางเวรตอนพิมพ์) อยู่นอก #app เป็น element ถาวรแล้ว (ดู index.html) —
+     ต้องเคลียร์เองเมื่อออกจากโมดูลตารางเวร ไม่งั้นเนื้อหาเก่าค้างและอาจโผล่ตอนพิมพ์หน้าอื่นโดยไม่ตั้งใจ
+     (Schedule.render() จะเคลียร์+เติมใหม่เองอยู่แล้วตอนอยู่ในโมดูลตารางเวร ไม่ต้องซ้ำที่นี่) */
+  if (modId !== 'schedule') {
+    var psEl = document.getElementById('printSign');
+    if (psEl) psEl.innerHTML = '';
+  }
+
+  _activeMod = modId;
   if (modId === 'schedule') _schedActiveTab = _schedActiveTab || 'grid';
   sessionStorage.setItem('lo_last_page', JSON.stringify({ mod: modId, sub: modId === 'schedule' ? _schedActiveTab : null }));
   _pageLoadStart = performance.now();
   _pageLoadMod = m ? m.label : modId;
   _pendingGs = 0;
   document.querySelectorAll('#content .frame').forEach(function (f) { f.classList.remove('active'); });
-
-  if (m && m.kind === 'url') {
-    document.getElementById('frame-ext').classList.add('active');
-    document.getElementById('extUrlLabel').textContent = m.label;
-    document.getElementById('extFrame').src = m.url;
-    document.getElementById('extOpenNewTab').href = m.url;
-    document.getElementById('tbTitle').textContent = m.label;
-    document.getElementById('tbSub').textContent = brandSub() + ' · โมดูลภายนอก';
-    document.getElementById('tbSchedMY').style.display = 'none';
-    renderSidebar();
-    _pageLoadStart = null; /* โมดูล URL โหลดผ่าน iframe ของตัวเอง ไม่ผ่าน gsRun จึงไม่นับเวลาที่นี่ */
-    if (window.innerWidth <= 768) document.getElementById('sb').classList.remove('mob-open');
-    return;
-  }
 
   var frame = document.getElementById('frame-' + modId);
   if (frame) frame.classList.add('active');

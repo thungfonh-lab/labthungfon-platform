@@ -61,7 +61,16 @@ var Schedule = (function () {
   function loadWorkloadCached() { return cachedGsRun(ymKey('wl'), 15000, 'api_calculateWorkload', Session.token, current.year, current.month); }
   function invalidateMonthCache() { invalidateCache(ymKey('cal')); invalidateCache(ymKey('wl')); invalidateCache(ymKey('av')); }
 
+  /* #printSign อยู่นอก #app แล้ว (persistent element ใน index.html ไม่ผูกกับ frame ระบบ) — ต้องเคลียร์เอง
+     ทุกครั้งที่สลับแท็บย่อยของตารางเวร ไม่งั้นเนื้อหาลงนามเก่าจากตอนดูหน้า grid จะค้างและโผล่ตอนพิมพ์
+     หน้าอื่น (เช่น รายงาน) โดยไม่ตั้งใจ — renderGridPage()/loadAndRenderGrid() จะเติมกลับให้เองถ้า sub เป็น grid */
+  function clearPrintSign_() {
+    var el = document.getElementById('printSign');
+    if (el) el.innerHTML = '';
+  }
+
   function render(sub) {
+    clearPrintSign_();
     var page = document.getElementById('schedInner');
     if (sub === 'reports') return renderReportsPage(page);
     if (sub === 'oncall') return renderOncallPage(page);
@@ -108,13 +117,14 @@ var Schedule = (function () {
       '<div class="card print-only" id="workHoursPrint" style="display:none;"></div>' +
       '</div>' +
       '<div class="card" id="ovrLogCard" style="display:none;"><div class="card-title"><i class="ti ti-history"></i>Override Log</div>' +
-      '<div class="tbl-wrap"><table class="tbl" id="ovrLogTbl"></table></div></div>' +
-      '<div class="print-sign" id="printSign"></div>';
+      '<div class="tbl-wrap"><table class="tbl" id="ovrLogTbl"></table></div></div>';
+      /* #printSign ไม่ได้อยู่ใน HTML ที่ inject ตรงนี้อีกต่อไป — ย้ายไปเป็น element ถาวรนอก #app ใน index.html แล้ว
+         (ดูเหตุผลใน index.html/style.html) renderPrintSign() ยังหา document.getElementById('printSign') เจอตามปกติ */
 
     document.getElementById('legend').innerHTML = Object.keys(SHIFT_DEFS).map(function (k) {
       var s = SHIFT_DEFS[k];
       return '<span>' + tokEl(k) + ' ' + s.name + '</span>';
-    }).join('') + '<span><span class="tok lv-swatch" style="background:#c8c8c8;color:#c8c8c8;">&nbsp;&nbsp;</span> ลาทั้งวัน</span>';
+    }).join('') + '<span><span class="tok lv-swatch">&nbsp;&nbsp;</span> ลาทั้งวัน</span>';
 
     document.getElementById('genBtn').onclick = function () {
       gsRun('api_generateSchedule', Session.token, current.year, current.month).then(function (result) {
@@ -177,7 +187,11 @@ var Schedule = (function () {
       var N = calendarData.N;
       var nW = 0, nH = (calendarData.holidays || []).length;
       for (var d = 1; d <= N; d++) if (!isWknd(current.year, current.month, d) && !isHolD(d)) nW++;
-      document.getElementById('gridSub').textContent = 'วันราชการ ' + nW + ' · วันหยุด ' + (N - nW) + ' · นักขัตฤกษ์ ' + nH + ' วัน';
+      /* เพิ่ม swatch เล็กๆ อธิบายสัญลักษณ์ "วันหยุด"/"ลา" ต่อท้ายบรรทัดสรุป — ย้ายมาจากแถบ legend เดิม
+         (ที่ซ่อนไปตอนพิมพ์เพราะซ้ำกับการ์ด "เวลาในการปฏิบัติงาน") เหลือแค่ 2 อย่างนี้ที่การ์ดนั้นไม่ได้อธิบาย */
+      document.getElementById('gridSub').innerHTML = 'วันราชการ ' + nW + ' · วันหยุด ' + (N - nW) + ' · นักขัตฤกษ์ ' + nH + ' วัน' +
+        ' &nbsp; <span class="mini-swatch mini-swatch-holi"></span> วันหยุด' +
+        ' &nbsp; <span class="mini-swatch mini-swatch-lv"></span> ลา';
       var badge = document.getElementById('statusBadge');
       var map = { draft: ['draft', 'ดราฟต์ (รอตรวจสอบ)'], published: ['pub', 'ประกาศใช้แล้ว'], none: ['none', 'ยังไม่สร้าง'] };
       var m = map[calendarData.status] || map.none;

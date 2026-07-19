@@ -75,6 +75,9 @@ a{color:var(--tl);text-decoration:none}
 #topbar{height:var(--hdr);background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;padding:0 16px;flex-shrink:0}
 .topbar-title{font-size:14px;font-weight:600;color:var(--ink);white-space:nowrap}
 .topbar-sub{display:none}
+/* #gridSub ใช้คลาส topbar-sub ร่วมกับ #tbSub (ซ่อนไว้โดยตั้งใจ) แต่โดนซ่อนไปด้วยโดยไม่ตั้งใจ
+   ให้แสดงจำนวนสรุปวันราชการ/วันหยุด/นักขัตฤกษ์ของเดือนเหมือนเดิม ทั้งบนจอและตอนพิมพ์ (ดู #gridSub ใน @media print) */
+#gridSub{display:block}
 .topbar-search{display:none}
 .topbar-search i{color:var(--mut);font-size:15px;flex-shrink:0}
 .topbar-search input{border:none;background:none;outline:none;font-size:12.5px;color:var(--ink);width:100%}
@@ -167,8 +170,10 @@ tbody tr:last-child td{border-bottom:none}
 .sched th.dow{height:16px;font-size:10px;color:var(--ink2)}
 .sched td.wknd,.sched th.wknd{background:var(--coral-l)}
 .sched td.holi,.sched th.holi{background:var(--coral-l)}
-/* วันลาทั้งวัน — พื้นเทาทึบ (display-only, ไม่มีตัวอักษร) ประกาศหลัง wknd/holi ให้ชนะ */
-.sched td.lv{background:#c8c8c8}
+/* วันลาทั้งวัน — เดิมพื้นเทาทึบ แต่สีใกล้เคียงกับพื้นวันหยุดตอนพิมพ์ขาวดำจนแยกไม่ออก (ตามฟีดแบ็ก)
+   เปลี่ยนเป็นขีดเส้นทแยงทับแทน (background-image ไม่ใช่ background-color เพื่อไม่ทับสี wknd/holi เดิม
+   ที่เซลล์นั้นอาจมีอยู่แล้ว — เส้นจะซ้อนทับบนสีพื้นเดิมได้ ไม่ต้องเลือกอย่างใดอย่างหนึ่ง) */
+.sched td.lv{background-image:repeating-linear-gradient(135deg, transparent, transparent 3px, var(--mut) 3px, var(--mut) 3.6px)}
 .sched .nm{text-align:left;white-space:nowrap;padding:4px 8px;font-weight:600;font-size:12px;position:sticky;left:0;background:var(--surface);z-index:3;min-width:120px;max-width:160px}
 .sched .sumcol{font-weight:700;background:var(--tl-vl);color:var(--tl-d);font-size:11px;min-width:26px;white-space:nowrap}
 .sched .cell{cursor:pointer;height:30px;display:flex;align-items:center;justify-content:center;gap:1px;flex-wrap:nowrap;padding:1px;position:relative}
@@ -180,6 +185,13 @@ tbody tr:last-child td{border-bottom:none}
 .tok{font-size:9.5px;font-weight:700;padding:1px 3px;border-radius:3px;line-height:1.4;white-space:nowrap}
 .legend{display:flex;gap:12px;flex-wrap:wrap;margin:9px 2px;font-size:12px;color:var(--ink2);align-items:center}
 .legend span{display:inline-flex;align-items:center;gap:5px}
+/* swatch ตัวอย่าง "ลาทั้งวัน" ในแถบคำอธิบาย — ลายเส้นทแยงแบบเดียวกับ .sched td.lv จริง (ไม่ใช่พื้นเทาทึบ) */
+.tok.lv-swatch{background-color:#eee;background-image:repeating-linear-gradient(135deg, transparent, transparent 3px, var(--mut) 3px, var(--mut) 3.6px);color:transparent}
+/* swatch เล็กจิ๋วต่อท้ายบรรทัดสรุป "วันราชการ.../วันหยุด.../นักขัตฤกษ์..." (#gridSub) — อธิบายสี "วันหยุด"/"ลา"
+   ในตาราง แยกจาก .tok.lv-swatch (ใช้กับแถบ legend เดิมที่ตอนนี้ซ่อนตอนพิมพ์แล้ว) */
+.mini-swatch{display:inline-block;width:13px;height:9px;vertical-align:middle;border:1px solid var(--border);border-radius:2px}
+.mini-swatch-holi{background:var(--coral-l)}
+.mini-swatch-lv{background-color:#eee;background-image:repeating-linear-gradient(135deg, transparent, transparent 3px, var(--mut) 3px, var(--mut) 3.6px)}
 /* ── contact cards ── */
 .contact-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px}
 .contact{border:1px solid var(--border);border-radius:var(--r);padding:11px 13px;background:var(--tl-vl)}
@@ -327,15 +339,21 @@ tbody tr:last-child td{border-bottom:none}
      เมื่อสลับ named page กลางเอกสาร — เปลี่ยนมาตั้งขนาดกระดาษแบบไดนามิกด้วย #printPageSize (ดู printWithPageSize() ใน script-schedule.html) */
   @page{size:A4 landscape;margin:6mm}
   /* ค่าเริ่มต้น = พิมพ์ขาวดำ (กดปุ่ม "พิมพ์") — กดปุ่ม "พิมพ์สี" จะเติม class print-color ที่ <html> ก่อนสั่งพิมพ์
-     เพื่อข้ามฟิลเตอร์ grayscale และคืนสีจริงของโทเค็นเวร/หัวตาราง (ดู printColorBtn ใน script-schedule.html) */
-  html:not(.print-color){filter:grayscale(1)}
+     เพื่อข้ามฟิลเตอร์ grayscale และคืนสีจริงของโทเค็นเวร/หัวตาราง (ดู printColorBtn ใน script-schedule.html)
+     filter ต้องอยู่ที่ #app (ไม่ใช่ html) เพราะ Chrome มีบั๊กที่ position:fixed ของลูกหลานที่โดน filter ครอบ
+     (เช่น #printSign) จะเพี้ยน/มีเส้นแปลกๆ ตอนพิมพ์ (ตามฟีดแบ็ก "พิมพ์ขาวดำมีเส้น พิมพ์สีไม่มี") — #printSign
+     ย้ายไปเป็น sibling ของ #app แล้ว (ดู index.html) จึงไม่โดน filter นี้ครอบอีกต่อไป */
+  html:not(.print-color) #app{filter:grayscale(1)}
   #sb,#topbar,#appFooter,.btn,.rtabs,#violationsPanel,#ovrLogCard,.modal-overlay,#toastWrap,.loading-overlay,#repPersonSel{display:none!important}
-  /* แถบคำอธิบายสัญลักษณ์ — พิมพ์ออกมาด้วยตามฟีดแบ็ก (เดิมถูกซ่อน)
-     swatch "ลาทั้งวัน" ต้องบังคับพื้นเทา ไม่งั้นโดน rule ล้าง background ของโหมดขาวดำจนหาย
-     ใช้ .tok.lv-swatch (3 คลาส) ให้ specificity สูงกว่า "html:not(.print-color) .tok" ด้านล่าง
-     ไม่งั้นกฎนั้นชนะ (มาทีหลัง + specificity เท่ากัน) ทำให้ background หายตอนพิมพ์ขาวดำ */
-  .legend{font-size:9.5px;margin:3px 0;gap:8px;color:#000}
-  .legend .tok.lv-swatch{background:#adadad!important;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;color-adjust:exact!important}
+  /* แถบคำอธิบายสัญลักษณ์ — เดิมสั่งให้พิมพ์ออกมาด้วย แต่ตอนนี้ซ้ำซ้อนกับการ์ด "เวลาในการปฏิบัติงาน"
+     (workHoursPrint) ที่เพิ่มมาทีหลังแล้ว จึงซ่อนตอนพิมพ์อีกครั้งตามฟีดแบ็กล่าสุด
+     (.tok.lv-swatch ด้านล่างเลยไม่มีผลตอนพิมพ์อีกต่อไป แต่เก็บไว้เผื่อกลับมาใช้) */
+  .legend{display:none!important}
+  .legend .tok.lv-swatch{
+    background-color:#eee!important;
+    background-image:repeating-linear-gradient(135deg, transparent, transparent 3px, #bbb 3px, #bbb 3.6px)!important;
+    -webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;color-adjust:exact!important;
+  }
   .contact i{display:none!important}
   .print-only{display:block!important}
   #content{overflow:visible}
@@ -376,14 +394,23 @@ tbody tr:last-child td{border-bottom:none}
     background:#d4d4d4!important;
     -webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;color-adjust:exact!important;
   }
-  /* วันลาทั้งวัน — เทาเข้มกว่าพื้นวันหยุด (#d4d4d4) ให้แยกกันออกตอนพิมพ์ขาวดำ
-     บังคับพิมพ์พื้นหลังจริงทั้งโหมดขาวดำและโหมดสี */
+  /* วันลาทั้งวัน — ขีดเส้นทแยงทับแทนพื้นเทาทึบเดิม (สีเทาเดิมใกล้เคียงกับพื้นวันหยุด #d4d4d4 จนแยกไม่ออกตอนพิมพ์ขาวดำ
+     ตามฟีดแบ็ก) ใช้ background-image ไม่ใช่ background เพื่อไม่ทับสี wknd/holi ที่เซลล์นั้นอาจมีอยู่แล้ว
+     เส้นบางลง (0.7px) สีอ่อนลง (#999 แทน #000) ตามฟีดแบ็ก "ขีดอ่อนๆสีจางๆ ไม่รกเกินไป" */
   .sched td.lv{
-    background:#adadad!important;
+    background-image:repeating-linear-gradient(135deg, transparent, transparent 3px, #bbb 3px, #bbb 3.6px)!important;
     -webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;color-adjust:exact!important;
   }
-  /* วันราชการ/วันหยุด/นักขัตฤกษ์ ใต้หัวตารางเวร — เดิมสีเทาอ่อนตาม --mut อ่านยากเมื่อพิมพ์ ปรับเป็นสีดำ */
+  /* วันราชการ/วันหยุด/นักขัตฤกษ์ ใต้หัวตารางเวร — เดิมสีเทาอ่อนตาม --mut อ่านยากเมื่อพิมพ์ ปรับเป็นสีดำ
+     mini-swatch ต่อท้าย (อธิบาย "วันหยุด"/"ลา") ต้องบังคับพิมพ์สีจริงเหมือน .tok.lv-swatch */
   #gridSub{color:#000!important;font-weight:600}
+  #gridSub .mini-swatch{border-color:#000!important}
+  #gridSub .mini-swatch-holi{background:#d4d4d4!important;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;color-adjust:exact!important}
+  #gridSub .mini-swatch-lv{
+    background-color:#eee!important;
+    background-image:repeating-linear-gradient(135deg, transparent, transparent 3px, #bbb 3px, #bbb 3.6px)!important;
+    -webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;color-adjust:exact!important;
+  }
   .doc{border:none;padding:0;overflow:visible!important}
   .tbl-wrap{overflow:visible!important}
   /* รายงาน (.rep-tbl) ใช้ฟอนต์ TH Saraban (Sarabun) — ลด line-height ลงจาก 1.7 เพื่อให้พอดี A4
@@ -443,9 +470,14 @@ tbody tr:last-child td{border-bottom:none}
   .sig-row{margin-top:140px!important}
   /* ตัดเส้นคั่นเหนือช่องลงนามออกตามฟีดแบ็ก (ใบเบิกเงินรวม/รายบุคคล) */
   .sig{border-top:none!important}
-  /* ตารางเวร: ตัดไอคอนหัวกล่อง + กรอบนอกของกล่องข้อมูลติดต่อ/เวลาปฏิบัติงาน ออกตามฟีดแบ็ก */
+  /* ตารางเวร: ตัดไอคอนหัวกล่อง + กรอบนอกของกล่องข้อมูลติดต่อ/เวลาปฏิบัติงาน ออกตามฟีดแบ็ก
+     .info-row เป็น flex ที่ตั้งใจให้สองการ์ดสูงเท่ากัน (align-items:stretch ค่าเริ่มต้น — ดูคอมเมนต์ตรง .info-row)
+     เพื่อความสมดุลของหน้า — แต่การ์ดที่เนื้อหาสั้นกว่าจะถูกยืดจนมีพื้นที่ว่างเกินเนื้อหาจริง แล้วพื้นหลังขาวของ
+     .card (background:var(--surface)) เติมเต็มพื้นที่ว่างนั้น ต่างจากพื้นหลังหน้าเว็บที่เป็นสีครีมอ่อน (#F0EDE7)
+     พอผ่าน grayscale filter ตอนพิมพ์ขาวดำแล้วสองสีนี้แยกออกจากกันเป็นกล่องขาวเห็นได้ชัด (ตามฟีดแบ็ก) —
+     ตัด background ออกด้วย ไม่ใช่แค่ border ให้พื้นที่ว่างที่ถูกยืดโปร่งใสไปเลย ไม่ทิ้งร่องรอยให้เห็น */
   #contactCard .card-title i,#workHoursPrint .card-title i{display:none!important}
-  #contactCard,#workHoursPrint{border:none!important}
+  #contactCard,#workHoursPrint{border:none!important;background:none!important}
   /* ใบเบิกเงินรวม (แนวนอน A4) — ตามฟีดแบ็กล่าสุดให้ใช้ฟอนต์/ระยะเท่ารายงานอื่น (16px, line-height สูง)
      แม้จะไม่พอ 1 หน้าเสมอไป อ่านง่ายสำคัญกว่า */
   .pay-landscape .sig-row{margin-top:20px!important}
