@@ -460,98 +460,181 @@ var Schedule = (function () {
     });
   }
 
-  /* ════════════════ DASH (per-month stat-grid, ported from renderDash()) ════════════════ */
+  /* ════════════════ DASH — รีดีไซน์: KPI แถวเดียว + กราฟ Chart.js รวมข้อมูลเวรและสถิติ on-call ════════════════
+     ข้อมูลที่เคยซ้ำกัน (แถบภาระงาน + การ์ดตามบทบาท + การ์ดรายบุคคล แสดงตัวเลขชุดเดียวกัน 3 ที่)
+     ถูกยุบเหลือกราฟแท่งซ้อนอันเดียว แยกสีตามประเภทเวร + ระบุบทบาทในชื่อ ส่วนสถิติ on-call
+     (ช่วงเวลา/LAB/หน่วยงาน/รายวัน/รายชั่วโมง) ดึงจาก cal.oncall ที่มีอยู่แล้วมาแสดงเป็นกราฟ */
+
+  var _dashCharts = [];
+  function _mkChart(id, cfg) {
+    var el = document.getElementById(id);
+    if (!el || typeof Chart === 'undefined') return;
+    _dashCharts.push(new Chart(el.getContext('2d'), cfg));
+  }
 
   function renderSchedDashPage(page) {
+    /* destroy กราฟชุดเก่าก่อน — canvas ถูกแทนที่ด้วย innerHTML ใหม่ทุกครั้งที่ render
+       ถ้าไม่ destroy Chart.js จะถือ reference + resize observer ของ canvas เดิมค้างไว้ (รั่ว) */
+    _dashCharts.forEach(function (c) { try { c.destroy(); } catch (e) { } });
+    _dashCharts = [];
+
+    function card(title, icon, id, h) {
+      return '<div class="card"><div class="card-title"><i class="ti ' + icon + '"></i>' + title + '</div>' +
+        '<div id="' + id + 'Wrap" style="position:relative;height:' + h + 'px"><canvas id="' + id + '"></canvas></div></div>';
+    }
     page.innerHTML = '<h2 style="margin:0 0 10px;font-size:16px;">แดชบอร์ดตารางเวร — ' + monthLabel() + '</h2>' +
       '<div class="stat-grid" id="schedStatGrid"></div>' +
-      '<div class="card"><div class="card-title"><i class="ti ti-chart-bar"></i>ภาระงานรายบุคคล</div><div id="schedWorkloadBars"></div></div>' +
-      '<div class="card"><div class="card-title"><i class="ti ti-users-group"></i>ภาพรวมตามบทบาท</div>' +
-      '<div class="stat-grid" id="schedRoleGrid" style="grid-template-columns:repeat(auto-fill,minmax(200px,1fr));"></div></div>' +
-      '<div class="card"><div class="card-title"><i class="ti ti-user"></i>ภาพรวมรายบุคคล</div>' +
-      '<div class="stat-grid" id="schedPersonGrid" style="grid-template-columns:repeat(auto-fill,minmax(220px,1fr));"></div></div>';
+      '<div class="two-col">' +
+      card('สัดส่วนเวรตามประเภท (ทั้งทีม)', 'ti-chart-pie', 'dashShiftMix', 210) +
+      card('หน่วยงานที่ส่งตรวจ on call', 'ti-building-hospital', 'dashUnits', 210) +
+      '</div>' +
+      card('ภาระงานรายบุคคล แยกตามประเภทเวร', 'ti-chart-bar', 'dashPeople', 280) +
+      '<div class="two-col">' +
+      card('LAB ที่ตรวจบ่อย (on call)', 'ti-flask', 'dashLabs', 250) +
+      card('เวลาบันทึก on call รายชั่วโมง', 'ti-clock', 'dashHours', 250) +
+      '</div>' +
+      card('จำนวนราย on call รายวัน แยกช่วงเวลา', 'ti-calendar-stats', 'dashDaily', 210);
 
     Promise.all([loadCalendarCached(), loadWorkloadCached()])
       .then(function (res) {
         var cal = res[0], workload = res[1];
-        var N = cal.N, nW = 0;
+        var N = cal.N;
+        var SHIFT_DEFS = [
+          { k: 'ch', label: 'เวรเช้า (ช)', color: '#138577' },
+          { k: 'b', label: 'เวรบ่าย (บ)', color: '#2059A8' },
+          { k: 'b1', label: 'เวรเสริมบ่าย (บ1)', color: '#6845AA' },
+          { k: 'n', label: 'คลินิก (น)', color: '#B8862E' },
+          { k: 'd', label: 'เวรดึก (ด)', color: '#C0432B' }
+        ];
+        function noData(id) { document.getElementById(id + 'Wrap').innerHTML = '<div style="color:var(--mut);font-size:12.5px;padding:16px 0">ยังไม่มีข้อมูล on call เดือนนี้</div>'; }
+
+        /* ── on-call ของเดือนนี้ (cal.oncall = OnCallRecords เต็ม มี date/time/hn/labs/unit อยู่แล้ว) ── */
+        function ocDayOf(o) {
+          var dt = new Date(o.date);
+          return (dt.getFullYear() === current.year - 543 && dt.getMonth() === current.month) ? dt.getDate() : null;
+        }
+        var ocList = (cal.oncall || []).filter(function (o) { return ocDayOf(o); });
+        var hnSet = {}, nightSet = {}, totalLabs = 0;
+        ocList.forEach(function (o) {
+          if (o.hn) hnSet[o.hn] = true;
+          nightSet[ocDayOf(o)] = true;
+          totalLabs += (o.labs || []).length;
+        });
+
+        /* ── KPI แถวเดียว: ปฏิทิน + on-call รวมกัน (เดิมแยกกระจัดกระจาย) ── */
+        var nW = 0;
         for (var d = 1; d <= N; d++) if (!isWknd(current.year, current.month, d) && !(cal.holidays || []).some(function (h) { return h.day === d; })) nW++;
-        var nC = 0;
-        for (var d2 = 1; d2 <= N; d2++) if ((cal.clinicMt[d2] || []).length || (cal.clinicLa[d2] || []).length) nC++;
         var stats = [
-          { lbl: 'วันราชการ', val: nW }, { lbl: 'วันหยุด', val: N - nW },
-          { lbl: 'นักขัตฤกษ์', val: (cal.holidays || []).length }, { lbl: 'คลินิก (วัน)', val: nC },
-          { lbl: 'On Call', val: (cal.oncall || []).length }
+          { lbl: 'วันราชการ', val: nW }, { lbl: 'วันหยุด+นักขัตฤกษ์', val: N - nW },
+          { lbl: 'On Call (ราย)', val: ocList.length }, { lbl: 'คืนที่มีตรวจ', val: Object.keys(nightSet).length },
+          { lbl: 'ผู้ป่วยไม่ซ้ำ (HN)', val: Object.keys(hnSet).length }, { lbl: 'รายการ LAB', val: totalLabs }
         ];
         document.getElementById('schedStatGrid').innerHTML = stats.map(function (s) {
           return '<div class="stat"><div class="val">' + s.val + '</div><div class="lbl">' + s.lbl + '</div></div>';
         }).join('');
 
-        var maxDays = 1;
-        var rows = workload.people.map(function (p) {
-          var d = workload.byPerson[p.id];
-          var days = ['ch', 'b', 'b1', 'n', 'd'].reduce(function (s, k) { return s + (d[k] || []).length; }, 0);
-          maxDays = Math.max(maxDays, days);
-          return { p: p, days: days };
+        /* ── 1. โดนัทสัดส่วนเวรทั้งทีม ── */
+        var shiftTotals = SHIFT_DEFS.map(function (s) {
+          var t = 0;
+          workload.people.forEach(function (p) { t += (((workload.byPerson[p.id] || {})[s.k]) || []).length; });
+          return t;
         });
-        document.getElementById('schedWorkloadBars').innerHTML = rows.map(function (r) {
-          var pct = Math.round((r.days / maxDays) * 100);
-          return '<div class="progress-row"><div class="progress-lbl">' + fullN(r.p) + '</div>' +
-            '<div class="progress-track"><div class="progress-fill" style="width:' + pct + '%"></div></div>' +
-            '<div class="progress-val">' + r.days + ' วัน</div></div>';
-        }).join('');
+        _mkChart('dashShiftMix', {
+          type: 'doughnut',
+          data: { labels: SHIFT_DEFS.map(function (s) { return s.label; }), datasets: [{ data: shiftTotals, backgroundColor: SHIFT_DEFS.map(function (s) { return s.color; }), borderWidth: 0 }] },
+          options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right' } } }
+        });
 
-        /* การ์ดสรุปตามบทบาท — ใช้ grid auto-fill จึงขยายเต็มความกว้างจอเสมอ และ
-           เพิ่มบทบาทใหม่ได้อัตโนมัติถ้ามีคนบทบาทอื่นเข้ามา ไม่ต้องแก้โค้ด */
-        var roleGroups = {};
-        workload.people.forEach(function (p) {
-          var role = p.role || 'MT';
-          var g = roleGroups[role] || (roleGroups[role] = { ch: 0, b: 0, b1: 0, n: 0, d: 0, count: 0 });
-          var d3 = workload.byPerson[p.id] || {};
-          ['ch', 'b', 'b1', 'n', 'd'].forEach(function (k) { g[k] += (d3[k] || []).length; });
-          g.count++;
-        });
-        var oncallByRole = {};
-        (cal.oncall || []).forEach(function (o) {
-          var p = workload.people.filter(function (pp) { return pp.id === o.pid; })[0];
-          var role = p ? (p.role || 'MT') : '—';
-          oncallByRole[role] = (oncallByRole[role] || 0) + 1;
-        });
-        document.getElementById('schedRoleGrid').innerHTML = Object.keys(roleGroups).map(function (role) {
-          var g = roleGroups[role];
-          var total = g.ch + g.b + g.b1 + g.n + g.d;
-          var lines = [
-            'เวร ช จำนวน ' + g.ch + ' วัน',
-            'เวร บ จำนวน ' + g.b + ' วัน'
-          ];
-          if (g.b1) lines.push('เวร <u>บ</u> จำนวน ' + g.b1 + ' วัน');
-          if (g.n) lines.push('เวร น จำนวน ' + g.n + ' วัน');
-          lines.push('on call ' + (oncallByRole[role] || 0) + ' ครั้ง');
-          return '<div class="stat" style="text-align:left;padding:14px;">' +
-            '<div style="font-weight:700;font-size:13px;margin-bottom:6px;">' + role + ' (' + g.count + ' คน)</div>' +
-            '<div style="font-size:12px;color:var(--mut);line-height:1.8;">' + lines.join('<br>') + '</div>' +
-            '<div style="margin-top:8px;font-weight:700;color:var(--tl);">รวม ' + total + ' เวร</div></div>';
-        }).join('') || '<div style="color:var(--mut);font-size:13px;">ยังไม่มีบุคลากร</div>';
+        /* ── 2. โดนัทหน่วยงานที่ส่งตรวจ ── */
+        var PALETTE = ['#0E6158', '#B8862E', '#2059A8', '#C0432B', '#6845AA', '#1E7D4F', '#7A827D'];
+        if (!ocList.length) { noData('dashUnits'); } else {
+          var unitCounts = {};
+          ocList.forEach(function (o) { var u = String(o.unit || 'ไม่ระบุ').trim() || 'ไม่ระบุ'; unitCounts[u] = (unitCounts[u] || 0) + 1; });
+          var unitKeys = Object.keys(unitCounts).sort(function (a, b) { return unitCounts[b] - unitCounts[a]; });
+          _mkChart('dashUnits', {
+            type: 'doughnut',
+            data: { labels: unitKeys, datasets: [{ data: unitKeys.map(function (k) { return unitCounts[k]; }), backgroundColor: unitKeys.map(function (k, i) { return PALETTE[i % PALETTE.length]; }), borderWidth: 0 }] },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right' } } }
+          });
+        }
 
-        /* การ์ดรายบุคคล — รายละเอียดเวร/on call ของแต่ละคน เสริมจากกราฟแถบด้านบน */
+        /* ── 3. แท่งซ้อนภาระงานรายบุคคล (ยุบแถบ+การ์ดบทบาท+การ์ดรายบุคคลเดิม) ── */
         var oncallByPid = {};
-        (cal.oncall || []).forEach(function (o) { oncallByPid[o.pid] = (oncallByPid[o.pid] || 0) + 1; });
-        document.getElementById('schedPersonGrid').innerHTML = workload.people.map(function (p) {
-          var d4 = workload.byPerson[p.id] || {};
-          var counts = { ch: (d4.ch || []).length, b: (d4.b || []).length, b1: (d4.b1 || []).length, n: (d4.n || []).length, d: (d4.d || []).length };
-          var total = counts.ch + counts.b + counts.b1 + counts.n + counts.d;
-          var lines = [
-            'เวร ช จำนวน ' + counts.ch + ' วัน',
-            'เวร บ จำนวน ' + counts.b + ' วัน'
-          ];
-          if (counts.b1) lines.push('เวร <u>บ</u> จำนวน ' + counts.b1 + ' วัน');
-          if (counts.n) lines.push('เวร น จำนวน ' + counts.n + ' วัน');
-          lines.push('on call ' + (oncallByPid[p.id] || 0) + ' ครั้ง');
-          return '<div class="stat" style="text-align:left;padding:14px;">' +
-            '<div style="font-weight:700;font-size:13px;margin-bottom:6px;">' + fullN(p) + ' <span style="font-weight:400;color:var(--mut);font-size:11px;">(' + (p.role || 'MT') + ')</span></div>' +
-            '<div style="font-size:12px;color:var(--mut);line-height:1.8;">' + lines.join('<br>') + '</div>' +
-            '<div style="margin-top:8px;font-weight:700;color:var(--tl);">รวม ' + total + ' เวร</div></div>';
-        }).join('') || '<div style="color:var(--mut);font-size:13px;">ยังไม่มีบุคลากร</div>';
+        ocList.forEach(function (o) { oncallByPid[o.pid] = (oncallByPid[o.pid] || 0) + 1; });
+        var pplLabels = workload.people.map(function (p) { return fullN(p) + ' (' + (p.role || 'MT') + ')'; });
+        _mkChart('dashPeople', {
+          type: 'bar',
+          data: {
+            labels: pplLabels,
+            datasets: SHIFT_DEFS.map(function (s) {
+              return { label: s.label, backgroundColor: s.color, data: workload.people.map(function (p) { return (((workload.byPerson[p.id] || {})[s.k]) || []).length; }) };
+            })
+          },
+          options: {
+            indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+            scales: { x: { stacked: true, title: { display: true, text: 'วัน' } }, y: { stacked: true } },
+            plugins: {
+              legend: { position: 'bottom' },
+              tooltip: { callbacks: { footer: function (items) { var p = workload.people[items[0].dataIndex]; return 'on call ' + (oncallByPid[p.id] || 0) + ' ราย'; } } }
+            }
+          }
+        });
+
+        /* ── 4. LAB ที่ตรวจบ่อย (top 10) ── */
+        if (!ocList.length) { noData('dashLabs'); } else {
+          var labCounts = {};
+          ocList.forEach(function (o) { (o.labs || []).forEach(function (lab) { var k = String(lab).trim(); if (k) labCounts[k] = (labCounts[k] || 0) + 1; }); });
+          var labKeys = Object.keys(labCounts).sort(function (a, b) { return labCounts[b] - labCounts[a]; }).slice(0, 10);
+          if (!labKeys.length) { noData('dashLabs'); } else {
+            _mkChart('dashLabs', {
+              type: 'bar',
+              data: { labels: labKeys, datasets: [{ label: 'จำนวนครั้ง', data: labKeys.map(function (k) { return labCounts[k]; }), backgroundColor: '#138577' }] },
+              options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { ticks: { precision: 0 } } } }
+            });
+          }
+        }
+
+        /* ── 5. รายชั่วโมง — สีเข้ม/อ่อนตามช่วง 00.00-04.00 / 04.01-08.00 (รวมมิติช่วงเวลาเข้ามาในกราฟเดียว) ── */
+        if (!ocList.length) { noData('dashHours'); } else {
+          var hourCounts = {};
+          ocList.forEach(function (o) {
+            var hh = parseInt(String(o.time || '').replace('.', ':').split(':')[0], 10);
+            if (!isNaN(hh)) hourCounts[hh] = (hourCounts[hh] || 0) + 1;
+          });
+          var hourKeys = Object.keys(hourCounts).map(Number).sort(function (a, b) { return a - b; });
+          _mkChart('dashHours', {
+            type: 'bar',
+            data: {
+              labels: hourKeys.map(function (hh) { return ('0' + hh).slice(-2) + ':00'; }),
+              datasets: [{ label: 'จำนวนราย', data: hourKeys.map(function (hh) { return hourCounts[hh]; }), backgroundColor: hourKeys.map(function (hh) { return hh < 4 ? '#0E6158' : '#3BBDAA'; }) }]
+            },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: { footer: function (items) { return +String(items[0].label).split(':')[0] < 4 ? 'ช่วง 00.00-04.00' : 'ช่วง 04.01-08.00'; } } } }, scales: { y: { ticks: { precision: 0 } } } }
+          });
+        }
+
+        /* ── 6. รายวันของเดือน ซ้อนตามช่วงเวลา ── */
+        if (!ocList.length) { noData('dashDaily'); } else {
+          var byDay = { d0: {}, d1: {} };
+          ocList.forEach(function (o) {
+            var hh = parseInt(String(o.time || '').replace('.', ':').split(':')[0], 10);
+            var period = (!isNaN(hh) && hh < 4) ? 'd0' : 'd1';
+            var dd = ocDayOf(o);
+            byDay[period][dd] = (byDay[period][dd] || 0) + 1;
+          });
+          var dayLabels = [];
+          for (var d5 = 1; d5 <= N; d5++) dayLabels.push(d5);
+          _mkChart('dashDaily', {
+            type: 'bar',
+            data: {
+              labels: dayLabels,
+              datasets: [
+                { label: '00.00-04.00', backgroundColor: '#0E6158', data: dayLabels.map(function (dd) { return byDay.d0[dd] || 0; }) },
+                { label: '04.01-08.00', backgroundColor: '#3BBDAA', data: dayLabels.map(function (dd) { return byDay.d1[dd] || 0; }) }
+              ]
+            },
+            options: { responsive: true, maintainAspectRatio: false, scales: { x: { stacked: true }, y: { stacked: true, ticks: { precision: 0 } } }, plugins: { legend: { position: 'bottom' } } }
+          });
+        }
       });
   }
 
