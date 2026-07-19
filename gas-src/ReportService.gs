@@ -435,6 +435,97 @@ var ReportService = (function () {
     return h;
   }
 
+  /* สถิติเวรดึก On Call หลายมิติ จากข้อมูลที่บันทึกจริง (วันที่/เวลา/เจ้าหน้าที่/HN/LAB/หน่วยงาน)
+     — ทุกตารางใช้ .rep-tbl เดิมเพื่อให้หน้าตา/การพิมพ์เหมือนรายงานอื่นในระบบ (mirror ของ repOcStats ใน lib/reportService.js) */
+  function repOcStats_(oncall, people, year, month) {
+    function ocDayOf(o) {
+      var dt = new Date(o.date);
+      return (dt.getFullYear() === year - 543 && dt.getMonth() === month) ? dt.getDate() : null;
+    }
+    var list = oncall.filter(function (o) { return ocDayOf(o); });
+    if (!list.length) return '<div style="padding:20px;color:var(--mut)">ยังไม่มีข้อมูล On Call เดือนนี้</div>';
+
+    function pct(n, total) { return total ? (n * 100 / total).toFixed(1) + '%' : '-'; }
+    function bar(n, max) {
+      var w = max ? Math.round(n * 100 / max) : 0;
+      return '<div style="background:var(--tl-l);height:10px;width:' + Math.max(w, 2) + '%;border-radius:3px"></div>';
+    }
+    function section(title) { return '<div style="font-weight:700;font-size:13px;margin:16px 0 6px">' + title + '</div>'; }
+    function countTable(counts, colName, total) {
+      var keys = Object.keys(counts).sort(function (a, b) { return counts[b] - counts[a]; });
+      var max = keys.length ? counts[keys[0]] : 0;
+      var t = '<div class="rep-tbl-wrap"><table class="rep-tbl"><thead><tr><th style="width:36px">ลำดับ</th><th>' + colName + '</th><th style="width:70px">จำนวน</th><th style="width:70px">ร้อยละ</th><th style="width:30%">สัดส่วน</th></tr></thead><tbody>';
+      keys.forEach(function (k, i) {
+        t += '<tr><td class="c">' + (i + 1) + '</td><td class="l">' + k + '</td><td class="c">' + counts[k] + '</td><td class="c">' + pct(counts[k], total) + '</td><td>' + bar(counts[k], max) + '</td></tr>';
+      });
+      return t + '</tbody></table></div>';
+    }
+
+    var nightsSet = {}, hnSet = {}, labCounts = {}, unitCounts = {}, dowCounts = {}, hourCounts = {};
+    var perStaff = {};
+    var totalLabs = 0;
+    var periodCounts = { d0: 0, d1: 0 };
+    var DOW_TH = ['อาทิตย์', 'จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์', 'เสาร์'];
+    list.forEach(function (o) {
+      var d = ocDayOf(o);
+      nightsSet[d] = true;
+      if (o.hn) hnSet[o.hn] = true;
+      (o.labs || []).forEach(function (lab) {
+        var k = String(lab).trim();
+        if (!k) return;
+        labCounts[k] = (labCounts[k] || 0) + 1;
+        totalLabs++;
+      });
+      var unit = (o.unit || 'ไม่ระบุ').trim() || 'ไม่ระบุ';
+      unitCounts[unit] = (unitCounts[unit] || 0) + 1;
+      periodCounts[BusinessService.onCallPeriod_(o.time)]++;
+      var dow = DOW_TH[new Date(year - 543, month, d).getDay()];
+      dowCounts[dow] = (dowCounts[dow] || 0) + 1;
+      var hh = parseInt(String(o.time || '').replace('.', ':').split(':')[0], 10);
+      var hh2 = ('0' + hh).slice(-2);
+      var hourKey = isNaN(hh) ? 'ไม่ระบุ' : (hh2 + '.00-' + hh2 + '.59 น.');
+      hourCounts[hourKey] = (hourCounts[hourKey] || 0) + 1;
+      if (!perStaff[o.pid]) perStaff[o.pid] = { cases: 0, labs: 0, nights: {} };
+      perStaff[o.pid].cases++;
+      perStaff[o.pid].labs += (o.labs || []).length;
+      perStaff[o.pid].nights[d] = true;
+    });
+    var totalCases = list.length;
+    var nights = Object.keys(nightsSet).length;
+
+    var h = section('1. ภาพรวมประจำเดือน');
+    h += '<div class="rep-tbl-wrap"><table class="rep-tbl"><thead><tr><th>จำนวนครั้งที่บันทึก (ราย)</th><th>จำนวนคืนที่มีการตรวจ</th><th>ผู้ป่วยไม่ซ้ำ (HN)</th><th>รายการ LAB รวม</th><th>เฉลี่ยราย/คืน</th><th>เฉลี่ย LAB/ราย</th></tr></thead><tbody><tr>' +
+      '<td class="c"><b>' + totalCases + '</b></td><td class="c">' + nights + '</td><td class="c">' + Object.keys(hnSet).length + '</td><td class="c">' + totalLabs + '</td>' +
+      '<td class="c">' + (nights ? (totalCases / nights).toFixed(1) : '-') + '</td><td class="c">' + (totalCases ? (totalLabs / totalCases).toFixed(1) : '-') + '</td></tr></tbody></table></div>';
+
+    h += section('2. จำแนกตามช่วงเวลา');
+    h += countTable({ '00.00-04.00 น.': periodCounts.d0, '04.01-08.00 น.': periodCounts.d1 }, 'ช่วงเวลา', totalCases);
+
+    h += section('3. รายการ LAB ที่ตรวจ (เรียงตามความถี่)');
+    h += Object.keys(labCounts).length ? countTable(labCounts, 'รายการตรวจ', totalLabs) : '<div style="color:var(--mut)">ไม่มีการบันทึกรายการ LAB</div>';
+
+    h += section('4. จำแนกตามหน่วยงานที่ส่งตรวจ');
+    h += countTable(unitCounts, 'หน่วยงาน', totalCases);
+
+    h += section('5. จำแนกตามเจ้าหน้าที่');
+    h += '<div class="rep-tbl-wrap"><table class="rep-tbl"><thead><tr><th>เจ้าหน้าที่</th><th style="width:80px">คืนที่ on call</th><th style="width:80px">จำนวนราย</th><th style="width:80px">รายการ LAB</th><th style="width:90px">เฉลี่ยราย/คืน</th></tr></thead><tbody>';
+    Object.keys(perStaff).sort(function (a, b) { return perStaff[b].cases - perStaff[a].cases; }).forEach(function (sPid) {
+      var st = perStaff[sPid];
+      var per = people.filter(function (p) { return p.id === sPid; })[0];
+      var n = Object.keys(st.nights).length;
+      h += '<tr><td class="l">' + (per ? fullN_(per) : sPid) + '</td><td class="c">' + n + '</td><td class="c">' + st.cases + '</td><td class="c">' + st.labs + '</td><td class="c">' + (n ? (st.cases / n).toFixed(1) : '-') + '</td></tr>';
+    });
+    h += '</tbody></table></div>';
+
+    h += section('6. จำแนกตามวันในสัปดาห์');
+    h += countTable(dowCounts, 'วัน', totalCases);
+
+    h += section('7. จำแนกตามชั่วโมงที่บันทึก');
+    h += countTable(hourCounts, 'ช่วงชั่วโมง', totalCases);
+
+    return h;
+  }
+
   var REPORT_TITLES = {
     otsheet: 'บัญชีลงเวลาการปฏิบัติงานนอกเวลาราชการ  เวรเช้าบ่าย',
     otsheetb1: 'บัญชีลงเวลาการปฏิบัติงานนอกเวลาราชการ เวรเสริมบ่าย',
@@ -446,7 +537,8 @@ var ReportService = (function () {
     shiftsummary: 'สรุปเวรรายบุคคล',
     teamoverview: 'ภาพรวมการขึ้นเวรทั้งทีม',
     ocrec: 'แบบบันทึกขอเบิกเงินนอกเวลาราชการ On Call',
-    occlaim: 'แบบบันทึกขอเบิกเงินนอกเวลาราชการ On Call'
+    occlaim: 'แบบบันทึกขอเบิกเงินนอกเวลาราชการ On Call',
+    ocstats: 'รายงานสถิติการตรวจ LAB เวรดึก On Call'
   };
 
   /** Ported from renderRep() dispatcher (2703-2731). */
@@ -463,6 +555,9 @@ var ReportService = (function () {
     }
     if (kind === 'occlaim') {
       return { title: titleFor_(settings, kind), html: header + repOcClaim_(pid, DataService.getOnCallRecords(year, month), people, year, month) };
+    }
+    if (kind === 'ocstats') {
+      return { title: titleFor_(settings, kind), html: header + repOcStats_(DataService.getOnCallRecords(year, month), people, year, month) };
     }
     if (kind === 'otsheetd') {
       return { title: titleFor_(settings, kind), html: repOTD_(year, month, DataService.getOnCallRecords(year, month), people, settings) };

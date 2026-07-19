@@ -1330,7 +1330,8 @@ var Schedule = (function () {
     { id: 'pay', label: 'ใบเบิกเงินรวม' }, { id: 'payLandscape', label: 'ใบเบิกเงินรวม (แนวนอน A4)' },
     { id: 'payperson', label: 'รายบุคคล' },
     { id: 'shiftsummary', label: 'สรุปรายเวร' }, { id: 'teamoverview', label: 'ภาพรวมทีม' },
-    { id: 'ocrec', label: 'บันทึก on-call' }, { id: 'occlaim', label: 'บันทึก on-call (รายละเอียด)' }
+    { id: 'ocrec', label: 'บันทึก on-call' }, { id: 'occlaim', label: 'บันทึก on-call (รายละเอียด)' },
+    { id: 'ocstats', label: 'สถิติ on-call' }
   ];
 
   function setMonthYear(year, month) { current.year = year; current.month = month; render(_schedActiveTab); }
@@ -2766,7 +2767,8 @@ var Schedule = (function () {
     shiftsummary: 'สรุปเวรรายบุคคล',
     teamoverview: 'ภาพรวมการขึ้นเวรทั้งทีม',
     ocrec: 'แบบบันทึกขอเบิกเงินนอกเวลาราชการ On Call',
-    occlaim: 'แบบบันทึกขอเบิกเงินนอกเวลาราชการ On Call'
+    occlaim: 'แบบบันทึกขอเบิกเงินนอกเวลาราชการ On Call',
+    ocstats: 'รายงานสถิติการตรวจ LAB เวรดึก On Call'
   };
 
   function renderReportTitlesSection(s) {
