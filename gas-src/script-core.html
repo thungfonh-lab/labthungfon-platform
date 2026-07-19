@@ -195,6 +195,16 @@ function qs(params) {
    Every call site across script-*.html still calls gsRun('api_xxx', Session.token, ...args)
    exactly as before (google.script.run style) — only this function's internals changed
    to route to the REST API instead. Keeps every other file's call sites untouched. */
+/* เหมือน gsRun แต่ไม่เปิด loading overlay และไม่เด้ง toast เมื่อพลาด — สำหรับการรีเฟรชข้อมูล
+   เบื้องหลัง (stale-while-revalidate) ที่หน้าจอวาดข้อมูลจาก cache ไปแล้ว ผู้ใช้ไม่ควรถูก overlay บัง
+   ผู้เรียกต้องจัดการ .catch เองถ้าอยากแสดงสถานะพลาด */
+function gsRunBg(fnName) {
+  var args = Array.prototype.slice.call(arguments, 1);
+  var token = args[0];
+  var rest = args.slice(1);
+  try { return Promise.resolve(_dispatchApi(fnName, token, rest)); } catch (e) { return Promise.reject(e); }
+}
+
 function gsRun(fnName) {
   var args = Array.prototype.slice.call(arguments, 1);
   var token = args[0];

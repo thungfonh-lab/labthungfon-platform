@@ -748,6 +748,8 @@ var Schedule = (function () {
     document.getElementById('ocCancelEditBtn').onclick = resetOcForm;
 
     document.getElementById('ocAddBtn').onclick = function () {
+      var btn = this;
+      if (btn.disabled) return; /* กันกดซ้ำระหว่างรอผลบันทึก */
       var labs = Array.prototype.slice.call(document.querySelectorAll('#ocLabChks [data-oclab]')).filter(function (cb) { return cb.checked; }).map(function (cb) { return cb.dataset.oclab; });
       var entry = {
         pid: document.getElementById('ocPid').value,
@@ -755,14 +757,32 @@ var Schedule = (function () {
         hn: document.getElementById('ocHn').value, name: document.getElementById('ocName').value,
         unit: document.getElementById('ocUnit').value, labs: labs
       };
-      var call = editingTxId
-        ? gsRun('api_updateOnCall', Session.token, current.year, current.month, editingTxId, entry)
+      var wasEditing = editingTxId;
+      var prevBtnHtml = btn.innerHTML;
+      btn.disabled = true;
+      btn.innerHTML = '<i class="ti ti-loader-2 oc-spin"></i> กำลังบันทึก...';
+      var call = wasEditing
+        ? gsRun('api_updateOnCall', Session.token, current.year, current.month, wasEditing, entry)
         : gsRun('api_addOnCall', Session.token, current.year, current.month, entry);
-      call.then(function () {
+      call.then(function (resp) {
         invalidateMonthCache();
-        toast(editingTxId ? 'แก้ไขบันทึก On-call แล้ว' : 'เพิ่มบันทึก On-call แล้ว');
-        resetOcForm();
+        toast(wasEditing ? 'แก้ไขบันทึก On-call แล้ว' : 'เพิ่มบันทึก On-call แล้ว');
+        btn.disabled = false;
+        resetOcForm(); /* คืนข้อความปุ่มให้เอง */
+        /* วาดรายการที่เซิร์ฟเวอร์ตอบรับแล้วลงตารางทันทีจาก cache — ไม่ต้องรอ round trip ที่สอง
+           แล้วค่อย reconcile กับข้อมูลจริงเบื้องหลังผ่าน loadOncallTable() (ลำดับ/รูปแบบตามเซิร์ฟเวอร์เสมอ) */
+        ocCachePatch(function (cal) {
+          if (wasEditing) {
+            cal.oncall.forEach(function (o, i) { if (o.__txId === wasEditing) cal.oncall[i] = ocMergeEntry(o, entry); });
+          } else {
+            cal.oncall.push(ocMergeEntry({ __txId: resp && resp.id }, entry));
+          }
+        });
         loadOncallTable();
+      }, function () {
+        /* gsRun เด้ง toast ข้อผิดพลาดให้แล้ว — คืนสภาพปุ่ม ฟอร์มยังอยู่ครบให้ลองใหม่ */
+        btn.disabled = false;
+        btn.innerHTML = prevBtnHtml;
       });
     };
     loadOncallTable();
@@ -788,31 +808,82 @@ var Schedule = (function () {
   }
 
   /* ใช้ api_getOnCallList (เบากว่า loadCalendarCached มาก — อ่านแค่ on-call + people)
-     แทนการดึงทั้ง loadCalendar ทุกครั้งที่กดเพิ่ม/แก้/ลบ ทำให้หน้านี้ตอบสนองเร็วขึ้นมาก */
+     + stale-while-revalidate: มี cache ของเดือนนี้เมื่อไรวาดทันที (0 round trip ที่ต้องรอ)
+     แล้วรีเฟรชข้อมูลจริงเบื้องหลังด้วย gsRunBg (ไม่เปิด overlay บังหน้าจอ) — เซิร์ฟเวอร์ยังเป็น
+     source of truth เสมอ (ผล fetch ทับ cache ทุกครั้ง) จึงไม่กระทบ logic/ข้อมูลใดๆ */
+  var OC_TBL_HEAD = '<tr><th>วันที่</th><th>เจ้าหน้าที่</th><th>เวลา</th><th>HN</th><th>ผู้ป่วย</th><th>หน่วยงาน</th><th>Lab</th><th></th></tr>';
+  function ocCacheKey() { return ymKey('oc'); }
+  /* แก้ไขข้อมูลใน cache แล้ววาดตารางใหม่ทันที — ใช้แสดงผลการบันทึก/ลบที่เซิร์ฟเวอร์ "ตอบรับแล้ว"
+     โดยไม่ต้องรอดึงรายการรอบใหม่ (loadOncallTable ที่ตามมาจะ reconcile ให้ตรงเซิร์ฟเวอร์อยู่ดี) */
+  function ocCachePatch(fn) {
+    var hit = _gsCache[ocCacheKey()];
+    if (!hit) return;
+    fn(hit.v);
+    hit.t = Date.now();
+    renderOcTable(hit.v);
+  }
+  function ocMergeEntry(base, patch) {
+    var o = {}, k;
+    for (k in base) o[k] = base[k];
+    for (k in patch) o[k] = patch[k];
+    return o;
+  }
+
+  function renderOcTable(cal) {
+    var page = document.getElementById('schedInner');
+    var table = document.getElementById('ocTable');
+    if (!table) return; /* ผู้ใช้สลับหน้าไปแล้วระหว่างรอ fetch เบื้องหลัง */
+    var rows = cal.oncall.map(function (o) {
+      var p = cal.people.filter(function (x) { return x.id === o.pid; })[0];
+      return '<tr><td>' + o.date + '</td><td class="l">' + (p ? fullN(p) : o.pid) + '</td><td>' + (o.time || '') + '</td><td>' + (o.hn || '') + '</td><td class="l">' + (o.name || '') + '</td><td>' + (o.unit || '') + '</td><td class="l">' + (o.labs || []).join(', ') + '</td>' +
+        '<td><button class="btn btn-sm" data-edit="' + o.__txId + '"><i class="ti ti-edit"></i></button> <button class="btn btn-sm btn-danger" data-del="' + o.__txId + '"><i class="ti ti-trash"></i></button></td></tr>';
+    }).join('');
+    table.innerHTML = OC_TBL_HEAD + (rows || '<tr><td colspan="8" style="color:var(--mut)">ยังไม่มีข้อมูล</td></tr>');
+    table.querySelectorAll('[data-edit]').forEach(function (btn) {
+      btn.onclick = function () {
+        var o = cal.oncall.filter(function (x) { return x.__txId === btn.dataset.edit; })[0];
+        if (o && page._startEditOc) page._startEditOc(o);
+      };
+    });
+    table.querySelectorAll('[data-del]').forEach(function (btn) {
+      btn.onclick = function () {
+        var id = btn.dataset.del;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="ti ti-loader-2 oc-spin"></i>';
+        gsRun('api_deleteOnCall', Session.token, current.year, current.month, id).then(function () {
+          invalidateMonthCache();
+          toast('ลบแล้ว');
+          /* เอาแถวออกจากตารางทันที (เซิร์ฟเวอร์ลบแล้ว) แล้วค่อย reconcile เบื้องหลัง */
+          ocCachePatch(function (c) { c.oncall = c.oncall.filter(function (x) { return x.__txId !== id; }); });
+          loadOncallTable();
+        }, function () {
+          btn.disabled = false;
+          btn.innerHTML = '<i class="ti ti-trash"></i>';
+        });
+      };
+    });
+  }
+
   function loadOncallTable() {
-    gsRun('api_getOnCallList', Session.token, current.year, current.month).then(function (cal) {
-      var page = document.getElementById('schedInner');
-      var rows = cal.oncall.map(function (o) {
-        var p = cal.people.filter(function (x) { return x.id === o.pid; })[0];
-        return '<tr><td>' + o.date + '</td><td class="l">' + (p ? fullN(p) : o.pid) + '</td><td>' + (o.time || '') + '</td><td>' + (o.hn || '') + '</td><td class="l">' + (o.name || '') + '</td><td>' + (o.unit || '') + '</td><td class="l">' + (o.labs || []).join(', ') + '</td>' +
-          '<td><button class="btn btn-sm" data-edit="' + o.__txId + '"><i class="ti ti-edit"></i></button> <button class="btn btn-sm btn-danger" data-del="' + o.__txId + '"><i class="ti ti-trash"></i></button></td></tr>';
-      }).join('');
-      var table = document.getElementById('ocTable');
-      table.innerHTML = '<tr><th>วันที่</th><th>เจ้าหน้าที่</th><th>เวลา</th><th>HN</th><th>ผู้ป่วย</th><th>หน่วยงาน</th><th>Lab</th><th></th></tr>' + (rows || '<tr><td colspan="8" style="color:var(--mut)">ยังไม่มีข้อมูล</td></tr>');
-      table.querySelectorAll('[data-edit]').forEach(function (btn) {
-        btn.onclick = function () {
-          var o = cal.oncall.filter(function (x) { return x.__txId === btn.dataset.edit; })[0];
-          if (o && page._startEditOc) page._startEditOc(o);
-        };
-      });
-      table.querySelectorAll('[data-del]').forEach(function (btn) {
-        btn.onclick = function () {
-          gsRun('api_deleteOnCall', Session.token, current.year, current.month, btn.dataset.del).then(function () {
-            invalidateMonthCache();
-            toast('ลบแล้ว'); loadOncallTable();
-          });
-        };
-      });
+    var hit = _gsCache[ocCacheKey()];
+    var table = document.getElementById('ocTable');
+    if (hit) {
+      renderOcTable(hit.v); /* วาดจาก cache ทันที ผู้ใช้ใช้งานต่อได้เลย */
+    } else if (table) {
+      /* ยังไม่มี cache (เข้าหน้านี้ครั้งแรกของเดือน) — แสดง loading ในตารางแทน overlay เต็มจอ */
+      table.innerHTML = OC_TBL_HEAD + '<tr><td colspan="8" style="color:var(--mut);padding:14px"><i class="ti ti-loader-2 oc-spin"></i> กำลังโหลดข้อมูล...</td></tr>';
+    }
+    return gsRunBg('api_getOnCallList', Session.token, current.year, current.month).then(function (cal) {
+      _gsCache[ocCacheKey()] = { v: cal, t: Date.now() };
+      renderOcTable(cal);
+    }).catch(function (err) {
+      /* fetch เบื้องหลังพลาดและไม่มี cache ให้ fallback — แสดงในตาราง (gsRunBg ไม่เด้ง toast เอง) */
+      if (!_gsCache[ocCacheKey()]) {
+        var t2 = document.getElementById('ocTable');
+        if (t2) t2.innerHTML = OC_TBL_HEAD + '<tr><td colspan="8" style="color:var(--coral);padding:14px">โหลดข้อมูลไม่สำเร็จ: ' + (err && err.message || err) + ' — <a href="#" id="ocRetry">ลองใหม่</a></td></tr>';
+        var retry = document.getElementById('ocRetry');
+        if (retry) retry.onclick = function (e) { e.preventDefault(); loadOncallTable(); };
+      }
     });
   }
 

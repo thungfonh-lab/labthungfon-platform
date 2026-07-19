@@ -286,6 +286,9 @@ tbody tr:last-child td{border-bottom:none}
 .progress-val{font-size:12px;font-weight:600;width:64px;text-align:right;flex-shrink:0}
 /* ── oncall / collect form ── */
 .oc-form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;background:var(--tl-vl);border:1px solid var(--border);border-radius:var(--r);padding:14px;margin-bottom:12px}
+/* ไอคอนหมุนบอกสถานะกำลังโหลด/บันทึกของหน้า on-call (ปุ่มบันทึก, แถวตารางระหว่างรอ fetch) */
+.oc-spin{display:inline-block;animation:ocspin .8s linear infinite}
+@keyframes ocspin{to{transform:rotate(360deg)}}
 .oc-form-grid label{font-size:12px;color:var(--mut);display:flex;flex-direction:column;gap:4px}
 .oc-form-grid input,.oc-form-grid select{padding:6px 9px;border:1px solid var(--border);border-radius:7px;background:var(--surface);color:var(--ink);font-size:12.5px;outline:none}
 .oc-lab-chip{display:flex;align-items:center;gap:5px;font-size:12px;border:1px solid var(--border);border-radius:7px;padding:5px 10px;cursor:pointer;background:var(--surface);transition:background .12s,border-color .12s}
