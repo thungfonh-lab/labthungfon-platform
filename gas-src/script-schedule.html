@@ -60,7 +60,38 @@ var Schedule = (function () {
   function ymKey(prefix) { return prefix + '_' + current.year + '_' + current.month; }
   function loadCalendarCached() { return cachedGsRun(ymKey('cal'), 15000, 'api_loadCalendar', Session.token, current.year, current.month); }
   function loadWorkloadCached() { return cachedGsRun(ymKey('wl'), 15000, 'api_calculateWorkload', Session.token, current.year, current.month); }
-  function invalidateMonthCache() { invalidateCache(ymKey('cal')); invalidateCache(ymKey('wl')); invalidateCache(ymKey('av')); }
+  /* หมายเหตุ: ไม่ล้าง ymKey('oc') ที่นี่ — หน้า on-call เป็นเจ้าของ cache นั้นเองและ patch มันทันที
+     หลังเซิร์ฟเวอร์ตอบรับ (แล้ว loadOncallTable ก็ดึงข้อมูลจริงมาทับอยู่แล้วทุกครั้ง) ถ้าล้างตรงนี้
+     การวาดผลทันทีจะใช้ไม่ได้ ส่วน bal/rep เป็นข้อมูลที่คำนวณจากตาราง+on-call จึงต้องล้างเมื่อมีการแก้ */
+  function invalidateMonthCache() {
+    invalidateCache(ymKey('cal')); invalidateCache(ymKey('wl')); invalidateCache(ymKey('av'));
+    invalidateCache(ymKey('bal')); invalidateCache(ymKey('rep'));
+  }
+  /* รวม object แบบตื้น (base + patch) — ใช้เขียนผลที่เซิร์ฟเวอร์ตอบรับแล้วลง cache เพื่อวาดทันที */
+  function mergeObj_(base, patch) {
+    var o = {}, k;
+    for (k in base) o[k] = base[k];
+    for (k in patch) o[k] = patch[k];
+    return o;
+  }
+  /* แก้ข้อมูลใน cache แล้ววาดใหม่ทันที (หลังเซิร์ฟเวอร์ตอบรับ) — การดึงข้อมูลรอบถัดไปจะ reconcile ให้ตรงเซิร์ฟเวอร์เอง */
+  function cachePatchAndPaint_(key, mutate, paint) {
+    var v = cacheGet(key);
+    if (v === undefined) return;
+    mutate(v);
+    cachePut(key, v);
+    paint(v);
+  }
+  /* แถวสถานะในตาราง (กำลังโหลด / โหลดพลาด+ลองใหม่) ให้ผู้ใช้เห็นความคืบหน้าแทน overlay เต็มจอ */
+  function tblLoadingRow_(cols) { return '<tr><td colspan="' + cols + '" style="color:var(--mut);padding:14px"><i class="ti ti-loader-2 oc-spin"></i> กำลังโหลดข้อมูล...</td></tr>'; }
+  function tblErrorRow_(cols, err, retryId) {
+    return '<tr><td colspan="' + cols + '" style="color:var(--coral);padding:14px">โหลดข้อมูลไม่สำเร็จ: ' +
+      (err && err.message || err) + ' — <a href="#" id="' + retryId + '">ลองใหม่</a></td></tr>';
+  }
+  function bindRetry_(id, fn) {
+    var el = document.getElementById(id);
+    if (el) el.onclick = function (e) { e.preventDefault(); fn(); };
+  }
 
   /* #printSign อยู่นอก #app แล้ว (persistent element ใน index.html ไม่ผูกกับ frame ระบบ) — ต้องเคลียร์เอง
      ทุกครั้งที่สลับแท็บย่อยของตารางเวร ไม่งั้นเนื้อหาลงนามเก่าจากตอนดูหน้า grid จะค้างและโผล่ตอนพิมพ์
@@ -472,11 +503,16 @@ var Schedule = (function () {
     _dashCharts.push(new Chart(el.getContext('2d'), cfg));
   }
 
-  function renderSchedDashPage(page) {
-    /* destroy กราฟชุดเก่าก่อน — canvas ถูกแทนที่ด้วย innerHTML ใหม่ทุกครั้งที่ render
-       ถ้าไม่ destroy Chart.js จะถือ reference + resize observer ของ canvas เดิมค้างไว้ (รั่ว) */
+  /* destroy กราฟชุดเก่าก่อนวาดใหม่ทุกครั้ง — ทั้งตอน render หน้าใหม่ (canvas เดิมถูกแทนด้วย innerHTML ใหม่
+     Chart.js จะถือ reference + resize observer ค้างไว้ = รั่ว) และตอนวาดซ้ำด้วยข้อมูลสดจาก SWR
+     (Chart.js ไม่ยอมให้สร้างกราฟบน canvas ที่ยังมีกราฟเก่าอยู่ — "Canvas is already in use") */
+  function _destroyDashCharts() {
     _dashCharts.forEach(function (c) { try { c.destroy(); } catch (e) { } });
     _dashCharts = [];
+  }
+
+  function renderSchedDashPage(page) {
+    _destroyDashCharts();
 
     function card(title, icon, id, h) {
       return '<div class="card"><div class="card-title"><i class="ti ' + icon + '"></i>' + title + '</div>' +
@@ -495,9 +531,8 @@ var Schedule = (function () {
       '</div>' +
       card('จำนวนราย on call รายวัน แยกช่วงเวลา', 'ti-calendar-stats', 'dashDaily', 210);
 
-    Promise.all([loadCalendarCached(), loadWorkloadCached()])
-      .then(function (res) {
-        var cal = res[0], workload = res[1];
+    function paintDash(cal, workload) {
+        _destroyDashCharts(); /* วาดซ้ำได้ (cache ก่อน แล้วข้อมูลสดตามมา) */
         var N = cal.N;
         var SHIFT_DEFS = [
           { k: 'ch', label: 'เวรเช้า (ช)', color: '#138577' },
@@ -635,7 +670,30 @@ var Schedule = (function () {
             options: { responsive: true, maintainAspectRatio: false, scales: { x: { stacked: true }, y: { stacked: true, ticks: { precision: 0 } } }, plugins: { legend: { position: 'bottom' } } }
           });
         }
-      });
+    }
+
+    /* SWR: มีข้อมูลเดือนนี้ใน cache ครบทั้งคู่ก็วาดกราฟทันที (สลับแท็บกลับมาแล้วเห็นเลย)
+       แล้วดึงข้อมูลจริงเบื้องหลังพร้อมกันทั้งสอง endpoint แล้ววาดทับรอบเดียว (ไม่กระพริบ) */
+    var cal0 = cacheGet(ymKey('cal')), wl0 = cacheGet(ymKey('wl'));
+    if (cal0 && wl0) paintDash(cal0, wl0);
+    else document.getElementById('schedStatGrid').innerHTML = '<div style="color:var(--mut);font-size:12.5px;padding:6px 0"><i class="ti ti-loader-2 oc-spin"></i> กำลังโหลดข้อมูลแดชบอร์ด...</div>';
+
+    Promise.all([
+      gsRunBg('api_loadCalendar', Session.token, current.year, current.month),
+      gsRunBg('api_calculateWorkload', Session.token, current.year, current.month)
+    ]).then(function (r) {
+      cachePut(ymKey('cal'), r[0]);
+      cachePut(ymKey('wl'), r[1]);
+      if (document.getElementById('schedStatGrid')) paintDash(r[0], r[1]); /* ยังอยู่หน้านี้อยู่ */
+    }, function (err) {
+      if (cal0 && wl0) return; /* ยังมีข้อมูลเดิมให้ดู ไม่ต้องรบกวน */
+      var el = document.getElementById('schedStatGrid');
+      if (el) {
+        el.innerHTML = '<div style="color:var(--coral);font-size:12.5px;padding:6px 0">โหลดข้อมูลไม่สำเร็จ: ' +
+          (err && err.message || err) + ' — <a href="#" id="dashRetry">ลองใหม่</a></div>';
+        bindRetry_('dashRetry', function () { renderSchedDashPage(page); });
+      }
+    });
   }
 
   /* ════════════════ COLLECT — leave/availability (ported from renderCollect()/addAvail()) ════════════════ */
@@ -654,34 +712,79 @@ var Schedule = (function () {
     });
 
     document.getElementById('avAddBtn').onclick = function () {
+      var btn = this;
+      if (btn.disabled) return; /* กันกดซ้ำระหว่างรอผลบันทึก */
       var entry = { pid: document.getElementById('avPid').value, day: +document.getElementById('avDay').value, type: document.getElementById('avType').value, mon: current.month, yr: current.year };
       if (!entry.day) { toast('กรุณากรอกวันที่', 'ยังไม่ได้ระบุวันที่ที่ต้องการแจ้ง', true); document.getElementById('avDay').focus(); return; }
-      gsRun('api_addAvailability', Session.token, current.year, current.month, entry).then(function () {
-        toast('บันทึกแล้ว'); document.getElementById('avDay').value = ''; loadAvailTable();
+      var prevHtml = btn.innerHTML;
+      btn.disabled = true;
+      btn.innerHTML = '<i class="ti ti-loader-2 oc-spin"></i> กำลังบันทึก...';
+      gsRun('api_addAvailability', Session.token, current.year, current.month, entry).then(function (resp) {
+        toast('บันทึกแล้ว');
+        document.getElementById('avDay').value = '';
+        btn.disabled = false; btn.innerHTML = prevHtml;
+        /* วาดรายการที่เซิร์ฟเวอร์ตอบรับแล้วลงตารางทันที ไม่ต้องรอ round trip ที่สอง
+           แล้ว loadAvailTable() ที่ตามมา reconcile กับข้อมูลจริงให้เอง */
+        cachePatchAndPaint_(avCacheKey(), function (rows) { rows.push(mergeObj_({ __txId: resp && resp.id }, entry)); }, renderAvTable);
+        loadAvailTable();
+      }, function () {
+        btn.disabled = false; btn.innerHTML = prevHtml;
       });
     };
     loadAvailTable();
   }
 
+  /* ── รายการวันลา/ความไม่สะดวก: SWR + วาดผลทันทีหลังเพิ่ม/ลบ (แบบเดียวกับหน้า on-call) ── */
+  var AV_TBL_HEAD = '<tr><th>เจ้าหน้าที่</th><th>วันที่</th><th>ประเภท</th><th></th></tr>';
+  var AV_TYPE_LABEL = { leave: 'ลาทั้งวัน', noB: 'ไม่สะดวก บ', noD: 'ไม่สะดวก ด', noCh: 'ไม่สะดวก ช', noN: 'ไม่สะดวก น', noB1: 'ไม่สะดวก <u>บ</u>', offAll: 'ไม่ขึ้นเวรทุกเวร (off)' };
+  var avPeople_ = null; /* people ล่าสุด (loadPeople มี cache ในตัว จึงมักได้ทันที) */
+  function avCacheKey() { return ymKey('av'); }
+
+  function renderAvTable(rows) {
+    var table = document.getElementById('avTable');
+    if (!table || !avPeople_) return; /* ผู้ใช้สลับหน้าไปแล้ว หรือยังไม่ได้รายชื่อ */
+    var byId = {}; avPeople_.forEach(function (p) { byId[p.id] = p; });
+    var body = rows.slice().sort(function (a, b) { return a.day - b.day; }).map(function (r) {
+      var p = byId[r.pid];
+      return '<tr><td class="l">' + (p ? fullN(p) : r.pid) + '</td><td>' + r.day + '</td><td><span class="badge none">' + (AV_TYPE_LABEL[r.type] || r.type) + '</span></td>' +
+        '<td><button class="btn btn-sm btn-danger" data-del="' + r.__txId + '"><i class="ti ti-trash"></i></button></td></tr>';
+    }).join('') || '<tr><td colspan="4" style="color:var(--mut)">ยังไม่มีรายการ</td></tr>';
+    table.innerHTML = AV_TBL_HEAD + body;
+    table.querySelectorAll('[data-del]').forEach(function (btn) {
+      btn.onclick = function () {
+        var id = btn.dataset.del;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="ti ti-loader-2 oc-spin"></i>';
+        gsRun('api_deleteAvailability', Session.token, current.year, current.month, id).then(function () {
+          toast('ลบแล้ว');
+          /* เอาแถวออกจากตารางทันที (เซิร์ฟเวอร์ลบแล้ว) แล้วค่อย reconcile เบื้องหลัง */
+          cachePatchAndPaint_(avCacheKey(), function (list) {
+            for (var i = list.length - 1; i >= 0; i--) if (list[i].__txId === id) list.splice(i, 1);
+          }, renderAvTable);
+          loadAvailTable();
+        }, function () {
+          btn.disabled = false;
+          btn.innerHTML = '<i class="ti ti-trash"></i>';
+        });
+      };
+    });
+  }
+
   function loadAvailTable() {
-    Promise.all([gsRun('api_listAvailability', Session.token, current.year, current.month), loadPeople()]).then(function (res) {
-      var rows = res[0], people = res[1];
-      var byId = {}; people.forEach(function (p) { byId[p.id] = p; });
-      var TYPE_LABEL = { leave: 'ลาทั้งวัน', noB: 'ไม่สะดวก บ', noD: 'ไม่สะดวก ด', noCh: 'ไม่สะดวก ช', noN: 'ไม่สะดวก น', noB1: 'ไม่สะดวก <u>บ</u>', offAll: 'ไม่ขึ้นเวรทุกเวร (off)' };
-      var body = rows.sort(function (a, b) { return a.day - b.day; }).map(function (r) {
-        var p = byId[r.pid];
-        return '<tr><td class="l">' + (p ? fullN(p) : r.pid) + '</td><td>' + r.day + '</td><td><span class="badge none">' + (TYPE_LABEL[r.type] || r.type) + '</span></td>' +
-          '<td><button class="btn btn-sm btn-danger" data-del="' + r.__txId + '"><i class="ti ti-trash"></i></button></td></tr>';
-      }).join('') || '<tr><td colspan="4" style="color:var(--mut)">ยังไม่มีรายการ</td></tr>';
-      var table = document.getElementById('avTable');
-      table.innerHTML = '<tr><th>เจ้าหน้าที่</th><th>วันที่</th><th>ประเภท</th><th></th></tr>' + body;
-      table.querySelectorAll('[data-del]').forEach(function (btn) {
-        btn.onclick = function () {
-          gsRun('api_deleteAvailability', Session.token, current.year, current.month, btn.dataset.del).then(function () {
-            toast('ลบแล้ว'); loadAvailTable();
-          });
-        };
-      });
+    var table = document.getElementById('avTable');
+    if (table && cacheGet(avCacheKey()) === undefined) table.innerHTML = AV_TBL_HEAD + tblLoadingRow_(4);
+    /* ดึงรายชื่อควบคู่ไปเลย (loadPeople มี cache ในตัว) — ตารางวาดเมื่อได้ครบทั้งสองอย่าง */
+    return loadPeople().then(function (people) {
+      avPeople_ = people;
+      return swrGsRun({
+        key: avCacheKey(),
+        onData: renderAvTable,
+        onError: function (err, hadCache) {
+          if (hadCache) return;
+          var t2 = document.getElementById('avTable');
+          if (t2) { t2.innerHTML = AV_TBL_HEAD + tblErrorRow_(4, err, 'avRetry'); bindRetry_('avRetry', loadAvailTable); }
+        }
+      }, 'api_listAvailability', Session.token, current.year, current.month);
     });
   }
 
@@ -773,9 +876,9 @@ var Schedule = (function () {
            แล้วค่อย reconcile กับข้อมูลจริงเบื้องหลังผ่าน loadOncallTable() (ลำดับ/รูปแบบตามเซิร์ฟเวอร์เสมอ) */
         ocCachePatch(function (cal) {
           if (wasEditing) {
-            cal.oncall.forEach(function (o, i) { if (o.__txId === wasEditing) cal.oncall[i] = ocMergeEntry(o, entry); });
+            cal.oncall.forEach(function (o, i) { if (o.__txId === wasEditing) cal.oncall[i] = mergeObj_(o, entry); });
           } else {
-            cal.oncall.push(ocMergeEntry({ __txId: resp && resp.id }, entry));
+            cal.oncall.push(mergeObj_({ __txId: resp && resp.id }, entry));
           }
         });
         loadOncallTable();
@@ -813,21 +916,7 @@ var Schedule = (function () {
      source of truth เสมอ (ผล fetch ทับ cache ทุกครั้ง) จึงไม่กระทบ logic/ข้อมูลใดๆ */
   var OC_TBL_HEAD = '<tr><th>วันที่</th><th>เจ้าหน้าที่</th><th>เวลา</th><th>HN</th><th>ผู้ป่วย</th><th>หน่วยงาน</th><th>Lab</th><th></th></tr>';
   function ocCacheKey() { return ymKey('oc'); }
-  /* แก้ไขข้อมูลใน cache แล้ววาดตารางใหม่ทันที — ใช้แสดงผลการบันทึก/ลบที่เซิร์ฟเวอร์ "ตอบรับแล้ว"
-     โดยไม่ต้องรอดึงรายการรอบใหม่ (loadOncallTable ที่ตามมาจะ reconcile ให้ตรงเซิร์ฟเวอร์อยู่ดี) */
-  function ocCachePatch(fn) {
-    var hit = _gsCache[ocCacheKey()];
-    if (!hit) return;
-    fn(hit.v);
-    hit.t = Date.now();
-    renderOcTable(hit.v);
-  }
-  function ocMergeEntry(base, patch) {
-    var o = {}, k;
-    for (k in base) o[k] = base[k];
-    for (k in patch) o[k] = patch[k];
-    return o;
-  }
+  function ocCachePatch(fn) { cachePatchAndPaint_(ocCacheKey(), fn, renderOcTable); }
 
   function renderOcTable(cal) {
     var page = document.getElementById('schedInner');
@@ -865,26 +954,18 @@ var Schedule = (function () {
   }
 
   function loadOncallTable() {
-    var hit = _gsCache[ocCacheKey()];
     var table = document.getElementById('ocTable');
-    if (hit) {
-      renderOcTable(hit.v); /* วาดจาก cache ทันที ผู้ใช้ใช้งานต่อได้เลย */
-    } else if (table) {
-      /* ยังไม่มี cache (เข้าหน้านี้ครั้งแรกของเดือน) — แสดง loading ในตารางแทน overlay เต็มจอ */
-      table.innerHTML = OC_TBL_HEAD + '<tr><td colspan="8" style="color:var(--mut);padding:14px"><i class="ti ti-loader-2 oc-spin"></i> กำลังโหลดข้อมูล...</td></tr>';
-    }
-    return gsRunBg('api_getOnCallList', Session.token, current.year, current.month).then(function (cal) {
-      _gsCache[ocCacheKey()] = { v: cal, t: Date.now() };
-      renderOcTable(cal);
-    }).catch(function (err) {
-      /* fetch เบื้องหลังพลาดและไม่มี cache ให้ fallback — แสดงในตาราง (gsRunBg ไม่เด้ง toast เอง) */
-      if (!_gsCache[ocCacheKey()]) {
+    /* ยังไม่มี cache (เข้าหน้านี้ครั้งแรกของเดือน) — แสดง loading ในตารางแทน overlay เต็มจอ */
+    if (table && cacheGet(ocCacheKey()) === undefined) table.innerHTML = OC_TBL_HEAD + tblLoadingRow_(8);
+    return swrGsRun({
+      key: ocCacheKey(),
+      onData: renderOcTable,
+      onError: function (err, hadCache) {
+        if (hadCache) return; /* ยังมีข้อมูลเดิมให้ใช้งาน ไม่ต้องรบกวนผู้ใช้ */
         var t2 = document.getElementById('ocTable');
-        if (t2) t2.innerHTML = OC_TBL_HEAD + '<tr><td colspan="8" style="color:var(--coral);padding:14px">โหลดข้อมูลไม่สำเร็จ: ' + (err && err.message || err) + ' — <a href="#" id="ocRetry">ลองใหม่</a></td></tr>';
-        var retry = document.getElementById('ocRetry');
-        if (retry) retry.onclick = function (e) { e.preventDefault(); loadOncallTable(); };
+        if (t2) { t2.innerHTML = OC_TBL_HEAD + tblErrorRow_(8, err, 'ocRetry'); bindRetry_('ocRetry', loadOncallTable); }
       }
-    });
+    }, 'api_getOnCallList', Session.token, current.year, current.month);
   }
 
   /* ════════════════ BALANCE (ported from renderBalance(), lines ~4178-4517) ════════════════
@@ -916,11 +997,31 @@ var Schedule = (function () {
     paintBalance();
   }
 
+  /* SWR: เปลี่ยน tolerance ไปมาหรือกลับเข้าหน้านี้ซ้ำ วาดจาก cache ทันที แล้วรีเฟรชเบื้องหลัง
+     (คีย์ขึ้นต้นด้วย ymKey('bal') จึงถูก invalidateMonthCache ล้างให้เมื่อตารางเวรเปลี่ยน) */
   function paintBalance() {
     var body = document.getElementById('balanceBody');
     if (!body) return;
-    cachedGsRun('bal_' + current.year + '_' + current.month + '_' + _bpTol, 15000, 'api_getBalance', Session.token, current.year, current.month, _bpTol)
-      .then(function (b) { paintBalanceBody(body, b); });
+    var tol = _bpTol;
+    var key = ymKey('bal') + '_' + tol;
+    if (cacheGet(key) === undefined) {
+      body.innerHTML = '<div style="padding:20px;text-align:center;color:var(--mut);"><i class="ti ti-loader-2 oc-spin"></i> กำลังคำนวณสมดุลเวร…</div>';
+    }
+    return swrGsRun({
+      key: key,
+      freshMs: 15000,
+      onData: function (b) {
+        var el = document.getElementById('balanceBody');
+        if (el && _bpTol === tol) paintBalanceBody(el, b); /* กันผลเก่ามาทับหลังผู้ใช้เปลี่ยน tolerance */
+      },
+      onError: function (err, hadCache) {
+        var el = document.getElementById('balanceBody');
+        if (hadCache || !el || _bpTol !== tol) return;
+        el.innerHTML = '<div style="padding:20px;text-align:center;color:var(--coral);">คำนวณไม่สำเร็จ: ' +
+          (err && err.message || err) + ' — <a href="#" id="balRetry">ลองใหม่</a></div>';
+        bindRetry_('balRetry', paintBalance);
+      }
+    }, 'api_getBalance', Session.token, current.year, current.month, tol);
   }
 
   function paintBalanceBody(body, b) {
@@ -1088,6 +1189,18 @@ var Schedule = (function () {
     }
     function personOptionsNeeded(kind) { return ['payperson', 'shiftsummary', 'ocrec', 'occlaim'].indexOf(kind) > -1; }
 
+    /* รายงานเป็นการอ่านล้วนของ (ชนิด, เดือน, เจ้าหน้าที่) — cache ไว้แล้ววาดทันทีเมื่อสลับกลับมาแท็บเดิม
+       (invalidateMonthCache ล้าง prefix rep_YYYY_MM ให้เมื่อตารางเวร/on-call เปลี่ยน จึงไม่ค้างข้อมูลเก่า) */
+    function repCacheKey(kind, pid) { return ymKey('rep') + '_' + kind + '_' + (pid || 'all'); }
+
+    function paintReport(rep) {
+      var body = document.getElementById('repBody');
+      if (!body) return; /* ผู้ใช้สลับหน้าไปแล้วระหว่างรอ fetch เบื้องหลัง */
+      body.innerHTML = rep.html;
+      var titleEl = document.getElementById('repTit');
+      if (titleEl) titleEl.textContent = rep.title || '';
+    }
+
     function loadReport(kind) {
       var sel = document.getElementById('repPersonSel');
       sel.style.display = personOptionsNeeded(kind) ? 'inline-block' : 'none';
@@ -1100,11 +1213,26 @@ var Schedule = (function () {
         });
       }
       var pid = sel.value || null;
-      gsRun('api_getReport', Session.token, kind, current.year, current.month, pid).then(function (rep) {
-        document.getElementById('repBody').innerHTML = rep.html;
-        var titleEl = document.getElementById('repTit');
-        if (titleEl) titleEl.textContent = rep.title || '';
-      });
+      var key = repCacheKey(kind, pid);
+      var body = document.getElementById('repBody');
+      /* ยังไม่เคยเปิดรายงานนี้ — แสดงสถานะกำลังโหลดในกล่องรายงานแทน overlay เต็มจอ */
+      if (body && cacheGet(key) === undefined) {
+        body.innerHTML = '<div style="padding:24px;text-align:center;color:var(--mut)"><i class="ti ti-loader-2 oc-spin"></i> กำลังสร้างรายงาน...</div>';
+      }
+      return swrGsRun({
+        key: key,
+        freshMs: 15000, /* สลับแท็บไปมาในช่วงสั้นๆ ใช้ของเดิมได้เลย ไม่ต้องยิงซ้ำ */
+        onData: function (rep) { if (curKind === kind) paintReport(rep); },
+        onError: function (err, hadCache) {
+          if (hadCache || curKind !== kind) return;
+          var b2 = document.getElementById('repBody');
+          if (b2) {
+            b2.innerHTML = '<div style="padding:24px;text-align:center;color:var(--coral)">สร้างรายงานไม่สำเร็จ: ' +
+              (err && err.message || err) + ' — <a href="#" id="repRetry">ลองใหม่</a></div>';
+            bindRetry_('repRetry', function () { loadReport(kind); });
+          }
+        }
+      }, 'api_getReport', Session.token, kind, current.year, current.month, pid);
     }
 
     document.getElementById('repExcelBtn').onclick = function () {

@@ -142,6 +142,38 @@ function invalidateCache(prefix) {
   Object.keys(_gsCache).forEach(function (k) { if (k.indexOf(prefix) === 0) delete _gsCache[k]; });
 }
 
+/* อ่าน/เขียน cache ตรงๆ — ใช้ตอนที่หน้าจอดึงข้อมูลเองผ่าน gsRunBg (เช่นดึงหลาย endpoint พร้อมกัน)
+   หรือแก้ข้อมูลใน cache หลังบันทึกสำเร็จ เพื่อวาดผลทันทีโดยไม่ต้องรอ round trip ที่สอง */
+function cacheGet(key) { var h = _gsCache[key]; return h ? h.v : undefined; }
+function cachePut(key, v) { _gsCache[key] = { v: v, t: Date.now() }; return v; }
+
+/* ---------------- stale-while-revalidate read ----------------
+   วาดหน้าจากข้อมูลใน cache ทันทีถ้ามี (ผู้ใช้ใช้งานต่อได้เลย ไม่ต้องรอ) แล้วดึงข้อมูลจริง
+   เบื้องหลังผ่าน gsRunBg ซึ่งไม่เปิด loading overlay เต็มจอมาบัง — เซิร์ฟเวอร์ยังเป็น source of
+   truth เสมอ: ผลที่ได้ทับ cache และเรียก onData ซ้ำอีกครั้งทุกครั้ง จึงไม่เปลี่ยน logic ใดๆ
+   opts.key      คีย์ cache (ใช้ prefix เดียวกับ invalidateCache ได้)
+   opts.freshMs  ถ้า cache ใหม่กว่านี้ ข้ามการดึงเบื้องหลังไปเลย (กันยิงซ้ำตอนสลับแท็บรัวๆ)
+   opts.onData   วาดหน้าจอ — ถูกเรียกจาก cache ก่อน แล้วเรียกอีกครั้งเมื่อข้อมูลจริงมาถึง
+   opts.onError  แสดงสถานะพลาดเอง (err, hadCache) — ถ้าไม่ส่งมาและไม่มี cache จะ toast ให้เหมือน gsRun
+   คืน Promise ที่ resolve เสมอ (ไม่ reject) เป็นข้อมูลล่าสุดที่ใช้ได้ */
+function swrGsRun(opts, fnName) {
+  var args = Array.prototype.slice.call(arguments, 2);
+  var hit = _gsCache[opts.key];
+  if (hit) {
+    opts.onData(hit.v);
+    if (opts.freshMs && (Date.now() - hit.t) < opts.freshMs) return Promise.resolve(hit.v);
+  }
+  return gsRunBg.apply(null, [fnName].concat(args)).then(function (v) {
+    cachePut(opts.key, v);
+    opts.onData(v);
+    return v;
+  }, function (err) {
+    if (opts.onError) opts.onError(err, !!hit);
+    else if (!hit) toast('เกิดข้อผิดพลาด', err.message || String(err), true);
+    return hit ? hit.v : undefined;
+  });
+}
+
 /* page-load performance tracking: navTo() marks _pageLoadStart/_pageLoadMod, every
    gsRun() bumps _pendingGs while in flight; when it drains back to 0 we know all the
    round trips a page's render() kicked off have settled, so log how long the page
