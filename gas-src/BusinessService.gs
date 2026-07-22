@@ -148,8 +148,10 @@ var BusinessService = (function () {
     if (prevMonthRows.length) {
       var prevN = dim_(prevY, prevM);
       var prevUnflat = unflattenAssignments_(prevMonthRows, prevN);
-      var lastDArr = prevUnflat.assign[prevN] ? prevUnflat.assign[prevN].d : null;
-      if (lastDArr && lastDArr.length) prevLastDayPid = lastDArr[0];
+      var lastDayAsg = prevUnflat.assign[prevN] || {};
+      /* ด ที่ยกยอดข้ามเดือน = คนที่อยู่เวร บ วันสุดท้าย — อ่าน b ก่อน (ตามการสลับเวร) แล้ว fallback ไป d */
+      var lastArr = (lastDayAsg.b && lastDayAsg.b.length) ? lastDayAsg.b : lastDayAsg.d;
+      if (lastArr && lastArr.length) prevLastDayPid = lastArr[0];
     }
     if (!prevLastDayPid && prevTrail) prevLastDayPid = prevTrail.lastDayPid;
 
@@ -626,7 +628,10 @@ var BusinessService = (function () {
     if (pr2 && pr2.length) {
       var pN2 = dim_(prevY2, prevM2);
       var pu2 = unflattenAssignments_(pr2, pN2);
-      if (pu2.assign[pN2] && pu2.assign[pN2].d && pu2.assign[pN2].d.length) prevLDP = pu2.assign[pN2].d;
+      var lastDay2 = pu2.assign[pN2] || {};
+      /* ด ที่ยกยอดข้ามเดือน = คนที่อยู่เวร บ วันสุดท้าย — อ่าน b ก่อน (ตามการสลับเวร) แล้ว fallback ไป d */
+      if (lastDay2.b && lastDay2.b.length) prevLDP = lastDay2.b;
+      else if (lastDay2.d && lastDay2.d.length) prevLDP = lastDay2.d;
     }
     if (!prevLDP.length) {
       var pt2 = DataService.getTrailInfo(prevY2, prevM2);
