@@ -142,13 +142,16 @@ var BusinessService = (function () {
     /* ══ ดึง schedule เดือนก่อนครั้งเดียว — ใช้ร่วมกันทั้ง prevLastDayPid fallback และ b1 auto-rotate ══ */
     var prevMonthRows = DataService.getScheduleAssignments(prevY, prevM) || [];
 
-    /* ══ lastDayPid: fallback ดึงจาก schedule เดือนก่อนกรณี trailInfo เก่าไม่มี lastDayPid ══ */
-    var prevLastDayPid = prevTrail ? prevTrail.lastDayPid : null;
-    if (!prevLastDayPid && prevMonthRows.length) {
+    /* ══ lastDayPid: อ่านจาก schedule จริงเดือนก่อนก่อน — สะท้อนการสลับเวร/override วันสุดท้ายหลังสร้างตาราง
+       (trailInfo.lastDayPid ค้างค่าตอน generate จึงใช้เป็น fallback เท่านั้น) ══ */
+    var prevLastDayPid = null;
+    if (prevMonthRows.length) {
       var prevN = dim_(prevY, prevM);
       var prevUnflat = unflattenAssignments_(prevMonthRows, prevN);
-      prevLastDayPid = prevUnflat.assign[prevN] ? prevUnflat.assign[prevN].d : null;
+      var lastDArr = prevUnflat.assign[prevN] ? prevUnflat.assign[prevN].d : null;
+      if (lastDArr && lastDArr.length) prevLastDayPid = lastDArr[0];
     }
+    if (!prevLastDayPid && prevTrail) prevLastDayPid = prevTrail.lastDayPid;
 
     /* ══ crossLock: วันต้นเดือนที่ต้องใช้คนเดิมจากเดือนก่อน ══ */
     var crossLock = {};
@@ -616,15 +619,18 @@ var BusinessService = (function () {
        เผื่อหลายคนอยู่เวร ด วันสุดท้ายของเดือนก่อนพร้อมกันได้ (ผ่าน override) */
     var prevM2 = month - 1, prevY2 = year;
     if (prevM2 < 0) { prevM2 = 11; prevY2--; }
-    var pt2 = DataService.getTrailInfo(prevY2, prevM2);
-    var prevLDP = pt2 && pt2.lastDayPid ? [pt2.lastDayPid] : [];
+    /* อ่านจาก schedule จริงเดือนก่อนก่อน — สะท้อนการสลับเวร/override วันสุดท้ายหลังสร้างตาราง
+       (trailInfo.lastDayPid ค้างค่าตอน generate จึงใช้เป็น fallback เท่านั้น) */
+    var prevLDP = [];
+    var pr2 = DataService.getScheduleAssignments(prevY2, prevM2);
+    if (pr2 && pr2.length) {
+      var pN2 = dim_(prevY2, prevM2);
+      var pu2 = unflattenAssignments_(pr2, pN2);
+      if (pu2.assign[pN2] && pu2.assign[pN2].d && pu2.assign[pN2].d.length) prevLDP = pu2.assign[pN2].d;
+    }
     if (!prevLDP.length) {
-      var pr2 = DataService.getScheduleAssignments(prevY2, prevM2);
-      if (pr2 && pr2.length) {
-        var pN2 = dim_(prevY2, prevM2);
-        var pu2 = unflattenAssignments_(pr2, pN2);
-        prevLDP = pu2.assign[pN2] ? pu2.assign[pN2].d : [];
-      }
+      var pt2 = DataService.getTrailInfo(prevY2, prevM2);
+      if (pt2 && pt2.lastDayPid) prevLDP = [pt2.lastDayPid];
     }
     if (prevLDP.length) {
       var people2 = DataService.getPeople();
