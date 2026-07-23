@@ -34,6 +34,15 @@ var BusinessService = (function () {
   function roleOf_(p) { return p.role === 'LA' ? 'LA' : 'MT'; }
   function dutyOK_(p) { return p.active && (p.role === 'MT' || p.role === 'HT'); }
 
+  /** วันที่ขึ้นเวรได้รายบุคคล (person.dayTypes = {weekday, weekend} — ตั้งค่า > บุคลากร)
+   *  isWeekend: true = บล็อกวันหยุด/สุดสัปดาห์ (ศ-ส-อา + นักขัตฤกษ์), false = เวรวันเดี่ยว จ-พฤ
+   *  ไม่มี dayTypes = อนุญาตทั้งคู่ (backward-compatible) */
+  function dayTypeAllowsPerson_(p, isWeekend) {
+    var dt = p && p.dayTypes;
+    if (!dt) return true;
+    return isWeekend ? dt.weekend !== false : dt.weekday !== false;
+  }
+
   function byId_(people, pid) { return people.filter(function (p) { return p.id === pid; })[0]; }
 
   /** Ported from avOff()/avNo() in original (lines 2058-2059). */
@@ -106,6 +115,21 @@ var BusinessService = (function () {
     var maxC = +settings.maxC || 4;
     var lastDuty = null;
 
+    /* ══ วันที่ขึ้นเวรได้รายบุคคล (person.dayTypes = {weekday, weekend}) ══
+       ตั้งค่าถาวรที่ ตั้งค่า > บุคลากร — แบ่ง 2 กลุ่มตามโครงสร้างบล็อกเวรจริง:
+       "วันทำการ" = เวรวันเดี่ยว จ-พฤ · "วันหยุด/สุดสัปดาห์" = บล็อกศุกร์ (ศ-ส-อา) + นักขัตฤกษ์
+       (ศุกร์นับเป็นวันหยุดเพราะระบบจัด ศ-ส-อา เป็นบล็อกเดียวเสมอ)
+       ไม่มี dayTypes = อนุญาตทั้งคู่ (ข้อมูลเดิมทั้งหมดไม่กระทบ) — ตัวเช็คจริงอยู่ที่
+       dayTypeAllowsPerson_ (module-level, แชร์กับ runPostBalancePass_) */
+    var peopleById = {};
+    people.forEach(function (p) { peopleById[p.id] = p; });
+    function blockIsWeekend_(days) {
+      return dow_(year, month, days[0]) === 5 || days.some(function (d) { return isOff(d); });
+    }
+    function dayTypeAllows_(pid, days) {
+      return dayTypeAllowsPerson_(peopleById[pid], blockIsWeekend_(days));
+    }
+
     var shiftDisabled = settings.shiftDisabled || { n_mt: [], n_la: [], ch: [], b: [], d: [], b1: [] };
     var mn1 = month + 1;
     var disCH = (shiftDisabled.ch || []).indexOf(mn1) > -1;
@@ -121,6 +145,10 @@ var BusinessService = (function () {
       return n;
     }
     function canDuty(pid, days) {
+      /* dayTypeAllows_ = ข้อจำกัดกลุ่มวันรายบุคคล — เช็คระดับบล็อกครั้งเดียวก่อนเช็ควันลารายวัน
+         ครอบทั้ง pick() และ cross-lock อัตโนมัติ (ทั้งคู่เรียกผ่าน canDuty) ส่วน fallback tier
+         สุดท้ายของ pick (pool.slice()) ยังผ่อนให้เมื่อไม่มีใครว่างจริงๆ วันจะไม่หลุดว่าง */
+      if (!dayTypeAllows_(pid, days)) return false;
       return days.every(function (d) {
         return !avOff_(availability, pid, d, month, year) &&
           !avNo_(availability, pid, d, month, year, 'noB') &&
@@ -252,7 +280,8 @@ var BusinessService = (function () {
       if (!disMT) {
         var prevD = assign[day - 1] ? assign[day - 1].d : null;
         var todD = assign[day] ? assign[day].d : null;
-        var cands = cp.filter(function (p) { return !avNo_(availability, p.id, day, month, year, 'noN'); });
+        /* วันคลินิกเป็นวันทำการเสมอ (พ/พฤ/อังคารที่ n) — คนที่ตั้งค่าไม่ขึ้นเวรวันทำการจึงไม่ถูกจัดคลินิกด้วย */
+        var cands = cp.filter(function (p) { return !avNo_(availability, p.id, day, month, year, 'noN') && dayTypeAllows_(p.id, [day]); });
         var cands2 = cands.filter(function (p) { return p.id !== prevD; });
         if (!cands2.length) cands2 = cands;
         cands2.sort(function (a, b) {
@@ -424,6 +453,11 @@ var BusinessService = (function () {
       var un = underList[0];
       var swapped = false;
       var ts = new Date().toISOString();
+      /* วันที่ขึ้นเวรได้รายบุคคลของผู้รับ (un) — กันตัวปรับสมดุลย้ายเวรไปให้คนที่ตั้งค่าไม่รับกลุ่มวันนั้น
+         (tier วันหยุดต้องรับ weekend ได้, tier วันทำการต้องรับ weekday ได้) — ไม่งั้นข้อจำกัดจาก
+         generateSchedule จะถูก undo ที่นี่ */
+      var unWeekendOK = dayTypeAllowsPerson_(un.p, true);
+      var unWeekdayOK = dayTypeAllowsPerson_(un.p, false);
 
       var checkConsec = function (uid, d) {
         var nc = 1, x = d - 1;
@@ -445,7 +479,7 @@ var BusinessService = (function () {
         return dow_(year, month, 0) === 5;
       };
 
-      for (var d1 = 1; d1 <= N && !swapped; d1++) {
+      for (var d1 = 1; d1 <= N && !swapped && unWeekendOK; d1++) {
         var a1 = assign[d1] || {};
         if (!isOff(d1)) continue;
         if (inFriBlock(d1)) continue;
@@ -456,7 +490,7 @@ var BusinessService = (function () {
         postPassLog.push({ day: d1, type: 'balance-swap', from: ov.p.id, to: un.p.id, shift: 'ch', shiftLabel: 'ช+บ+ด (วันหยุด)', time: ts, aff: [ov.p.id, un.p.id] });
         swapped = true;
       }
-      for (var d2 = 1; d2 <= N && !swapped; d2++) {
+      for (var d2 = 1; d2 <= N && !swapped && unWeekdayOK; d2++) {
         var a2 = assign[d2] || {};
         if (isOff(d2)) continue;
         if (inFriBlock(d2)) continue;
@@ -466,7 +500,7 @@ var BusinessService = (function () {
         postPassLog.push({ day: d2, type: 'balance-swap', from: ov.p.id, to: un.p.id, shift: 'b', shiftLabel: 'บ+ด (วันธรรมดา)', time: ts, aff: [ov.p.id, un.p.id] });
         swapped = true;
       }
-      for (var d5 = 1; d5 <= N && !swapped; d5++) {
+      for (var d5 = 1; d5 <= N && !swapped && unWeekdayOK; d5++) {
         var a5 = assign[d5] || {};
         if (isOff(d5)) continue;
         if (inFriBlock(d5)) continue; // Fri block: b ต้องเท่ากับ d เสมอ ห้าม swap แยกวัน

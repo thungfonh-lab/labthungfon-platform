@@ -2810,7 +2810,14 @@ var Schedule = (function () {
       }).join('') +
       '<label>บทบาท<select data-f="role"><option value="HT">HT — หัวหน้า</option><option value="MT">MT — นักเทคนิค</option><option value="LA">LA — ผู้ช่วย</option></select></label>' +
       '<label style="display:flex;flex-direction:row;align-items:center;gap:6px;">Active<input type="checkbox" data-f="active" ' + (!record || record.active !== false ? 'checked' : '') + '></label>' +
-      '</div><div class="card-title" style="margin-top:14px;">สิทธิ์รายบุคคล (เว้นว่าง = ใช้ค่าเริ่มต้นตามบทบาท)</div><div class="frm-grid">' +
+      '</div>' +
+      '<div class="card-title" style="margin-top:14px;">วันที่ขึ้นเวร ช/บ/ด (ติ๊กทั้งคู่ = ทุกวันตามปกติ)</div>' +
+      '<div style="display:flex;gap:18px;flex-wrap:wrap;">' +
+      '<label style="display:flex;flex-direction:row;align-items:center;gap:6px;">วันทำการ (จ-พฤ)<input type="checkbox" data-daytype="weekday" ' + (!record || !record.dayTypes || record.dayTypes.weekday !== false ? 'checked' : '') + '></label>' +
+      '<label style="display:flex;flex-direction:row;align-items:center;gap:6px;">วันหยุด/สุดสัปดาห์ (ศ-ส-อา, นักขัตฤกษ์)<input type="checkbox" data-daytype="weekend" ' + (!record || !record.dayTypes || record.dayTypes.weekend !== false ? 'checked' : '') + '></label>' +
+      '</div>' +
+      '<p style="font-size:11.5px;color:var(--mut);margin:6px 0 0;">ศุกร์นับเป็นวันหยุด เพราะระบบจัด ศ-ส-อา เป็นบล็อกเดียว — มีผลกับเวร ช/บ/ด และคลินิกตอนกด "สร้างตารางเวร"</p>' +
+      '<div class="card-title" style="margin-top:14px;">สิทธิ์รายบุคคล (เว้นว่าง = ใช้ค่าเริ่มต้นตามบทบาท)</div><div class="frm-grid">' +
       PERM_ACTIONS.map(function (a) {
         var cur = record && record.perms && record.perms[a];
         return '<label style="display:flex;flex-direction:row;align-items:center;gap:6px;">' + PERM_LABEL[a] +
@@ -2829,6 +2836,11 @@ var Schedule = (function () {
       var payload = record ? Object.assign({}, record) : {};
       ['pfx', 'name', 'short', 'title', 'phone', 'email', 'priority', 'role'].forEach(function (f) { payload[f] = body.querySelector('[data-f="' + f + '"]').value; });
       payload.active = body.querySelector('[data-f="active"]').checked;
+      /* วันที่ขึ้นเวร ช/บ/ด รายบุคคล — เก็บใน blob person (businessService อ่านผ่าน dayTypeAllowsPerson) */
+      payload.dayTypes = {
+        weekday: body.querySelector('[data-daytype="weekday"]').checked,
+        weekend: body.querySelector('[data-daytype="weekend"]').checked
+      };
       var perms = {};
       PERM_ACTIONS.forEach(function (a) {
         var v = body.querySelector('[data-perm="' + a + '"]').value;
