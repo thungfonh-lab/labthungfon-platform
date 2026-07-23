@@ -457,6 +457,19 @@ function moduleAllowed(mod) {
   return true;
 }
 
+/* สิทธิ์รายเมนูย่อยตามบทบาท — เก็บใน ModulePerms ด้วย key = parentId + '.' + subId
+   (convention เดียวกับ ModuleLabels) ไม่มี key = ไม่จำกัด · admin เข้าถึงได้เสมอ */
+function subnavAllowed(modId, s) {
+  var role = Session.user && Session.user.role;
+  if (role === 'admin') return true;
+  var roles = ModulePerms[modId + '.' + s.id];
+  if (roles !== undefined && roles.indexOf(role) === -1) return false;
+  return true;
+}
+function allowedSubnav(mod) {
+  return (mod.subnav || []).filter(function (s) { return subnavAllowed(mod.id, s); });
+}
+
 function renderSidebar() {
   var nav = document.getElementById('sbNav');
   var html = '';
@@ -468,9 +481,9 @@ function renderSidebar() {
   });
   html += '</div>';
   var activeMod = MODULE_REGISTRY.filter(function (m) { return m.id === _activeMod; })[0];
-  if (activeMod && activeMod.subnav) {
+  if (activeMod && activeMod.subnav && allowedSubnav(activeMod).length) {
     html += '<div class="sb-sub" id="modSubNav"><div class="sb-sect-label">' + activeMod.label + '</div>';
-    activeMod.subnav.forEach(function (s) {
+    allowedSubnav(activeMod).forEach(function (s) {
       html += '<div class="sb-item' + (s.id === _schedActiveTab ? ' active' : '') + '" data-sub="' + s.id + '">' +
         '<i class="ti ' + s.icon + '" aria-hidden="true"></i><span class="lbl">' + s.label + '</span></div>';
     });
@@ -483,6 +496,9 @@ function renderSidebar() {
 
 function navTo(modId) {
   var m = MODULE_REGISTRY.filter(function (x) { return x.id === modId; })[0];
+
+  /* กันเข้าโมดูลที่บทบาทนี้ไม่มีสิทธิ์ (เช่นค่าค้างจาก sessionStorage) — เด้งกลับหน้าหลัก */
+  if (m && !moduleAllowed(m) && modId !== 'dashboard') { navTo('dashboard'); return; }
 
   /* โมดูลภายนอก (ลิงก์ URL) เปิดแท็บใหม่เสมอ ไม่เปลี่ยนหน้าปัจจุบันในแอป */
   if (m && m.kind === 'url') {
@@ -500,7 +516,14 @@ function navTo(modId) {
   }
 
   _activeMod = modId;
-  if (modId === 'schedule') _schedActiveTab = _schedActiveTab || 'grid';
+  if (modId === 'schedule') {
+    _schedActiveTab = _schedActiveTab || 'grid';
+    /* กันเปิดแท็บย่อยที่บทบาทนี้ไม่มีสิทธิ์ (เช่นค่าค้างจาก sessionStorage) — เด้งไปแท็บแรกที่เข้าได้ */
+    if (m && m.subnav && !subnavAllowed('schedule', { id: _schedActiveTab })) {
+      var firstSub = allowedSubnav(m)[0];
+      if (firstSub) _schedActiveTab = firstSub.id;
+    }
+  }
   sessionStorage.setItem('lo_last_page', JSON.stringify({ mod: modId, sub: modId === 'schedule' ? _schedActiveTab : null }));
   _pageLoadStart = performance.now();
   _pageLoadMod = m ? m.label : modId;
@@ -523,6 +546,7 @@ function navTo(modId) {
 }
 
 function schedSwitchTab(subId) {
+  if (!subnavAllowed('schedule', { id: subId })) return;
   _schedActiveTab = subId;
   if (_activeMod !== 'schedule') { navTo('schedule'); return; }
   sessionStorage.setItem('lo_last_page', JSON.stringify({ mod: 'schedule', sub: subId }));

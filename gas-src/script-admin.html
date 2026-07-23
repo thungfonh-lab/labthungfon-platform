@@ -185,19 +185,24 @@ var Admin = (function () {
   /* บทบาทที่ตั้งค่าสิทธิ์เข้าถึงรายโมดูลได้ — admin เข้าถึงได้เสมอจึงไม่อยู่ในรายการ */
   var MOD_PERM_ROLES = ['HT', 'MT', 'LA'];
 
+  /* checkbox สิทธิ์ต่อบทบาทของ key ใด ๆ ใน ModulePerms — ใช้ทั้งเมนูหลัก (key = modId)
+     และเมนูย่อย (key = modId + '.' + subId ตาม convention ของ ModuleLabels)
+     roles === undefined = ไม่จำกัด (ติ๊กครบ) · roles=[] ต้องแสดงว่าไม่ติ๊กเลย ไม่ใช่ติ๊กครบ
+     (เดิมเช็ก !roles.length ทำให้ array ว่างแสดงผลติ๊กครบผิดๆ ดูเหมือนตั้งค่าไม่ติดหลังรีเฟรช) */
+  function permBoxes_(key) {
+    var roles = ModulePerms[key];
+    return MOD_PERM_ROLES.map(function (r) {
+      var checked = roles === undefined || roles.indexOf(r) !== -1;
+      return '<label style="display:inline-flex;align-items:center;gap:4px;font-size:11.5px;cursor:pointer;">' +
+        '<input type="checkbox" data-perm-mod="' + key + '" data-perm-role="' + r + '"' + (checked ? ' checked' : '') + '> ' + r + '</label>';
+    }).join('');
+  }
+
   /* แถวตั้งค่าสิทธิ์เข้าถึงของโมดูล: ติ๊กครบทุกบทบาท = ทุกคนเข้าถึงได้ (ไม่เก็บ key ใน Settings) */
   function modPermsRow(m) {
     if (m.id === 'dashboard') return ''; /* หน้าหลัก (หน้าเลือกโมดูล) ต้องเข้าถึงได้ทุกคน */
-    var roles = ModulePerms[m.id];
-    /* roles === undefined = ไม่จำกัด (ติ๊กครบ) · roles=[] ต้องแสดงว่าไม่ติ๊กเลย ไม่ใช่ติ๊กครบ
-       (เดิมเช็ก !roles.length ทำให้ array ว่างแสดงผลติ๊กครบผิดๆ ดูเหมือนตั้งค่าไม่ติดหลังรีเฟรช) */
-    var boxes = MOD_PERM_ROLES.map(function (r) {
-      var checked = roles === undefined || roles.indexOf(r) !== -1;
-      return '<label style="display:inline-flex;align-items:center;gap:4px;font-size:11.5px;cursor:pointer;">' +
-        '<input type="checkbox" data-perm-mod="' + m.id + '" data-perm-role="' + r + '"' + (checked ? ' checked' : '') + '> ' + r + '</label>';
-    }).join('');
     return '<div style="display:flex;align-items:center;gap:12px;padding:5px 0 7px 28px;border-bottom:1px solid var(--border);flex-wrap:wrap;">' +
-      '<span style="font-size:11.5px;color:var(--mut);"><i class="ti ti-lock"></i> สิทธิ์เข้าถึง:</span>' + boxes +
+      '<span style="font-size:11.5px;color:var(--mut);"><i class="ti ti-lock"></i> สิทธิ์เข้าถึง:</span>' + permBoxes_(m.id) +
       '<span class="badge ok" style="font-weight:500;">admin เสมอ</span></div>';
   }
 
@@ -214,11 +219,14 @@ var Admin = (function () {
   function paintModList() {
     document.getElementById('modList').innerHTML = MODULE_REGISTRY.map(function (m) {
       var subRows = (m.subnav || []).map(function (s) {
-        return '<div style="display:flex;align-items:center;gap:8px;padding:6px 0 6px 32px;border-bottom:1px solid var(--border);">' +
+        return '<div style="display:flex;align-items:center;gap:8px;padding:6px 0 2px 32px;">' +
           '<i class="ti ' + s.icon + '" style="font-size:14px;color:var(--mut);"></i>' +
           '<div style="flex:1;font-size:12.5px;">' + s.label + '</div>' +
           '<button class="btn btn-sm" data-rename-sub="' + m.id + '.' + s.id + '" data-cur="' + s.label + '" title="แก้ไขชื่อเมนูย่อย"><i class="ti ti-pencil"></i></button>' +
-          '</div>';
+          '</div>' +
+          /* สิทธิ์เข้าถึงรายเมนูย่อย — key = modId.subId เก็บใน ModulePerms เดียวกับเมนูหลัก */
+          '<div style="display:flex;align-items:center;gap:12px;padding:0 0 6px 54px;border-bottom:1px solid var(--border);flex-wrap:wrap;">' +
+          '<span style="font-size:11px;color:var(--mut);"><i class="ti ti-lock"></i> สิทธิ์:</span>' + permBoxes_(m.id + '.' + s.id) + '</div>';
       }).join('');
       return '<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);">' +
         '<i class="ti ' + m.icon + '" style="font-size:18px;color:var(--tl);"></i>' +
@@ -234,7 +242,15 @@ var Admin = (function () {
     document.querySelectorAll('#modList [data-perm-mod]').forEach(function (cb) {
       cb.onchange = function () {
         saveModPerms(cb.dataset.permMod).then(function () {
-          toast('บันทึกสิทธิ์เข้าถึงแล้ว', moduleLabel(cb.dataset.permMod));
+          /* key แบบ modId.subId = เมนูย่อย — แสดงชื่อ "เมนูหลัก > เมนูย่อย" ใน toast */
+          var key = cb.dataset.permMod, lbl = moduleLabel(key);
+          if (key.indexOf('.') > -1) {
+            var parts = key.split('.');
+            var pm = MODULE_REGISTRY.filter(function (x) { return x.id === parts[0]; })[0];
+            var sub = pm && (pm.subnav || []).filter(function (s) { return s.id === parts[1]; })[0];
+            if (sub) lbl = moduleLabel(parts[0]) + ' > ' + sub.label;
+          }
+          toast('บันทึกสิทธิ์เข้าถึงแล้ว', lbl);
           renderSidebar();
         });
       };
