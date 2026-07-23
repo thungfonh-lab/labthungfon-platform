@@ -149,8 +149,11 @@ var Schedule = (function () {
       '<div class="contact-grid" id="contactGrid"></div></div>' +
       '<div class="card print-only" id="workHoursPrint" style="display:none;"></div>' +
       '</div>' +
-      '<div class="card" id="ovrLogCard" style="display:none;"><div class="card-title"><i class="ti ti-history"></i>Override Log</div>' +
-      '<div class="tbl-wrap"><table class="tbl" id="ovrLogTbl"></table></div></div>';
+      /* Override Log ย่อ/ขยายได้ — ค่าเริ่มต้นย่อ กดหัวการ์ดเพื่อขยาย */
+      '<div class="card" id="ovrLogCard" style="display:none;"><div class="card-title" id="ovrLogHead" style="cursor:pointer;user-select:none;margin-bottom:0;"><i class="ti ti-history"></i>Override Log ' +
+      '<span class="badge none" id="ovrLogCount" style="margin-left:6px;"></span>' +
+      '<i class="ti ti-chevron-down" id="ovrLogChev" style="margin-left:auto;"></i></div>' +
+      '<div class="tbl-wrap" id="ovrLogWrap" style="display:none;margin-top:10px;"><table class="tbl" id="ovrLogTbl"></table></div></div>';
       /* #printSign ไม่ได้อยู่ใน HTML ที่ inject ตรงนี้อีกต่อไป — ย้ายไปเป็น element ถาวรนอก #app ใน index.html แล้ว
          (ดูเหตุผลใน index.html/style.html) renderPrintSign() ยังหา document.getElementById('printSign') เจอตามปกติ */
 
@@ -376,10 +379,20 @@ var Schedule = (function () {
     }).join('');
   }
 
+  /* สถานะย่อ/ขยาย Override Log — ค่าเริ่มต้นย่อ จำไว้ระหว่างการ re-render ในหน้าเดียวกัน */
+  var _ovrLogOpen = false;
   function renderOvrLog(overrides, people) {
     var card = document.getElementById('ovrLogCard');
     if (!overrides || !overrides.length) { card.style.display = 'none'; return; }
     card.style.display = 'block';
+    document.getElementById('ovrLogCount').textContent = overrides.length + ' รายการ';
+    var wrap = document.getElementById('ovrLogWrap'), chev = document.getElementById('ovrLogChev');
+    var paintOvrLog = function () {
+      wrap.style.display = _ovrLogOpen ? 'block' : 'none';
+      chev.className = 'ti ' + (_ovrLogOpen ? 'ti-chevron-up' : 'ti-chevron-down');
+    };
+    paintOvrLog();
+    document.getElementById('ovrLogHead').onclick = function () { _ovrLogOpen = !_ovrLogOpen; paintOvrLog(); };
     var byId = {}; people.forEach(function (p) { byId[p.id] = p; });
     document.getElementById('ovrLogTbl').innerHTML = '<tr><th>เวลา</th><th>วันที่</th><th>ประเภท</th><th>การเปลี่ยนแปลง</th></tr>' +
       overrides.slice().reverse().map(function (o) {
