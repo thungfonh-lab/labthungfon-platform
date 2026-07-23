@@ -1600,9 +1600,11 @@ var Schedule = (function () {
     document.getElementById('accRules').innerHTML = '<div class="frm-grid">' +
       '<label>การกระจายเวร' + sel('cfDist', [['equal', 'สมดุลที่สุด (พักผ่อนมากสุด)'], ['priority', 'ตาม Priority']], s.dist) + '</label>' +
       '<label>วันติดต่อกันสูงสุด<input id="cfMaxC" type="number" min="1" value="' + (s.maxC || 4) + '"></label>' +
-      '<label>เวร <u>บ</u> เวรเสริมบ่าย — สลับสัปดาห์' + sel('cfLaB', [['A', 'A: จ-อ · B: พ-พฤ'], ['B', 'A: พ-พฤ · B: จ-อ']], s.laB) + '</label>' +
-      '<label>ผู้ช่วย A (เวร <u>บ</u>)' + sel('cfLaA', [['no', '(ไม่กำหนด)']].concat(mtla.map(function (p) { return [p.id, fullN(p)]; })), s.laA) + '</label>' +
-      '<label>ผู้ช่วย B (เวร <u>บ</u>)' + sel('cfLaB2', [['no', '(ไม่กำหนด)']].concat(mtla.map(function (p) { return [p.id, fullN(p)]; })), s.laB2) + '</label>' +
+      /* ห่อข้อความ label ใน <span> เดียว — .frm-grid label เป็น flex column ถ้ามี <u> แทรก
+         text node จะถูกแตกเป็นคนละบรรทัด (ตัวหนังสือตกบรรทัด) */
+      '<label><span>เวร <u>บ</u> เวรเสริมบ่าย — สลับสัปดาห์</span>' + sel('cfLaB', [['A', 'A: จ-อ · B: พ-พฤ'], ['B', 'A: พ-พฤ · B: จ-อ']], s.laB) + '</label>' +
+      '<label><span>ผู้ช่วย A (เวร <u>บ</u>)</span>' + sel('cfLaA', [['no', '(ไม่กำหนด)']].concat(mtla.map(function (p) { return [p.id, fullN(p)]; })), s.laA) + '</label>' +
+      '<label><span>ผู้ช่วย B (เวร <u>บ</u>)</span>' + sel('cfLaB2', [['no', '(ไม่กำหนด)']].concat(mtla.map(function (p) { return [p.id, fullN(p)]; })), s.laB2) + '</label>' +
       '<label>ผู้ช่วยประจำคลินิก (น)' + sel('cfClinicLa', [['auto', 'เลือกอัตโนมัติ (เท่ากันไม่ซ้อนบ1)'], ['', 'ไม่จัด']].concat(mtla.filter(function (p) { return p.role === 'LA'; }).map(function (p) { return [p.id, fullN(p)]; })), s.clinicLa) + '</label>' +
       '</div><button class="btn btn-primary btn-sm" id="rulesSaveBtn" style="margin-top:10px;">บันทึกกฎ</button>' +
       '<div style="margin-top:18px;border-top:1px solid var(--border);padding-top:14px;">' +
