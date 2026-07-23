@@ -38,6 +38,20 @@ router.post('/schedule/generate', wrap(async (req, res) => {
   ok(res, result);
 }));
 
+// POST /api/schedule/blank — api_createBlankSchedule(token, year, month)
+router.post('/schedule/blank', wrap(async (req, res) => {
+  const session = authService.requireSession(getToken(req));
+  await authService.requirePermission(session.user, 'publish', true);
+  const { year, month } = req.body;
+  const result = await lockService.run('schedule_' + year + '_' + month, async () => {
+    const r = await businessService.createBlankSchedule(year, month);
+    invalidateCalCache(year, month);
+    await auditService.logAction(session.user.userId, 'GENERATE', 'Schedules', year + '-' + month, null, { blank: true });
+    return r;
+  });
+  ok(res, result);
+}));
+
 // POST /api/schedule/clear — api_clearSchedule(token, year, month)
 router.post('/schedule/clear', wrap(async (req, res) => {
   const session = authService.requireSession(getToken(req));

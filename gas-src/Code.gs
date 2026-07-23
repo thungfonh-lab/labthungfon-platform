@@ -110,6 +110,18 @@ function api_generateSchedule(token, year, month) {
   });
 }
 
+/** สร้างตารางเปล่า (ไม่จัดเวรอัตโนมัติ) สำหรับจัดเวรเองผ่าน override — ใช้สิทธิ์เดียวกับ generate */
+function api_createBlankSchedule(token, year, month) {
+  var session = AuthService.requireSession(token);
+  AuthService.requirePermission(session.user, 'publish', true);
+  return LockService_run('schedule_' + year + '_' + month, function () {
+    var result = BusinessService.createBlankSchedule(year, month);
+    invalidateCalCache_(year, month);
+    AuditService.logAction(session.user.userId, 'GENERATE', 'Schedules', year + '-' + month, null, { blank: true });
+    return result;
+  });
+}
+
 /** เคลียร์ตารางเวรเดือนนี้ทั้งหมด — เหมือนไม่เคยกด "สร้างตารางเวร" มาก่อน ใช้สิทธิ์เดียวกับ generate
  *  (ทำลายข้อมูลถาวร กู้คืนไม่ได้ ฝั่ง client ต้อง confirm ก่อนเรียกเสมอ) */
 function api_clearSchedule(token, year, month) {

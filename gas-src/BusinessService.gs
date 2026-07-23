@@ -601,6 +601,18 @@ var BusinessService = (function () {
     return { year: year, month: month, status: status || 'draft', count: assignments.length };
   }
 
+  /* createBlankSchedule(year, month) — ตารางเปล่าสำหรับจัดเวรเองผ่าน override
+     เขียน sentinel row 1 แถว (shiftType 'blank' — unflattenAssignments_ ไม่รู้จัก จึงไม่กระทบ grid/รายงาน)
+     เพื่อให้เดือนนับเป็น 'draft' + trailInfo กลาง ๆ กันเดือนถัดไปอ่านค่าค้าง */
+  function createBlankSchedule(year, month) {
+    var N = dim_(year, month);
+    DataService.clearSchedule(year, month);
+    DataService.saveScheduleAssignments(year, month, [{ day: 0, shiftType: 'blank', pid: '' }], 'draft');
+    DataService.finalizeGenerateWrites(year, month,
+      { lastPid: null, trailingCount: 0, lastDow: dow_(year, month, N), lastDay: N, lastDayPid: null, laB: null }, [], []);
+    return { year: year, month: month, status: 'draft', blank: true };
+  }
+
   /** Ported from publish() (line 2640): requires 'publish' permission (checked in Code.gs). */
   function publishSchedule(year, month) {
     DataService.setScheduleStatus(year, month, 'published');
@@ -864,6 +876,7 @@ var BusinessService = (function () {
 
   return {
     generateSchedule: generateSchedule,
+    createBlankSchedule: createBlankSchedule,
     saveSchedule: saveSchedule,
     publishSchedule: publishSchedule,
     loadCalendar: loadCalendar,

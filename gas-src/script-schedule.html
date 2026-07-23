@@ -134,6 +134,7 @@ var Schedule = (function () {
       '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">' +
       '<span id="statusBadge"></span>' +
       '<button class="btn btn-primary btn-sm" id="genBtn"><i class="ti ti-refresh"></i> สร้างตารางเวร</button>' +
+      '<button class="btn btn-sm" id="blankBtn"><i class="ti ti-file-plus"></i> สร้างตารางเปล่า</button>' +
       '<button class="btn btn-danger btn-sm" id="clearBtn"><i class="ti ti-eraser"></i> เคลียร์</button>' +
       '<button class="btn btn-sm" id="balanceBtn" style="background:var(--tl-l);color:var(--tl-d);border-color:var(--tl);"><i class="ti ti-scale"></i> สมดุลเวร</button>' +
       '<button class="btn btn-sm" id="pubBtn"><i class="ti ti-send"></i> เผยแพร่</button>' +
@@ -162,6 +163,14 @@ var Schedule = (function () {
       gsRun('api_generateSchedule', Session.token, current.year, current.month).then(function (result) {
         invalidateMonthCache();
         toast('สร้างตารางสำเร็จ', 'ปรับสมดุล ' + result.postBalanceSwaps + ' เวร · พบ ' + result.ruleViolations.length + ' ข้อควรตรวจสอบ');
+        loadAndRenderGrid();
+      });
+    };
+    document.getElementById('blankBtn').onclick = function () {
+      if (!confirm('สร้างตารางเปล่าเดือน ' + monthLabel() + '?\n\nตารางจะว่างทั้งเดือน (ไม่จัดเวรอัตโนมัติ) เพื่อให้จัดเวรเองผ่าน Override — ข้อมูลวันลายังแสดงตามปกติ\n\nหากเดือนนี้มีตารางเวรอยู่แล้วจะถูกล้างทั้งหมด')) return;
+      gsRun('api_createBlankSchedule', Session.token, current.year, current.month).then(function () {
+        invalidateMonthCache();
+        toast('สร้างตารางเปล่าแล้ว', 'คลิกช่องในตารางเพื่อเพิ่ม/จัดเวรเองได้เลย');
         loadAndRenderGrid();
       });
     };
