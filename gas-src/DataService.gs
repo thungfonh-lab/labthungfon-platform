@@ -393,6 +393,11 @@ var DataService = (function () {
     }));
   }
 
+  /** Read a single transaction row by its id (used to check ownership — pid — before edit/delete). */
+  function getTransactionById(txId) {
+    return readAll(SHEETS.TRANSACTIONS).filter(function (r) { return r.id === txId; })[0] || null;
+  }
+
   /** Delete a single transaction row by its id (availability/oncall entries — fixes missing delete buttons). */
   function deleteTransactionById(txId) {
     var sheet = getSheet_(SHEETS.TRANSACTIONS);
@@ -635,6 +640,7 @@ var DataService = (function () {
     getMasterRecord: getMasterRecord, crudMasterData: crudMasterData,
     getAvailability: getAvailability, addAvailability: addAvailability,
     getOnCallRecords: getOnCallRecords, addOnCallRecord: addOnCallRecord, deleteTransactionById: deleteTransactionById,
+    getTransactionById: getTransactionById,
     updateTransactionById_: updateTransactionById_,
     getPayAdjustments: getPayAdjustments, setPayAdjustment: setPayAdjustment,
     getOverrides: getOverrides, addOverride: addOverride, addOverridesBulk: addOverridesBulk, clearAutoOverrides: clearAutoOverrides,

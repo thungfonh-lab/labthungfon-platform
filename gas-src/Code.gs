@@ -99,6 +99,18 @@ function parseUserPersonMap_(settings) {
   try { return JSON.parse(m); } catch (e) { return {}; }
 }
 
+/** ตามฟีดแบ็ก: หน้าบันทึก on-call/วันลา ให้แก้ไข/ลบได้แค่ของตัวเอง (เห็นของคนอื่นได้ แต่แก้ไม่ได้)
+ *  ยกเว้นแอดมินที่ทำได้ทุกคน — คืน personId ของบัญชีที่ login อยู่ (ว่าง = ยังไม่ได้ผูกกับเจ้าหน้าที่) */
+function myPersonId_(session) {
+  return parseUserPersonMap_()[session.user.userId] || '';
+}
+/** โยน error ถ้าไม่ใช่แอดมินและไม่ใช่เจ้าของ pid นี้ — ใช้ก่อนแก้ไข/ลบรายการ on-call/วันลา */
+function requireOwnPersonOrAdmin_(session, pid) {
+  if (session.user.role === 'admin') return;
+  var mine = myPersonId_(session);
+  if (!mine || mine !== pid) throw new Error('แก้ไข/ลบได้เฉพาะรายการของตัวเองเท่านั้น');
+}
+
 function api_generateSchedule(token, year, month) {
   var session = AuthService.requireSession(token);
   AuthService.requirePermission(session.user, 'publish', true); // generate allowed for collect role too; see BusinessService
@@ -241,26 +253,38 @@ function api_exportExcel(token, kind, year, month, pid) {
 function api_addOnCall(token, year, month, entry) {
   var session = AuthService.requireSession(token);
   AuthService.requirePermission(session.user, 'collect', true);
+  /* บังคับ pid เป็นของตัวเองเสมอ ยกเว้นแอดมิน — กันแก้ dropdown/request ฝั่ง client แล้วบันทึกแทนคนอื่น */
+  if (session.user.role !== 'admin') {
+    var mine = myPersonId_(session);
+    if (!mine) throw new Error('บัญชีนี้ยังไม่ได้ผูกกับเจ้าหน้าที่ กรุณาติดต่อผู้ดูแลระบบ');
+    entry.pid = mine;
+  }
   var id = DataService.addOnCallRecord(year, month, entry.pid, entry, session.user.userId);
   invalidateCalCache_(year, month);
   AuditService.logAction(session.user.userId, 'CREATE', 'OnCallRecords', id, null, entry);
   return { id: id };
 }
 
-/** Edit an existing on-call record in place (เมนู On Call > ปุ่มแก้ไข). */
+/** Edit an existing on-call record in place (เมนู On Call > ปุ่มแก้ไข) — แก้ได้เฉพาะของตัวเอง ยกเว้นแอดมิน */
 function api_updateOnCall(token, year, month, txId, entry) {
   var session = AuthService.requireSession(token);
   AuthService.requirePermission(session.user, 'collect', true);
+  var existing = DataService.getTransactionById(txId);
+  if (!existing) throw new Error('ไม่พบรายการ id=' + txId);
+  requireOwnPersonOrAdmin_(session, existing.pid);
+  if (session.user.role !== 'admin') entry.pid = existing.pid; // กันเปลี่ยนเจ้าของรายการ
   var result = DataService.updateTransactionById_(txId, entry.pid, entry);
   invalidateCalCache_(year, month);
   AuditService.logAction(session.user.userId, 'UPDATE', 'OnCallRecords', txId, null, entry);
   return result;
 }
 
-/** Delete a single on-call record (fixes missing delete button — original renderOcTbl()/delOC()). */
+/** Delete a single on-call record — ลบได้เฉพาะของตัวเอง ยกเว้นแอดมิน */
 function api_deleteOnCall(token, year, month, txId) {
   var session = AuthService.requireSession(token);
   AuthService.requirePermission(session.user, 'collect', true);
+  var existing = DataService.getTransactionById(txId);
+  if (existing) requireOwnPersonOrAdmin_(session, existing.pid);
   DataService.deleteTransactionById(txId);
   invalidateCalCache_(year, month);
   AuditService.logAction(session.user.userId, 'DELETE', 'OnCallRecords', txId, null, null);
@@ -278,6 +302,12 @@ function api_getOnCallList(token, year, month) {
 function api_addAvailability(token, year, month, entry) {
   var session = AuthService.requireSession(token);
   AuthService.requirePermission(session.user, 'collect', true);
+  /* บังคับ pid เป็นของตัวเองเสมอ ยกเว้นแอดมิน (เหมือน api_addOnCall) */
+  if (session.user.role !== 'admin') {
+    var mine = myPersonId_(session);
+    if (!mine) throw new Error('บัญชีนี้ยังไม่ได้ผูกกับเจ้าหน้าที่ กรุณาติดต่อผู้ดูแลระบบ');
+    entry.pid = mine;
+  }
   var id = DataService.addAvailability(year, month, entry.pid, entry, session.user.userId);
   invalidateCalCache_(year, month);
   AuditService.logAction(session.user.userId, 'CREATE', 'Availability', id, null, entry);
@@ -289,10 +319,12 @@ function api_listAvailability(token, year, month) {
   return DataService.getAvailability(year, month);
 }
 
-/** Delete a single availability/leave record (used by the "เก็บวันลา" tab). */
+/** Delete a single availability/leave record (used by the "เก็บวันลา" tab) — ลบได้เฉพาะของตัวเอง ยกเว้นแอดมิน */
 function api_deleteAvailability(token, year, month, txId) {
   var session = AuthService.requireSession(token);
   AuthService.requirePermission(session.user, 'collect', true);
+  var existing = DataService.getTransactionById(txId);
+  if (existing) requireOwnPersonOrAdmin_(session, existing.pid);
   DataService.deleteTransactionById(txId);
   invalidateCalCache_(year, month);
   AuditService.logAction(session.user.userId, 'DELETE', 'Availability', txId, null, null);

@@ -1385,6 +1385,11 @@ var Schedule = (function () {
   var calendarData = null, peopleCache = null, rolePermsCache = null, leaveMap = {};
   var printColorListenerAdded = false;
 
+  /* ── สิทธิ์แก้ไข/ลบรายการ on-call/วันลา: เห็นของคนอื่นได้ แต่แก้ได้แค่ของตัวเอง ยกเว้นแอดมิน ── */
+  function isAdmin_() { return !!(Session.user && Session.user.role === 'admin'); }
+  function myPersonId_() { return (Session.user && Session.user.personId) || ''; }
+  function canEditRecord_(pid) { return isAdmin_() || (!!myPersonId_() && myPersonId_() === pid); }
+
   /* ── shift token defs, identical colors to the original .tok.* classes ── */
   var SHIFT_DEFS = {
     ch: { short: 'ช', name: 'เวรเช้า 08-16', bg: '#d9ebe8', color: '#0a4f47' },
@@ -2091,7 +2096,19 @@ var Schedule = (function () {
       '<div class="card" style="margin-top:14px;"><div class="card-title"><i class="ti ti-list"></i>รายการที่แจ้งไว้</div><div class="tbl-wrap"><table class="tbl" id="avTable"></table></div></div>';
 
     loadPeople().then(function (people) {
-      document.getElementById('avPid').innerHTML = people.map(function (p) { return '<option value="' + p.id + '">' + fullN(p) + '</option>'; }).join('');
+      /* แอดมินแจ้งแทนคนอื่นได้ — ที่เหลือล็อกเป็นชื่อตัวเองเท่านั้น (server บังคับ pid ซ้ำอีกชั้นใน POST /availability) */
+      var avPidSel = document.getElementById('avPid');
+      if (isAdmin_()) {
+        avPidSel.innerHTML = people.map(function (p) { return '<option value="' + p.id + '">' + fullN(p) + '</option>'; }).join('');
+        avPidSel.disabled = false;
+      } else {
+        var mine = people.filter(function (p) { return p.id === myPersonId_(); })[0];
+        avPidSel.innerHTML = mine
+          ? '<option value="' + mine.id + '">' + fullN(mine) + '</option>'
+          : '<option value="">— บัญชีนี้ยังไม่ได้ผูกกับเจ้าหน้าที่ —</option>';
+        avPidSel.disabled = true;
+        document.getElementById('avAddBtn').disabled = !mine;
+      }
     });
 
     document.getElementById('avAddBtn').onclick = function () {
@@ -2129,8 +2146,12 @@ var Schedule = (function () {
     var byId = {}; avPeople_.forEach(function (p) { byId[p.id] = p; });
     var body = rows.slice().sort(function (a, b) { return a.day - b.day; }).map(function (r) {
       var p = byId[r.pid];
+      /* เห็นรายการของทุกคนได้ แต่ลบได้แค่ของตัวเอง ยกเว้นแอดมิน */
+      var actions = canEditRecord_(r.pid)
+        ? '<button class="btn btn-sm btn-danger" data-del="' + r.__txId + '"><i class="ti ti-trash"></i></button>'
+        : '<span style="color:var(--mut);font-size:11px;">—</span>';
       return '<tr><td class="l">' + (p ? fullN(p) : r.pid) + '</td><td>' + r.day + '</td><td><span class="badge none">' + (AV_TYPE_LABEL[r.type] || r.type) + '</span></td>' +
-        '<td><button class="btn btn-sm btn-danger" data-del="' + r.__txId + '"><i class="ti ti-trash"></i></button></td></tr>';
+        '<td>' + actions + '</td></tr>';
     }).join('') || '<tr><td colspan="4" style="color:var(--mut)">ยังไม่มีรายการ</td></tr>';
     table.innerHTML = AV_TBL_HEAD + body;
     table.querySelectorAll('[data-del]').forEach(function (btn) {
@@ -2202,9 +2223,21 @@ var Schedule = (function () {
     var editingTxId = null;
 
     cachedGsRun('boot', 60000, 'api_bootstrap', Session.token).then(function (boot) {
-      document.getElementById('ocPid').innerHTML = boot.people.map(function (p) { return '<option value="' + p.id + '">' + fullN(p) + '</option>'; }).join('');
-      /* ถ้าบัญชีที่ล็อกอินผูกกับเจ้าหน้าที่ไว้ ตั้งค่าเริ่มต้นเป็นคนนั้น (ผู้ใช้คีย์ on call ของตัวเองได้เลย) */
-      if (boot.user && boot.user.personId) document.getElementById('ocPid').value = boot.user.personId;
+      /* แอดมินเลือกได้ทุกคน (คีย์แทนคนอื่นได้) — ที่เหลือล็อกเป็นชื่อตัวเองเท่านั้น กันไปคีย์/แก้ของคนอื่น
+         (ฝั่ง server บังคับ pid = ของตัวเองอีกชั้นอยู่แล้วใน POST/PUT /oncall) */
+      var ocPidSel = document.getElementById('ocPid');
+      if (isAdmin_()) {
+        ocPidSel.innerHTML = boot.people.map(function (p) { return '<option value="' + p.id + '">' + fullN(p) + '</option>'; }).join('');
+        ocPidSel.disabled = false;
+        if (boot.user && boot.user.personId) ocPidSel.value = boot.user.personId;
+      } else {
+        var mine = boot.people.filter(function (p) { return p.id === boot.user.personId; })[0];
+        ocPidSel.innerHTML = mine
+          ? '<option value="' + mine.id + '">' + fullN(mine) + '</option>'
+          : '<option value="">— บัญชีนี้ยังไม่ได้ผูกกับเจ้าหน้าที่ —</option>';
+        ocPidSel.disabled = true;
+        document.getElementById('ocAddBtn').disabled = !mine;
+      }
       document.getElementById('ocUnit').innerHTML = (boot.settings.units || ['ER', 'IPD', 'OPD', 'LR']).map(function (u) { return '<option>' + u + '</option>'; }).join('');
       document.getElementById('ocLabChks').innerHTML = (boot.settings.labs || []).map(function (l) {
         return '<label class="oc-lab-chip"><input type="checkbox" data-oclab="' + l + '">' + l + '</label>';
@@ -2307,8 +2340,12 @@ var Schedule = (function () {
     if (!table) return; /* ผู้ใช้สลับหน้าไปแล้วระหว่างรอ fetch เบื้องหลัง */
     var rows = cal.oncall.map(function (o) {
       var p = cal.people.filter(function (x) { return x.id === o.pid; })[0];
+      /* เห็นรายการของทุกคนได้ แต่แก้ไข/ลบได้แค่ของตัวเอง ยกเว้นแอดมิน */
+      var actions = canEditRecord_(o.pid)
+        ? '<button class="btn btn-sm" data-edit="' + o.__txId + '"><i class="ti ti-edit"></i></button> <button class="btn btn-sm btn-danger" data-del="' + o.__txId + '"><i class="ti ti-trash"></i></button>'
+        : '<span style="color:var(--mut);font-size:11px;">—</span>';
       return '<tr><td>' + o.date + '</td><td class="l">' + (p ? fullN(p) : o.pid) + '</td><td>' + (o.time || '') + '</td><td>' + (o.hn || '') + '</td><td class="l">' + (o.name || '') + '</td><td>' + (o.unit || '') + '</td><td class="l">' + (o.labs || []).join(', ') + '</td>' +
-        '<td><button class="btn btn-sm" data-edit="' + o.__txId + '"><i class="ti ti-edit"></i></button> <button class="btn btn-sm btn-danger" data-del="' + o.__txId + '"><i class="ti ti-trash"></i></button></td></tr>';
+        '<td>' + actions + '</td></tr>';
     }).join('');
     table.innerHTML = OC_TBL_HEAD + (rows || '<tr><td colspan="8" style="color:var(--mut)">ยังไม่มีข้อมูล</td></tr>');
     table.querySelectorAll('[data-edit]').forEach(function (btn) {
