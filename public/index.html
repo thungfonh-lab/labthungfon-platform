@@ -1666,6 +1666,9 @@ var Schedule = (function () {
   }
 
   function fullN(p) { return (p.pfx || '') + p.name; }
+  /* ชื่อในตารางเวร (คอลัมน์ ชื่อ-สกุล) เท่านั้น — ตัดคำนำหน้า (ทนพญ./ทนพ./นาย/นาง) ออกตามฟีดแบ็ก
+     ที่อื่น (การ์ดติดต่อ/รายงาน/ลงนาม/dropdown) ยังใช้ fullN() แบบมีคำนำหน้าเหมือนเดิม */
+  function gridN_(p) { return p.name; }
 
   function renderGridTable(cal) {
     var dl = dowLabel();
@@ -1681,7 +1684,7 @@ var Schedule = (function () {
     var totals = { ch: 0, b: 0, b1: 0, n: 0, d: 0 };
     cal.people.forEach(function (p) {
       var sums = { ch: 0, b: 0, b1: 0, n: 0, d: 0 };
-      var row = '<tr><td class="nm">' + fullN(p) + '</td>';
+      var row = '<tr><td class="nm">' + gridN_(p) + '</td>';
       for (var d2 = 1; d2 <= cal.N; d2++) {
         var toks = cellToks(p, d2, cal);
         toks.forEach(function (t) { sums[t] = (sums[t] || 0) + 1; });
