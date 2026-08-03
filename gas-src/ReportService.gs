@@ -212,20 +212,21 @@ var ReportService = (function () {
     var MT = people.filter(function (p) { return p.role !== 'LA'; });
     var LA = people.filter(function (p) { return p.role === 'LA'; });
     var title = titleFor_(settings, 'pay');
-    var theadRow = '<thead><tr><th>ลำดับ</th><th>ชื่อ-สกุล</th><th>ตำแหน่ง</th><th>อัตรา</th><th>วันที่ปฏิบัติงาน</th><th>รวม(วัน)</th><th>จำนวนเงิน</th><th>ลายมือชื่อ<br>ผู้รับเงิน</th></tr></thead>';
+    var theadRow = '<thead><tr><th>ลำดับ</th><th>ชื่อ-สกุล</th><th>ตำแหน่ง</th><th>อัตรา</th><th>วันที่ปฏิบัติงาน</th><th>รวม</th><th>จำนวนเงิน</th><th>ลายมือชื่อ<br>ผู้รับเงิน</th></tr></thead>';
     var sig = sigRow_(settings);
 
+    /* เรียงกลุ่มตามเวลาเริ่มเวร (00.00 -> 16.00) และเวรดึก on call แยกเป็น 2 บล็อกตามช่วงเวลา
+       (d0/d1) — ถ้ายุบเป็นแถวเดียวต่อคน วันที่จะซ้ำกันระหว่าง 2 ช่วง ทำให้ อัตรา x รวม
+       ไม่เท่ากับจำนวนเงิน การเงินตรวจสอบยอดไม่ได้. */
     var tot = 0;
     var h = payPageHeader_(title, settings, year, month) + '<div class="rep-tbl-wrap"><table class="rep-tbl">' + theadRow + '<tbody>';
-    var g = payGroup_('วันที่ปฏิบัติงาน ' + PAY_SECTION_LABEL_.ch, MT.concat(LA).map(function (p) { return { p: p, days: (r[p.id] || {}).ch }; }), 'ch', rateOvr, rates);
-    h += g.h; tot += g.sub;
-    g = payGroup_('วันที่ปฏิบัติงาน ' + PAY_SECTION_LABEL_.b, MT.map(function (p) { return { p: p, days: (r[p.id] || {}).b }; }), 'b', rateOvr, rates);
-    h += g.h; tot += g.sub;
-    /* เวรดึก on call แยกเป็น 2 บล็อกตามช่วงเวลา (d0/d1) — ถ้ายุบเป็นแถวเดียวต่อคน วันที่จะซ้ำกัน
-       ระหว่าง 2 ช่วง ทำให้ อัตรา x รวม(วัน) ไม่เท่ากับจำนวนเงิน การเงินตรวจสอบยอดไม่ได้. */
-    g = payGroup_('วันที่ปฏิบัติงาน ' + PAY_SECTION_LABEL_.d0, MT.map(function (p) { return { p: p, days: (r[p.id] || {}).d0 }; }), 'd0', rateOvr, rates);
+    var g = payGroup_('วันที่ปฏิบัติงาน ' + PAY_SECTION_LABEL_.d0, MT.map(function (p) { return { p: p, days: (r[p.id] || {}).d0 }; }), 'd0', rateOvr, rates);
     h += g.h; tot += g.sub;
     g = payGroup_('วันที่ปฏิบัติงาน ' + PAY_SECTION_LABEL_.d1, MT.map(function (p) { return { p: p, days: (r[p.id] || {}).d1 }; }), 'd1', rateOvr, rates);
+    h += g.h; tot += g.sub;
+    g = payGroup_('วันที่ปฏิบัติงาน ' + PAY_SECTION_LABEL_.ch, MT.concat(LA).map(function (p) { return { p: p, days: (r[p.id] || {}).ch }; }), 'ch', rateOvr, rates);
+    h += g.h; tot += g.sub;
+    g = payGroup_('วันที่ปฏิบัติงาน ' + PAY_SECTION_LABEL_.b, MT.map(function (p) { return { p: p, days: (r[p.id] || {}).b }; }), 'b', rateOvr, rates);
     h += g.h; tot += g.sub;
     g = payGroup_('วันที่ปฏิบัติงาน ' + PAY_SECTION_LABEL_.b1, LA.map(function (p) { return { p: p, days: (r[p.id] || {}).b1 }; }), 'b1', rateOvr, rates);
     h += g.h; tot += g.sub;
