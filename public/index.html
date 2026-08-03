@@ -221,6 +221,14 @@ tbody tr:last-child td{border-bottom:none}
 /* เส้นใต้จางกว่าตัวหนังสือตามฟีดแบ็ก — ใช้ color-mix ผสม currentColor แค่ 45% แทนสีทึบ
    จะได้จางกว่าตัวอักษรเสมอไม่ว่าจะธีมไหน/ตอนพิมพ์ (ผ่าน grayscale filter) โดยไม่ต้องกำหนดสีตายตัวแยกทีละธีม */
 .oc-uline{border-bottom:1px solid color-mix(in srgb,currentColor 45%,transparent);padding-bottom:1px}
+/* ตารางครอบบล็อกบันทึก on-call (รายละเอียด) — ไม่มีเส้นตาราง ทำหน้าที่แค่ให้หัวรายงานที่ฝังใน <thead>
+   ถูกพิมพ์ซ้ำทุกหน้าเมื่อรายการยาวเกิน 1 แผ่น (display:table-header-group ใน @media print ด้านล่าง) */
+.oc-claim-tbl{border-collapse:collapse;width:100%}
+.oc-claim-tbl th,.oc-claim-tbl td{border:none;background:transparent;padding:0;text-align:left;white-space:normal}
+.oc-claim-tbl .rt-head-row th{text-align:center;padding:1px 0}
+.oc-claim-tbl .rt-head-row th.dtitle{font-weight:700;font-size:15px;color:var(--ink)}
+.oc-claim-tbl .rt-head-row th.dline{font-weight:400;font-size:12.5px;color:var(--ink)}
+.oc-claim-tbl .rt-head-row th.oc-claim-who{font-size:14px;padding-top:8px;padding-bottom:10px}
 .rep-tbl{border-collapse:collapse;width:100%;font-size:12px}
 .rep-tbl th,.rep-tbl td{border:1px solid var(--border);padding:6px 9px}
 .rep-tbl th{background:var(--surface2);font-weight:600;text-align:center}
@@ -449,6 +457,12 @@ tbody tr:last-child td{border-bottom:none}
   .rep-tbl-sig .sig-col{height:22px}
   .rep-tbl-sig thead{display:table-header-group}
   .rep-tbl-sig tr{page-break-inside:avoid}
+  /* บันทึก on-call (รายละเอียด) — ซ้ำหัวรายงาน + ชื่อเจ้าหน้าที่ ทุกหน้าตอนพิมพ์ */
+  .oc-claim-tbl thead{display:table-header-group}
+  .oc-claim-tbl tr{page-break-inside:avoid;break-inside:avoid}
+  .oc-claim-tbl .rt-head-row th.dtitle{font-size:15px!important}
+  .oc-claim-tbl .rt-head-row th.dline{font-size:12.5px!important;line-height:1.55!important}
+  .oc-claim-tbl .rt-head-row th.oc-claim-who{font-size:14px!important}
   .dtitle{font-size:13px;margin-bottom:3px}.dline{font-size:11px;line-height:1.4}
   /* หัวรายงาน OT timesheet (ฝังใน th ของ thead) ใช้ class .dtitle/.dline เดียวกับ header() ทั่วไป จึงถูกกฎ
      ด้านบนลดขนาดตอนพิมพ์ไปด้วย — แต่ใบเบิกเงินรวมจริงๆ ใช้ payPageHeader() ที่เป็น inline style ไม่ถูกกฎนี้ลดขนาด
