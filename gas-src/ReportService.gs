@@ -188,31 +188,13 @@ var ReportService = (function () {
     return { h: h, sub: sub };
   }
 
-  /** เวร ด (on call) มี 2 อัตราตามช่วงเวลา (d0=00.00-04.00, d1=04.00-08.00) — แสดงเป็น
-   *  แถวเดียวต่อคนเหมือนเวรอื่น (รวมวันที่ของทั้ง 2 ช่วง) แต่คิดเงินแยกตามช่วงที่เกิดขึ้นจริง. */
-  function payGroupOnCall_(title, items, rateOvr, rates) {
-    var h = '<tr class="grp"><td colspan="8">' + title + '</td></tr>', i = 0, sub = 0;
-    items.forEach(function (item) {
-      if (!item.days || !item.days.length) return;
-      i++;
-      var amt = (item.d0 || []).reduce(function (s, d) { return s + BusinessService.rateFor_(rateOvr, rates, item.p, 'd0', d); }, 0) +
-        (item.d1 || []).reduce(function (s, d) { return s + BusinessService.rateFor_(rateOvr, rates, item.p, 'd1', d); }, 0);
-      sub += amt;
-      var rate0 = BusinessService.rateFor_(rateOvr, rates, item.p, 'd0', 1);
-      var rate1 = BusinessService.rateFor_(rateOvr, rates, item.p, 'd1', 1);
-      var rateLbl = rate0 === rate1 ? String(rate0) : (rate0 + '/' + rate1);
-      h += '<tr><td class="c">' + i + '</td><td class="l">' + fullN_(item.p) + '</td><td class="l">' + item.p.title + '</td><td class="c">' + rateLbl + '</td>' +
-        '<td class="l" style="white-space:normal">' + item.days.join(', ') + '</td><td class="c">' + item.days.length + '</td><td class="r">' + money_(amt) + '</td><td></td></tr>';
-    });
-    return { h: h, sub: sub };
-  }
-
   var PAY_SECTION_LABEL_ = {
     n: 'เวรคลินิกนอกเวลา (07.00-08.00 น.)',
     ch: 'เวรเช้า (08.00-16.00 น.)',
     b: 'เวรบ่าย (16.00-00.00 น.)',
     b1: 'เวรเสริมบ่าย (16.00-20.00 น.)',
-    d: 'เวรดึก (00.00-08.00 น.)'
+    d0: 'เวรดึก On call (00.00-04.00 น.)',
+    d1: 'เวรดึก On call (04.01-08.00 น.)'
   };
 
   /** หัวรายงานเฉพาะใบเบิกเงินรวม — ชื่อรายงาน (ตัวหนา) อยู่บรรทัดเดียวกับชื่อหน่วยงาน/เดือน
@@ -239,7 +221,11 @@ var ReportService = (function () {
     h += g.h; tot += g.sub;
     g = payGroup_('วันที่ปฏิบัติงาน ' + PAY_SECTION_LABEL_.b, MT.map(function (p) { return { p: p, days: (r[p.id] || {}).b }; }), 'b', rateOvr, rates);
     h += g.h; tot += g.sub;
-    g = payGroupOnCall_('วันที่ปฏิบัติงาน ' + PAY_SECTION_LABEL_.d, MT.map(function (p) { var rr = r[p.id] || {}; return { p: p, days: rr.d, d0: rr.d0, d1: rr.d1 }; }), rateOvr, rates);
+    /* เวรดึก on call แยกเป็น 2 บล็อกตามช่วงเวลา (d0/d1) — ถ้ายุบเป็นแถวเดียวต่อคน วันที่จะซ้ำกัน
+       ระหว่าง 2 ช่วง ทำให้ อัตรา x รวม(วัน) ไม่เท่ากับจำนวนเงิน การเงินตรวจสอบยอดไม่ได้. */
+    g = payGroup_('วันที่ปฏิบัติงาน ' + PAY_SECTION_LABEL_.d0, MT.map(function (p) { return { p: p, days: (r[p.id] || {}).d0 }; }), 'd0', rateOvr, rates);
+    h += g.h; tot += g.sub;
+    g = payGroup_('วันที่ปฏิบัติงาน ' + PAY_SECTION_LABEL_.d1, MT.map(function (p) { return { p: p, days: (r[p.id] || {}).d1 }; }), 'd1', rateOvr, rates);
     h += g.h; tot += g.sub;
     g = payGroup_('วันที่ปฏิบัติงาน ' + PAY_SECTION_LABEL_.b1, LA.map(function (p) { return { p: p, days: (r[p.id] || {}).b1 }; }), 'b1', rateOvr, rates);
     h += g.h; tot += g.sub;
