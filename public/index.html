@@ -1412,7 +1412,7 @@ var Schedule = (function () {
     n: { short: 'x', name: 'เวรคลินิกนอกเวลา 07-08', bg: '#ede0c4', color: '#6b4e16' },
     /* สัญลักษณ์ บ1 เปลี่ยนเป็น "บ ขีดเส้นใต้" ตามฟีดแบ็ก — u:true ให้ tokEl ใส่เส้นใต้
        (key 'b1' และข้อความที่บันทึกลง log/option ยังคง "บ1" เดิม ไม่กระทบข้อมูล) */
-    b1: { short: 'บ', u: true, name: 'เวรเสริมบ่าย 16-20', bg: '#efe7f7', color: '#7a4fa0' }
+    b1: { short: 'บ', u: true, name: 'เวรบ่าย 16-20', bg: '#efe7f7', color: '#7a4fa0' }
   };
   var REPORT_TABS = [
     { id: 'otsheet', label: 'OT timesheet' }, { id: 'otsheetb1', label: 'OT timesheet (<u>บ</u>)' }, { id: 'otsheetd', label: 'OT timesheet (เวรดึก)' }, { id: 'nsheet', label: 'เวรคลินิก (น)' },
@@ -1649,16 +1649,25 @@ var Schedule = (function () {
     var el = document.getElementById('workHoursPrint');
     if (!el) return;
     var order = ['ch', 'b1', 'b', 'd', 'n'];
+    var rows = [];
+    order.forEach(function (k) {
+      if (k === 'd') {
+        /* เวรดึก on call แยกแสดง 2 ช่วงเวลาตามอัตราจริง (325 บาทต่อช่วง) แทนที่จะโชว์รวดเดียว
+           00.00-08.00 น. — ให้ตรงกับที่ใบเบิกเงินรวมคิดเงินจริงตามฟีดแบ็ก */
+        var dLabel = SHIFT_DEFS.d.short + ' เวรดึก on call (325 บาท)';
+        rows.push('<div class="whr-row"><span class="whr-lbl">' + dLabel + '</span><span class="whr-time">ตั้งแต่เวลา 00.00 น.-04.00 น.</span></div>');
+        rows.push('<div class="whr-row"><span class="whr-lbl">' + dLabel + '</span><span class="whr-time">ตั้งแต่เวลา 04.01 น.-08.00 น.</span></div>');
+        return;
+      }
+      var s = SHIFT_DEFS[k];
+      var short = k === 'n' ? 'X' : (s.u ? '<u>' + s.short + '</u>' : s.short);
+      var label = s.name.replace(/\s*\d+-\d+$/, '');
+      if (label.indexOf(short) !== 0) label = short + ' ' + label;
+      var t = WORK_HOURS_FULL_[k];
+      rows.push('<div class="whr-row"><span class="whr-lbl">' + label + '</span><span class="whr-time">ตั้งแต่เวลา ' + t.s + ' น.-' + t.e + ' น.</span></div>');
+    });
     el.innerHTML = '<div class="card-title">เวลาในการปฏิบัติงาน</div>' +
-      '<div class="whr-list">' +
-      order.map(function (k) {
-        var s = SHIFT_DEFS[k];
-        var short = k === 'n' ? 'X' : (s.u ? '<u>' + s.short + '</u>' : s.short);
-        var label = s.name.replace(/\s*\d+-\d+$/, '');
-        if (label.indexOf(short) !== 0) label = short + ' ' + label;
-        var t = WORK_HOURS_FULL_[k];
-        return '<div class="whr-row"><span class="whr-lbl">' + label + '</span><span class="whr-time">ตั้งแต่เวลา ' + t.s + ' น.-' + t.e + ' น.</span></div>';
-      }).join('') + '</div>' +
+      '<div class="whr-list">' + rows.join('') + '</div>' +
       '<div class="whr-row" style="margin-top:4px;font-size:11px;color:var(--mut)">* = มีบันทึก on call จริงในวันนั้น</div>';
   }
 
