@@ -1668,7 +1668,7 @@ var Schedule = (function () {
     });
     el.innerHTML = '<div class="card-title">เวลาในการปฏิบัติงาน</div>' +
       '<div class="whr-list">' + rows.join('') + '</div>' +
-      '<div class="whr-row" style="margin-top:4px;font-size:11px;color:var(--mut)">* = มีบันทึก on call จริงในวันนั้น</div>';
+      '<div class="whr-row" style="margin-top:4px;font-size:11px;color:var(--mut)">* = มีบันทึก on call ปฏิบัติงานในวันนั้น</div>';
   }
 
   function isHolD(d) { return (calendarData.holidays || []).some(function (h) { return h.day === d; }); }
