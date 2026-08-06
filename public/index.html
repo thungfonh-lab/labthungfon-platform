@@ -193,6 +193,9 @@ tbody tr:last-child td{border-bottom:none}
 .sched .cell:hover{outline:2px solid var(--tl);outline-offset:-2px;z-index:2}
 .sched .cell.ovrd{box-shadow:inset 0 0 0 1.5px var(--coral)}
 .sched tr.sum-row td{background:var(--surface2);font-weight:700;font-size:11px;border-top:2px solid var(--tl-l)}
+.sched tr.oncall-row td{background:var(--surface2)}
+.sched tr.oncall-row .nm{font-weight:400;font-style:italic;font-size:12px;color:var(--mut)}
+.sched tr.oncall-row .sumcol{font-weight:400;color:var(--mut)}
 .tok{font-size:9.5px;font-weight:700;padding:1px 3px;border-radius:3px;line-height:1.4;white-space:nowrap}
 .legend{display:flex;gap:12px;flex-wrap:wrap;margin:9px 2px;font-size:12px;color:var(--ink2);align-items:center}
 .legend span{display:inline-flex;align-items:center;gap:5px}
@@ -1698,21 +1701,33 @@ var Schedule = (function () {
     var totals = { ch: 0, b: 0, b1: 0, n: 0, d: 0 };
     cal.people.forEach(function (p) {
       var sums = { ch: 0, b: 0, b1: 0, n: 0, d: 0 };
+      var dDays = [];
       var row = '<tr><td class="nm">' + gridN_(p) + '</td>';
+      var oncallRow = '';
       for (var d2 = 1; d2 <= cal.N; d2++) {
         var toks = cellToks(p, d2, cal);
         toks.forEach(function (t) { sums[t] = (sums[t] || 0) + 1; });
+        var hasD = toks.indexOf('d') > -1;
+        if (hasD) dDays.push(d2);
         var ovrd = (cal.overrides || []).some(function (o) {
           if ((o.aff || []).indexOf(p.id) === -1) return false;
           return (o.shift === 'd' ? o.day + 1 : o.day) === d2;
         });
         var onLeave = leaveMap[p.id] && leaveMap[p.id][d2];
-        row += '<td class="' + dowCls(d2) + (onLeave ? ' lv' : '') + '"><div class="cell' + (ovrd ? ' ovrd' : '') + '" data-day="' + d2 + '" data-pid="' + p.id + '">' + toks.map(tokEl).join('') + '</div></td>';
+        /* เวรดึก (on call) แยกไปแสดงในแถวย่อยใต้ชื่อแทน — ช่องหลักตัดโทเค็น 'd' ออก
+           กันไม่ให้ปนกับ ช/บ/บ1/x ในช่องเดียวกันจนอ่านยาก (ตัวเลขสรุป sums.d ยังนับจาก toks เดิมข้างบนแล้ว ไม่กระทบ) */
+        var mainToks = toks.filter(function (t) { return t !== 'd'; });
+        row += '<td class="' + dowCls(d2) + (onLeave ? ' lv' : '') + '"><div class="cell' + (ovrd ? ' ovrd' : '') + '" data-day="' + d2 + '" data-pid="' + p.id + '">' + mainToks.map(tokEl).join('') + '</div></td>';
+        oncallRow += '<td class="' + dowCls(d2) + '"><div class="cell" data-day="' + d2 + '" data-pid="' + p.id + '">' + (hasD ? tokEl('d') : '') + '</div></td>';
       }
       var isLA = p.role === 'LA';
       var rmt = isLA ? sums.ch + sums.b1 : sums.ch + sums.b;
       row += '<td class="sumcol">' + sums.n + '</td><td class="sumcol">' + sums.ch + '</td><td class="sumcol">' + sums.b1 + '</td><td class="sumcol">' + sums.b + '</td><td class="sumcol">' + sums.d + '</td><td class="sumcol" style="font-size:12px">' + rmt + '</td></tr>';
       h += row;
+      if (dDays.length) {
+        h += '<tr class="oncall-row"><td class="nm oncall-lbl">เวรดึก (on call)</td>' + oncallRow +
+          '<td class="sumcol">—</td><td class="sumcol">—</td><td class="sumcol">—</td><td class="sumcol">—</td><td class="sumcol">—</td><td class="sumcol">—</td></tr>';
+      }
       ['ch', 'b', 'b1', 'n', 'd'].forEach(function (t) { totals[t] += sums[t] || 0; });
     });
     h += '<tr class="sum-row"><td class="nm" style="text-align:right;font-size:11px;color:var(--mut)">รวมทั้งหมด</td>';

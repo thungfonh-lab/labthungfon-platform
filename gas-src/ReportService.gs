@@ -88,12 +88,12 @@ var ReportService = (function () {
      ต้องระบุความกว้างผ่าน <colgroup><col> แทน ซึ่งมีผลเหนือกว่าทุกแถวเสมอ (% ต้องตรงกับ .rep-tbl-sig th:nth-child ใน style.html) */
 
   /** Ported from repOT() (2735-2744). */
-  function repOT_(workload, year, month, scheduleAssign, N, settings) {
+  function repOT_(workload, year, month, scheduleAssign, N, settings, holidays) {
     var rows = [];
     for (var d = 1; d <= N; d++) {
       var a = scheduleAssign[d];
       if (!a) continue;
-      if (BusinessService.isOff_(year, month, d, [])) (a.ch || []).forEach(function (pid) { rows.push([d, pid, 'ch', '08.00', '16.00']); });
+      if (BusinessService.isOff_(year, month, d, holidays || [])) (a.ch || []).forEach(function (pid) { rows.push([d, pid, 'ch', '08.00', '16.00']); });
       (a.b || []).forEach(function (pid) { rows.push([d, pid, 'b', '16.00', '00.00']); });
     }
     var h = '<table class="rep-tbl rep-tbl-sig"><thead>' + reportHeaderRows_(settings, year, month, 8) + SIG_HEAD_ROW_ + '</thead><tbody>';
@@ -118,7 +118,7 @@ var ReportService = (function () {
       var p = workload.people.filter(function (x) { return x.id === row[1]; })[0];
       if (!p) return;
       h += '<tr><td class="c">' + dStr_(row[0], year, month) + '</td><td class="l">' + fullN_(p) + '</td><td class="c">' + p.title + '</td>' +
-        '<td class="c">เวรเสริมบ่าย</td><td class="c">' + row[3] + '</td><td class="sig-col"></td><td class="c">' + row[4] + '</td><td class="sig-col"></td></tr>';
+        '<td class="c">เวรบ่าย</td><td class="c">' + row[3] + '</td><td class="sig-col"></td><td class="c">' + row[4] + '</td><td class="sig-col"></td></tr>';
     });
     return h + '</tbody></table>';
   }
@@ -232,6 +232,7 @@ var ReportService = (function () {
     h += g.h; tot += g.sub;
     h += '<tr class="tot"><td colspan="6" class="r">รวมจ่ายทั้งสิ้น</td><td class="r">' + money_(tot) + '</td><td></td></tr></tbody></table></div>';
     h += '<div style="margin-top:7px;font-size:12.5px">รวมเป็นเงิน (ตัวอักษร) <b>' + bahtText_(tot) + '</b></div>';
+    h += '<div style="font-size:12px;margin-top:4px">หมายเหตุ ได้ OT เวรดึก (on call) เฉพาะวันที่โดนตาม ดังแบบบันทึก on call ที่แนบ</div>';
     h += '<div style="font-size:12px;margin-top:4px">หัวหน้าผู้ควบคุมขอรับรองว่าผู้รับค่าตอบแทนได้ปฏิบัติงานจริง</div>' + sig;
 
     return h;
@@ -567,7 +568,7 @@ var ReportService = (function () {
     }
     var workload = BusinessService.calculateWorkload(year, month);
     var r = workload.byPerson;
-    if (kind === 'otsheet') return { title: titleFor_(settings, kind), html: repOT_(workload, year, month, calendar.assign, calendar.N, settings) };
+    if (kind === 'otsheet') return { title: titleFor_(settings, kind), html: repOT_(workload, year, month, calendar.assign, calendar.N, settings, calendar.holidays) };
     if (kind === 'otsheetb1') return { title: titleFor_(settings, kind), html: repOTB1_(workload, year, month, calendar.laB, calendar.N, settings) };
     if (kind === 'nsheet') return { title: titleFor_(settings, kind), html: repN_(workload, year, month, calendar.clinicMt, calendar.clinicLa, calendar.N, settings) };
     if (kind === 'pay') return { title: titleFor_(settings, 'pay'), html: '<div class="pay-portrait">' + repPay_(r, people, rateOvr, rates, settings, year, month) + '</div>' };

@@ -182,6 +182,11 @@ tbody tr:last-child td{border-bottom:none}
 .sched .cell:hover{outline:2px solid var(--tl);outline-offset:-2px;z-index:2}
 .sched .cell.ovrd{box-shadow:inset 0 0 0 1.5px var(--coral)}
 .sched tr.sum-row td{background:var(--surface2);font-weight:700;font-size:11px;border-top:2px solid var(--tl-l)}
+/* แถวย่อยเวรดึก (on call) ใต้ชื่อคนที่มีเวรดึกเดือนนี้ — แยกสัญลักษณ์ ด ออกจากช่องเวรปกติ (ช/บ/บ1/x)
+   ให้เบากว่าแถวชื่อจริงด้วยพื้นหลัง/ตัวอักษรที่เบาลง แต่ยังอยู่ใน .sched เดิมเพื่อรับ CSS พิมพ์/คลิกเปิด override ฟรี */
+.sched tr.oncall-row td{background:var(--surface2)}
+.sched tr.oncall-row .nm{font-weight:400;font-style:italic;font-size:12px;color:var(--mut)}
+.sched tr.oncall-row .sumcol{font-weight:400;color:var(--mut)}
 .tok{font-size:9.5px;font-weight:700;padding:1px 3px;border-radius:3px;line-height:1.4;white-space:nowrap}
 .legend{display:flex;gap:12px;flex-wrap:wrap;margin:9px 2px;font-size:12px;color:var(--ink2);align-items:center}
 .legend span{display:inline-flex;align-items:center;gap:5px}
