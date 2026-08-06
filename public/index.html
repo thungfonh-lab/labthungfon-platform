@@ -193,9 +193,6 @@ tbody tr:last-child td{border-bottom:none}
 .sched .cell:hover{outline:2px solid var(--tl);outline-offset:-2px;z-index:2}
 .sched .cell.ovrd{box-shadow:inset 0 0 0 1.5px var(--coral)}
 .sched tr.sum-row td{background:var(--surface2);font-weight:700;font-size:11px;border-top:2px solid var(--tl-l)}
-.sched tr.oncall-row td{background:var(--surface2)}
-.sched tr.oncall-row .nm{font-weight:400;font-style:italic;font-size:12px;color:var(--mut)}
-.sched tr.oncall-row .sumcol{font-weight:400;color:var(--mut)}
 .tok{font-size:9.5px;font-weight:700;padding:1px 3px;border-radius:3px;line-height:1.4;white-space:nowrap}
 .legend{display:flex;gap:12px;flex-wrap:wrap;margin:9px 2px;font-size:12px;color:var(--ink2);align-items:center}
 .legend span{display:inline-flex;align-items:center;gap:5px}
@@ -1431,7 +1428,7 @@ var Schedule = (function () {
   function dowLabel() { return ['อา', 'จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส']; }
   function isWknd(year, month, d) { var w = new Date(year - 543, month, d).getDay(); return w === 0 || w === 6; }
 
-  function tokEl(t) { var s = SHIFT_DEFS[t]; return '<span class="tok" style="background:' + s.bg + ';color:' + s.color + (s.u ? ';text-decoration:underline;text-underline-offset:2px' : '') + '">' + s.short + '</span>'; }
+  function tokEl(t, suffix) { var s = SHIFT_DEFS[t]; return '<span class="tok" style="background:' + s.bg + ';color:' + s.color + (s.u ? ';text-decoration:underline;text-underline-offset:2px' : '') + '">' + s.short + (suffix || '') + '</span>'; }
 
   function loadPeople() {
     if (peopleCache) return Promise.resolve(peopleCache);
@@ -1661,7 +1658,8 @@ var Schedule = (function () {
         if (label.indexOf(short) !== 0) label = short + ' ' + label;
         var t = WORK_HOURS_FULL_[k];
         return '<div class="whr-row"><span class="whr-lbl">' + label + '</span><span class="whr-time">ตั้งแต่เวลา ' + t.s + ' น.-' + t.e + ' น.</span></div>';
-      }).join('') + '</div>';
+      }).join('') + '</div>' +
+      '<div class="whr-row" style="margin-top:4px;font-size:11px;color:var(--mut)">* = มีบันทึก on call จริงในวันนั้น</div>';
   }
 
   function isHolD(d) { return (calendarData.holidays || []).some(function (h) { return h.day === d; }); }
@@ -1680,6 +1678,17 @@ var Schedule = (function () {
     if ((cal.laB[d] || []).indexOf(p.id) > -1) t.push('b1');
     t.sort(function (x, y) { return TOK_TIME_ORDER[x] - TOK_TIME_ORDER[y]; });
     return t;
+  }
+
+  /* มีบันทึก on call จริง (คนไข้/HN/LAB) ในวันนี้ไหม — ต่างจากแค่ "อยู่เวรดึกตามตาราง" (cellToks 'd')
+     เทียบวันแบบเดียวกับ ocDayOf() ที่ใช้ในแท็บ on-call (ไม่ต้องเลื่อนวันเหมือน assign.d เพราะ o.date
+     บันทึกเป็นวันที่ปฏิบัติจริงของ record นั้นอยู่แล้ว ตรงกับวันที่ 'ด' แสดงผลบนกริดพอดี) */
+  function hasOncallRecord(p, d, cal) {
+    return (cal.oncall || []).some(function (o) {
+      if (o.pid !== p.id) return false;
+      var dt = new Date(o.date);
+      return dt.getFullYear() === cal.year - 543 && dt.getMonth() === cal.month && dt.getDate() === d;
+    });
   }
 
   function fullN(p) { return (p.pfx || '') + p.name; }
@@ -1701,33 +1710,27 @@ var Schedule = (function () {
     var totals = { ch: 0, b: 0, b1: 0, n: 0, d: 0 };
     cal.people.forEach(function (p) {
       var sums = { ch: 0, b: 0, b1: 0, n: 0, d: 0 };
-      var dDays = [];
       var row = '<tr><td class="nm">' + gridN_(p) + '</td>';
-      var oncallRow = '';
       for (var d2 = 1; d2 <= cal.N; d2++) {
         var toks = cellToks(p, d2, cal);
         toks.forEach(function (t) { sums[t] = (sums[t] || 0) + 1; });
-        var hasD = toks.indexOf('d') > -1;
-        if (hasD) dDays.push(d2);
         var ovrd = (cal.overrides || []).some(function (o) {
           if ((o.aff || []).indexOf(p.id) === -1) return false;
           return (o.shift === 'd' ? o.day + 1 : o.day) === d2;
         });
         var onLeave = leaveMap[p.id] && leaveMap[p.id][d2];
-        /* เวรดึก (on call) แยกไปแสดงในแถวย่อยใต้ชื่อแทน — ช่องหลักตัดโทเค็น 'd' ออก
-           กันไม่ให้ปนกับ ช/บ/บ1/x ในช่องเดียวกันจนอ่านยาก (ตัวเลขสรุป sums.d ยังนับจาก toks เดิมข้างบนแล้ว ไม่กระทบ) */
-        var mainToks = toks.filter(function (t) { return t !== 'd'; });
-        row += '<td class="' + dowCls(d2) + (onLeave ? ' lv' : '') + '"><div class="cell' + (ovrd ? ' ovrd' : '') + '" data-day="' + d2 + '" data-pid="' + p.id + '">' + mainToks.map(tokEl).join('') + '</div></td>';
-        oncallRow += '<td class="' + dowCls(d2) + '"><div class="cell" data-day="' + d2 + '" data-pid="' + p.id + '">' + (hasD ? tokEl('d') : '') + '</div></td>';
+        /* ด (เวรดึก on call) ใส่เครื่องหมาย * ต่อท้ายเฉพาะวันที่มีบันทึก on call จริง (คนไข้/HN/LAB)
+           ต่างจากแค่ถูกจัดตารางไว้เฉยๆ — ช่วยแยกว่าวันไหน "อยู่เวร" กับวันไหน "มีคนไข้จริง" */
+        var cellHtml = toks.map(function (t) {
+          if (t === 'd') return tokEl('d', hasOncallRecord(p, d2, cal) ? '*' : '');
+          return tokEl(t);
+        }).join('');
+        row += '<td class="' + dowCls(d2) + (onLeave ? ' lv' : '') + '"><div class="cell' + (ovrd ? ' ovrd' : '') + '" data-day="' + d2 + '" data-pid="' + p.id + '">' + cellHtml + '</div></td>';
       }
       var isLA = p.role === 'LA';
       var rmt = isLA ? sums.ch + sums.b1 : sums.ch + sums.b;
       row += '<td class="sumcol">' + sums.n + '</td><td class="sumcol">' + sums.ch + '</td><td class="sumcol">' + sums.b1 + '</td><td class="sumcol">' + sums.b + '</td><td class="sumcol">' + sums.d + '</td><td class="sumcol" style="font-size:12px">' + rmt + '</td></tr>';
       h += row;
-      if (dDays.length) {
-        h += '<tr class="oncall-row"><td class="nm oncall-lbl">เวรดึก (on call)</td>' + oncallRow +
-          '<td class="sumcol">—</td><td class="sumcol">—</td><td class="sumcol">—</td><td class="sumcol">—</td><td class="sumcol">—</td><td class="sumcol">—</td></tr>';
-      }
       ['ch', 'b', 'b1', 'n', 'd'].forEach(function (t) { totals[t] += sums[t] || 0; });
     });
     h += '<tr class="sum-row"><td class="nm" style="text-align:right;font-size:11px;color:var(--mut)">รวมทั้งหมด</td>';
