@@ -696,7 +696,10 @@ var BusinessService = (function () {
       ruleViolations: DataService.getRuleViolations(year, month),
       overrides: DataService.getOverrides(year, month),
       oncall: DataService.getOnCallRecords(year, month),
-      people: DataService.getPeople()
+      people: DataService.getPeople(),
+      /* เวลาปฏิบัติงานที่ตั้งไว้ (ตั้งค่า > เวลาปฏิบัติงานแต่ละเวร) — ส่งมากับ calendar เพื่อให้
+         หน้าตารางเวรแสดง legend/การ์ดพิมพ์ตามเวลาจริงได้โดยไม่ต้องยิงขอ settings อีกรอบ */
+      shiftTimes: DataService.getSettings().shiftTimes || {}
     };
   }
 

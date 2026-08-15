@@ -19,9 +19,38 @@ var SHIFT_DEFS = {
   d1: { name: 'เวรดึก On call (04.00-08.00)', short: 'ด', color: '#7a5618', bg: '#f7ecd6' }
 };
 
+/* เวลาปฏิบัติงานของแต่ละเวร — ค่าเริ่มต้น ผู้ใช้แก้เองได้ที่ ตั้งค่า > เวลาปฏิบัติงานแต่ละเวร
+   (เก็บใน settings.shiftTimes แบบเดียวกับ settings.reportTitles) เวรดึกไม่อยู่ในนี้เพราะ
+   แบ่งเป็น 2 ช่วงอัตราตายตัวตามระเบียบ (d0 00.00-04.00 / d1 04.01-08.00) */
+var DEFAULT_SHIFT_TIMES = {
+  ch: { s: '08.00', e: '16.00' },
+  b: { s: '16.00', e: '00.00' },
+  b1: { s: '16.00', e: '20.00' },
+  n: { s: '07.00', e: '08.00' }
+};
+
 var ReportService = (function () {
 
   function money_(n) { return Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }); }
+
+  /** เวลาเริ่ม/สิ้นสุดของเวรหนึ่ง จาก settings — fallback เป็นค่าเริ่มต้นทีละฟิลด์
+   *  (เผื่อ settings เก็บมาไม่ครบ/ว่าง จะได้ไม่กลายเป็น undefined โผล่บนเอกสาร) */
+  function shiftTime_(settings, key) {
+    var def = DEFAULT_SHIFT_TIMES[key] || { s: '', e: '' };
+    var cfg = ((settings || {}).shiftTimes || {})[key] || {};
+    return { s: cfg.s || def.s, e: cfg.e || def.e };
+  }
+
+  /** ชื่อเวรพร้อมช่วงเวลาปัจจุบัน เช่น "เวรคลินิกนอกเวลา 07-08" — ใช้แทน SHIFT_DEFS[id].name
+   *  ในที่ที่มี settings อยู่ในมือ เพื่อให้ชื่อเวรเปลี่ยนตามเวลาที่ตั้งไว้ */
+  function shiftName_(settings, id) {
+    var base = (SHIFT_DEFS[id] || {}).name || id;
+    if (!DEFAULT_SHIFT_TIMES[id]) return base;
+    var t = shiftTime_(settings, id);
+    /* ตัดช่วงเวลาเดิมที่ติดมากับชื่อ (เช่น " 07-08", " 16-00") แล้วต่อช่วงเวลาปัจจุบันแทน */
+    return base.replace(/\s*\d{2}[.:]?\d{0,2}\s*-\s*\d{2}[.:]?\d{0,2}$/, '') +
+      ' ' + t.s.replace('.00', '') + '-' + t.e.replace('.00', '');
+  }
 
   /** Ported from bahtText() (lines 2695-2700). */
   function bahtText_(n) {
@@ -93,8 +122,9 @@ var ReportService = (function () {
     for (var d = 1; d <= N; d++) {
       var a = scheduleAssign[d];
       if (!a) continue;
-      if (BusinessService.isOff_(year, month, d, holidays || [])) (a.ch || []).forEach(function (pid) { rows.push([d, pid, 'ch', '08.00', '16.00']); });
-      (a.b || []).forEach(function (pid) { rows.push([d, pid, 'b', '16.00', '00.00']); });
+      var tCh = shiftTime_(settings, 'ch'), tB = shiftTime_(settings, 'b');
+      if (BusinessService.isOff_(year, month, d, holidays || [])) (a.ch || []).forEach(function (pid) { rows.push([d, pid, 'ch', tCh.s, tCh.e]); });
+      (a.b || []).forEach(function (pid) { rows.push([d, pid, 'b', tB.s, tB.e]); });
     }
     var h = '<table class="rep-tbl rep-tbl-sig"><thead>' + reportHeaderRows_(settings, year, month, 8) + SIG_HEAD_ROW_ + '</thead><tbody>';
     rows.forEach(function (row) {
@@ -111,7 +141,8 @@ var ReportService = (function () {
   function repOTB1_(workload, year, month, laB, N, settings) {
     var rows = [];
     for (var d = 1; d <= N; d++) {
-      (laB[d] || []).forEach(function (pid) { rows.push([d, pid, 'b1', '16.00', '20.00']); });
+      var tB1 = shiftTime_(settings, 'b1');
+      (laB[d] || []).forEach(function (pid) { rows.push([d, pid, 'b1', tB1.s, tB1.e]); });
     }
     var h = '<table class="rep-tbl rep-tbl-sig"><thead>' + reportHeaderRows_(settings, year, month, 8) + SIG_HEAD_ROW_ + '</thead><tbody>';
     rows.forEach(function (row) {
@@ -162,12 +193,13 @@ var ReportService = (function () {
       (clinicMt[d] || []).forEach(function (pid) { rows.push([d, pid]); });
       (clinicLa[d] || []).forEach(function (pid) { rows.push([d, pid]); });
     }
+    var tN = shiftTime_(settings, 'n');
     var h = '<table class="rep-tbl rep-tbl-sig"><thead>' + reportHeaderRows_(settings, year, month, 8) + SIG_HEAD_ROW_ + '</thead><tbody>';
     rows.forEach(function (row) {
       var p = workload.people.filter(function (x) { return x.id === row[1]; })[0];
       if (!p) return;
       h += '<tr><td class="c">' + dStr_(row[0], year, month) + '</td><td class="l">' + fullN_(p) + '</td><td class="c">' + p.title + '</td>' +
-        '<td class="c">คลินิกนอกเวลา</td><td class="c">07.00</td><td class="sig-col"></td><td class="c">08.00</td><td class="sig-col"></td></tr>';
+        '<td class="c">คลินิกนอกเวลา</td><td class="c">' + tN.s + '</td><td class="sig-col"></td><td class="c">' + tN.e + '</td><td class="sig-col"></td></tr>';
     });
     return h + '</tbody></table>';
   }
@@ -188,14 +220,15 @@ var ReportService = (function () {
     return { h: h, sub: sub };
   }
 
-  var PAY_SECTION_LABEL_ = {
-    n: 'เวรคลินิกนอกเวลา (07.00-08.00 น.)',
-    ch: 'เวรเช้า (08.00-16.00 น.)',
-    b: 'เวรบ่าย (16.00-00.00 น.)',
-    b1: 'เวรบ่าย (16.00-20.00 น.)',
-    d0: 'เวรดึก On call (00.00-04.00 น.)',
-    d1: 'เวรดึก On call (04.01-08.00 น.)'
-  };
+  /* หัวกลุ่มในใบเบิกเงินรวม — ชื่อเวรคงที่ ส่วนช่วงเวลาดึงจาก settings.shiftTimes (แก้ได้ที่หน้าตั้งค่า)
+     ยกเว้น d0/d1 ที่เป็นช่วงอัตราตายตัวตามระเบียบ จึงคงไว้ */
+  var PAY_SECTION_NAME_ = { n: 'เวรคลินิกนอกเวลา', ch: 'เวรเช้า', b: 'เวรบ่าย', b1: 'เวรบ่าย' };
+  function paySectionLabel_(settings, key) {
+    if (key === 'd0') return 'เวรดึก On call (00.00-04.00 น.)';
+    if (key === 'd1') return 'เวรดึก On call (04.01-08.00 น.)';
+    var t = shiftTime_(settings, key);
+    return PAY_SECTION_NAME_[key] + ' (' + t.s + '-' + t.e + ' น.)';
+  }
 
   /** หัวรายงานเฉพาะใบเบิกเงินรวม — ชื่อรายงาน (ตัวหนา) อยู่บรรทัดเดียวกับชื่อหน่วยงาน/เดือน
    *  (ต่างจาก reportHeader_ ทั่วไปที่วางซ้อนกึ่งกลาง) ใช้ซ้ำทั้งหน้า 1 และหน้า 2. */
@@ -220,15 +253,15 @@ var ReportService = (function () {
        ไม่เท่ากับจำนวนเงิน การเงินตรวจสอบยอดไม่ได้. */
     var tot = 0;
     var h = payPageHeader_(title, settings, year, month) + '<div class="rep-tbl-wrap"><table class="rep-tbl">' + theadRow + '<tbody>';
-    var g = payGroup_('วันที่ปฏิบัติงาน ' + PAY_SECTION_LABEL_.d0, MT.map(function (p) { return { p: p, days: (r[p.id] || {}).d0 }; }), 'd0', rateOvr, rates);
+    var g = payGroup_('วันที่ปฏิบัติงาน ' + paySectionLabel_(settings, 'd0'), MT.map(function (p) { return { p: p, days: (r[p.id] || {}).d0 }; }), 'd0', rateOvr, rates);
     h += g.h; tot += g.sub;
-    g = payGroup_('วันที่ปฏิบัติงาน ' + PAY_SECTION_LABEL_.d1, MT.map(function (p) { return { p: p, days: (r[p.id] || {}).d1 }; }), 'd1', rateOvr, rates);
+    g = payGroup_('วันที่ปฏิบัติงาน ' + paySectionLabel_(settings, 'd1'), MT.map(function (p) { return { p: p, days: (r[p.id] || {}).d1 }; }), 'd1', rateOvr, rates);
     h += g.h; tot += g.sub;
-    g = payGroup_('วันที่ปฏิบัติงาน ' + PAY_SECTION_LABEL_.ch, MT.concat(LA).map(function (p) { return { p: p, days: (r[p.id] || {}).ch }; }), 'ch', rateOvr, rates);
+    g = payGroup_('วันที่ปฏิบัติงาน ' + paySectionLabel_(settings, 'ch'), MT.concat(LA).map(function (p) { return { p: p, days: (r[p.id] || {}).ch }; }), 'ch', rateOvr, rates);
     h += g.h; tot += g.sub;
-    g = payGroup_('วันที่ปฏิบัติงาน ' + PAY_SECTION_LABEL_.b, MT.map(function (p) { return { p: p, days: (r[p.id] || {}).b }; }), 'b', rateOvr, rates);
+    g = payGroup_('วันที่ปฏิบัติงาน ' + paySectionLabel_(settings, 'b'), MT.map(function (p) { return { p: p, days: (r[p.id] || {}).b }; }), 'b', rateOvr, rates);
     h += g.h; tot += g.sub;
-    g = payGroup_('วันที่ปฏิบัติงาน ' + PAY_SECTION_LABEL_.b1, LA.map(function (p) { return { p: p, days: (r[p.id] || {}).b1 }; }), 'b1', rateOvr, rates);
+    g = payGroup_('วันที่ปฏิบัติงาน ' + paySectionLabel_(settings, 'b1'), LA.map(function (p) { return { p: p, days: (r[p.id] || {}).b1 }; }), 'b1', rateOvr, rates);
     h += g.h; tot += g.sub;
     h += '<tr class="tot"><td colspan="6" class="r">รวมจ่ายทั้งสิ้น</td><td class="r">' + money_(tot) + '</td><td></td></tr></tbody></table></div>';
     h += '<div style="margin-top:7px;font-size:12.5px">รวมเป็นเงิน (ตัวอักษร) <b>' + bahtText_(tot) + '</b></div>';
@@ -251,11 +284,10 @@ var ReportService = (function () {
     rows.forEach(function (pair) {
       var sh = pair[0], days = pair[1];
       if (!days) return;
-      var sDef = SHIFT_DEFS[sh];
       var rate = days.length ? BusinessService.rateFor_(rateOvr, rates, p, sh, days[0]) : BusinessService.rateFor_(rateOvr, rates, p, sh);
       var amt = days.reduce(function (s, dy) { return s + BusinessService.rateFor_(rateOvr, rates, p, sh, dy); }, 0);
       tot += amt;
-      h += '<tr><td class="l">' + sDef.name + '</td><td class="c">' + rate + '</td><td class="l" style="white-space:normal">' + (days.join(', ') || '—') + '</td><td class="c">' + days.length + '</td><td class="r">' + money_(amt) + '</td></tr>';
+      h += '<tr><td class="l">' + shiftName_(settings, sh) + '</td><td class="c">' + rate + '</td><td class="l" style="white-space:normal">' + (days.join(', ') || '—') + '</td><td class="c">' + days.length + '</td><td class="r">' + money_(amt) + '</td></tr>';
     });
     h += '<tr class="tot"><td colspan="4" class="r">รวมทั้งสิ้น</td><td class="r">' + money_(tot) + '</td></tr></tbody></table></div>';
     h += '<div style="font-size:12.5px;margin-top:5px">(ตัวอักษร) <b>' + bahtText_(tot) + '</b></div>';
@@ -290,7 +322,7 @@ var ReportService = (function () {
       return '<div style="border:1px solid ' + sd.color + '22;border-radius:10px;padding:12px 14px;background:' + sd.bg + '22;margin-bottom:10px">' +
         '<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">' +
         '<span style="background:' + sd.bg + ';color:' + sd.color + ';padding:2px 10px;border-radius:6px;font-weight:700;font-size:13px">' + sd.short + '</span>' +
-        '<span style="font-weight:600;font-size:13.5px">' + sd.name + '</span>' +
+        '<span style="font-weight:600;font-size:13.5px">' + shiftName_(settings, id) + '</span>' +
         '<span style="margin-left:auto;font-size:22px;font-weight:700;color:' + sd.color + '">' + days.length + '<span style="font-size:12px;font-weight:400;margin-left:2px">วัน</span></span></div>' +
         '<div style="font-size:12px;color:#555;margin-bottom:4px">วันที่: ' + daysStr + '</div>' +
         '<div style="display:flex;justify-content:space-between;font-size:12.5px"><span>อัตรา ' + rate + ' บาท/วัน</span>' +

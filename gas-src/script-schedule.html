@@ -163,10 +163,7 @@ var Schedule = (function () {
       /* #printSign ไม่ได้อยู่ใน HTML ที่ inject ตรงนี้อีกต่อไป — ย้ายไปเป็น element ถาวรนอก #app ใน index.html แล้ว
          (ดูเหตุผลใน index.html/style.html) renderPrintSign() ยังหา document.getElementById('printSign') เจอตามปกติ */
 
-    document.getElementById('legend').innerHTML = Object.keys(SHIFT_DEFS).map(function (k) {
-      var s = SHIFT_DEFS[k];
-      return '<span>' + tokEl(k) + ' ' + s.name + '</span>';
-    }).join('') + '<span><span class="tok lv-swatch">&nbsp;&nbsp;</span> ลาทั้งวัน</span>';
+    renderLegend();
 
     document.getElementById('genBtn').onclick = function () {
       gsRun('api_generateSchedule', Session.token, current.year, current.month).then(function (result) {
@@ -237,6 +234,8 @@ var Schedule = (function () {
       });
       calendarData = cal;
       peopleCache = cal.people;
+      shiftTimesCfg = cal.shiftTimes || {};
+      renderLegend();
       renderGridTable(calendarData);
       renderViolations(calendarData.ruleViolations);
       stationsP.then(function (stations) {
@@ -279,7 +278,34 @@ var Schedule = (function () {
 
   /* ตารางสรุปเวลาในการปฏิบัติงาน — แสดงเฉพาะตอนพิมพ์ (ported per attached sample sheet)
      เวลาแสดงแบบเต็ม เช่น 08.00-16.00 ตามฟีดแบ็ก (ไม่ใช่แบบย่อ 08-16) */
+  /* ค่าเริ่มต้นเวลาปฏิบัติงาน — ค่าจริงมาจาก settings.shiftTimes (ตั้งค่า > เวลาปฏิบัติงานแต่ละเวร)
+     เวร ด ไม่ให้แก้ เพราะแบ่งเป็น 2 ช่วงอัตราตายตัวตามระเบียบ (00.00-04.00 / 04.01-08.00) */
   var WORK_HOURS_FULL_ = { ch: { s: '08.00', e: '16.00' }, b1: { s: '16.00', e: '20.00' }, b: { s: '16.00', e: '00.00' }, d: { s: '00.00', e: '08.00' }, n: { s: '07.00', e: '08.00' } };
+  var EDITABLE_SHIFT_TIMES_ = ['ch', 'b1', 'b', 'n'];
+  /* เวลาที่ตั้งไว้ของเดือนที่กำลังดู — โหลดมาพร้อม calendar/setup bundle แล้วใช้ทั้งกริดและการ์ดพิมพ์ */
+  var shiftTimesCfg = {};
+  function shiftTime_(key) {
+    var def = WORK_HOURS_FULL_[key] || { s: '', e: '' };
+    var cfg = shiftTimesCfg[key] || {};
+    return { s: cfg.s || def.s, e: cfg.e || def.e };
+  }
+  /* ชื่อเวรพร้อมช่วงเวลาปัจจุบัน เช่น "เวรคลินิกนอกเวลา 07-08" — ใช้แทน SHIFT_DEFS[id].name ตรงๆ
+     เพื่อให้ legend/dropdown/การ์ดพิมพ์ เปลี่ยนตามเวลาที่ตั้งไว้ */
+  function renderLegend() {
+    var el = document.getElementById('legend');
+    if (!el) return;
+    el.innerHTML = Object.keys(SHIFT_DEFS).map(function (k) {
+      return '<span>' + tokEl(k) + ' ' + shiftNameT_(k) + '</span>';
+    }).join('') + '<span><span class="tok lv-swatch">&nbsp;&nbsp;</span> ลาทั้งวัน</span>';
+  }
+
+  function shiftNameT_(id) {
+    var base = (SHIFT_DEFS[id] || {}).name || id;
+    if (EDITABLE_SHIFT_TIMES_.indexOf(id) === -1) return base;
+    var t = shiftTime_(id);
+    return base.replace(/\s*\d{2}[.:]?\d{0,2}\s*-\s*\d{2}[.:]?\d{0,2}$/, '') +
+      ' ' + t.s.replace('.00', '') + '-' + t.e.replace('.00', '');
+  }
   function renderWorkHoursPrint() {
     var el = document.getElementById('workHoursPrint');
     if (!el) return;
@@ -298,7 +324,7 @@ var Schedule = (function () {
       var short = k === 'n' ? 'X' : (s.u ? '<u>' + s.short + '</u>' : s.short);
       var label = s.name.replace(/\s*\d+-\d+$/, '');
       if (label.indexOf(short) !== 0) label = short + ' ' + label;
-      var t = WORK_HOURS_FULL_[k];
+      var t = shiftTime_(k);
       rows.push('<div class="whr-row"><span class="whr-lbl">' + label + '</span><span class="whr-time">ตั้งแต่เวลา ' + t.s + ' น.-' + t.e + ' น.</span></div>');
     });
     el.innerHTML = '<div class="card-title">เวลาในการปฏิบัติงาน</div>' +
@@ -770,7 +796,7 @@ var Schedule = (function () {
       '<div class="oc-form-grid">' +
       '<label>เจ้าหน้าที่<select id="avPid"></select></label>' +
       '<label>วันที่<input id="avDay" type="number" min="1" max="31"></label>' +
-      '<label>ประเภท<select id="avType"><option value="leave">ลาทั้งวัน</option><option value="noB">ไม่สะดวกเวร บ</option><option value="noD">ไม่สะดวกเวร ด</option><option value="noCh">ไม่สะดวกเวร ช (วันหยุด)</option><option value="noN">ไม่สะดวกเวรคลินิกนอกเวลา (07-08)</option><option value="noB1">ไม่สะดวกเวรเสริมบ่าย (16-20)</option><option value="offAll">ไม่ขึ้นเวรทุกเวร (off)</option></select></label>' +
+      '<label>ประเภท<select id="avType"><option value="leave">ลาทั้งวัน</option><option value="noB">ไม่สะดวกเวร บ</option><option value="noD">ไม่สะดวกเวร ด</option><option value="noCh">ไม่สะดวกเวร ช (วันหยุด)</option><option value="noN">ไม่สะดวกเวรคลินิกนอกเวลา (' + shiftTime_('n').s.replace('.00','') + '-' + shiftTime_('n').e.replace('.00','') + ')</option><option value="noB1">ไม่สะดวกเวรเสริมบ่าย (16-20)</option><option value="offAll">ไม่ขึ้นเวรทุกเวร (off)</option></select></label>' +
       '</div><button class="btn btn-primary" id="avAddBtn"><i class="ti ti-plus"></i> เพิ่มรายการ</button>' +
       '<div class="card" style="margin-top:14px;"><div class="card-title"><i class="ti ti-list"></i>รายการที่แจ้งไว้</div><div class="tbl-wrap"><table class="tbl" id="avTable"></table></div></div>';
 
@@ -1379,6 +1405,7 @@ var Schedule = (function () {
       '<details class="acc"><summary><i class="ti ti-users"></i> บุคลากร · จุดปฏิบัติงาน · Priority · สิทธิ์รายบุคคล</summary><div class="acc-body" id="accPeople"></div></details>' +
       '<details class="acc"><summary><i class="ti ti-map-pin"></i> จุดปฏิบัติงาน (Work Stations)</summary><div class="acc-body" id="accStations"></div></details>' +
       '<details class="acc"><summary><i class="ti ti-refresh"></i> ประเภทเวร (Shift Types)</summary><div class="acc-body" id="accShifts"></div></details>' +
+      '<details class="acc"><summary><i class="ti ti-clock"></i> เวลาปฏิบัติงานแต่ละเวร</summary><div class="acc-body" id="accShiftTimes"></div></details>' +
       '<details class="acc"><summary><i class="ti ti-scale"></i> กฎการจัดเวร</summary><div class="acc-body" id="accRules"></div></details>' +
       '<details class="acc"><summary><i class="ti ti-coin"></i> อัตราค่าตอบแทน (รองรับไม่เท่ากันราย วัน/เดือน/บุคคล)</summary><div class="acc-body" id="accRates"></div></details>' +
       '<details class="acc"><summary><i class="ti ti-calendar-event"></i> วันหยุดราชการ — ' + monthLabel() + '</summary><div class="acc-body" id="accHolidays"></div></details>' +
@@ -1395,7 +1422,9 @@ var Schedule = (function () {
       renderOrgSection(bundle.settings);
       renderPeopleSection(bundle.people);
       renderStationsSection(bundle.stations, bundle.people);
+      shiftTimesCfg = bundle.settings.shiftTimes || {};
       renderShiftsSection(bundle.shifts, bundle.settings.shiftDisabled || {});
+      renderShiftTimesSection(bundle.settings);
       renderRulesSection(bundle.settings, bundle.people);
       renderRatesSection(bundle.settings.rates || {}, bundle.rateOvr, bundle.people);
       renderHolidaysSection(bundle.holidays);
@@ -1681,6 +1710,56 @@ var Schedule = (function () {
     };
   }
 
+  /* ตั้งค่าเวลาปฏิบัติงานของแต่ละเวร — เก็บลง settings.shiftTimes แล้วรายงาน/กริด/การ์ดพิมพ์
+     จะดึงไปใช้ทั้งหมด (เว้นว่างช่องไหน = กลับไปใช้ค่าเริ่มต้นของเวรนั้น)
+     เวร ด ไม่มีให้แก้ เพราะแบ่งเป็น 2 ช่วงอัตราตายตัวตามระเบียบ (00.00-04.00 / 04.01-08.00) */
+  function renderShiftTimesSection(s) {
+    var cfg = s.shiftTimes || {};
+    var body = document.getElementById('accShiftTimes');
+    if (!body) return;
+    body.innerHTML = '<p style="font-size:12px;color:var(--mut);margin-bottom:10px;">' +
+      'เปลี่ยนเวลาเข้า-ออกของแต่ละเวรได้ที่นี่ — มีผลกับตารางเวร (แถบสัญลักษณ์ · การ์ด "เวลาในการปฏิบัติงาน" ตอนพิมพ์) ' +
+      'และรายงาน OT timesheet ทุกใบ รวมถึงหัวกลุ่มในใบเบิกเงินรวม<br>' +
+      'รูปแบบเวลา: <b>HH.MM</b> เช่น 06.00 · เว้นว่างเพื่อใช้ค่าเริ่มต้น<br>' +
+      '<b>เวรดึก On call</b> แก้ไม่ได้ เพราะแบ่งเป็น 2 ช่วงอัตราตายตัวตามระเบียบ (00.00-04.00 / 04.01-08.00)</p>' +
+      '<div class="tbl-wrap"><table class="tbl"><tr><th>เวร</th><th>เวลาเริ่ม</th><th>เวลาสิ้นสุด</th><th>ค่าเริ่มต้น</th></tr>' +
+      EDITABLE_SHIFT_TIMES_.map(function (k) {
+        var def = WORK_HOURS_FULL_[k], cur = cfg[k] || {};
+        var sd = SHIFT_DEFS[k];
+        var short = k === 'n' ? 'X' : (sd.u ? '<u>' + sd.short + '</u>' : sd.short);
+        var name = sd.name.replace(/\s*\d{2}[.:]?\d{0,2}\s*-\s*\d{2}[.:]?\d{0,2}$/, '');
+        return '<tr><td class="l">' + short + ' ' + name + '</td>' +
+          '<td><input data-st="' + k + '" data-stf="s" value="' + (cur.s || '') + '" placeholder="' + def.s + '" style="width:80px;text-align:center;"></td>' +
+          '<td><input data-st="' + k + '" data-stf="e" value="' + (cur.e || '') + '" placeholder="' + def.e + '" style="width:80px;text-align:center;"></td>' +
+          '<td style="color:var(--mut);font-size:11.5px;">' + def.s + '-' + def.e + '</td></tr>';
+      }).join('') + '</table></div>' +
+      '<button class="btn btn-primary btn-sm" id="shiftTimesSaveBtn" style="margin-top:10px;">บันทึกเวลาปฏิบัติงาน</button>';
+
+    document.getElementById('shiftTimesSaveBtn').onclick = function (e) {
+      var patch = {}, bad = null;
+      EDITABLE_SHIFT_TIMES_.forEach(function (k) {
+        var o = {};
+        ['s', 'e'].forEach(function (f) {
+          var inp = body.querySelector('[data-st="' + k + '"][data-stf="' + f + '"]');
+          var v = (inp.value || '').trim().replace(':', '.');
+          if (!v) return;
+          /* รับเฉพาะ HH.MM 00.00-23.59 — กันเวลาเพี้ยนหลุดไปโผล่บนเอกสารราชการ */
+          if (!/^([01]\d|2[0-3])\.[0-5]\d$/.test(v)) { bad = bad || (shiftNameT_(k).replace(/\s*\d{2}[.:]?\d{0,2}\s*-\s*\d{2}[.:]?\d{0,2}$/, '') + ' — "' + inp.value + '"'); return; }
+          o[f] = v;
+        });
+        if (o.s || o.e) patch[k] = o;
+      });
+      if (bad) { toast('รูปแบบเวลาไม่ถูกต้อง', bad + ' (ต้องเป็น HH.MM เช่น 06.00)'); return; }
+      saveField(e.target, function () {
+        return gsRun('api_saveSettings', Session.token, { shiftTimes: patch }).then(function () {
+          shiftTimesCfg = patch;
+          renderLegend();
+          invalidateMonthCache();
+        });
+      });
+    };
+  }
+
   function renderRulesSection(s, people) {
     var mtla = people.filter(function (p) { return p.role !== 'HT'; });
     function sel(id, opts, cur) {
@@ -1743,11 +1822,11 @@ var Schedule = (function () {
     var body = document.getElementById('accRates');
     var SH = ['ch', 'b', 'd0', 'd1', 'n', 'b1'];
     var SH_FULL_LABEL = {
-      ch: 'เวรเช้า 08-16', b: 'เวรบ่าย 16-00',
+      ch: shiftNameT_('ch'), b: shiftNameT_('b'),
       d0: 'เวรดึก On call 00.00-04.00', d1: 'เวรดึก On call 04.00-08.00',
       /* SH_FULL_LABEL[b1] ใช้ทั้งใน <td> และ <option> (บรรทัด 1378) — <option> render HTML ไม่ได้
          จึงคงเป็น text ล้วน (ตัด "1" ออกแทนใส่ <u>) ไม่ใช้ tag ที่นี่ */
-      n: 'เวรคลินิกนอกเวลา 07-08', b1: 'บ เวรเสริมบ่าย 16-20'
+      n: shiftNameT_('n'), b1: 'บ ' + shiftNameT_('b1')
     };
     var ROLE_LABEL_ = { MT: 'MT/HT', LA: 'ผู้ช่วย (LA)' };
     var rateRow = function (role, label) {
