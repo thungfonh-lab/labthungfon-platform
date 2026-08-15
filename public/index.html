@@ -366,6 +366,9 @@ tbody tr:last-child td{border-bottom:none}
      (เช่น #printSign) จะเพี้ยน/มีเส้นแปลกๆ ตอนพิมพ์ (ตามฟีดแบ็ก "พิมพ์ขาวดำมีเส้น พิมพ์สีไม่มี") — #printSign
      ย้ายไปเป็น sibling ของ #app แล้ว (ดู index.html) จึงไม่โดน filter นี้ครอบอีกต่อไป */
   html:not(.print-color) #app{filter:grayscale(1)}
+  /* ปุ่ม "พิมพ์แจก" — พิมพ์ตารางเวรแบบไม่แสดงยอดเงิน สำหรับแจกในทีม (ดู printHandoutBtn ใน script-schedule.html)
+     ใช้ .money-only ครอบเฉพาะส่วนที่เป็นตัวเงิน จะได้ซ่อนได้โดยไม่กระทบข้อความอื่นในบรรทัดเดียวกัน */
+  html.print-handout .money-only{display:none!important}
   #sb,#topbar,#appFooter,.btn,.rtabs,#violationsPanel,#ovrLogCard,.modal-overlay,#toastWrap,.loading-overlay,#repPersonSel{display:none!important}
   /* แถบคำอธิบายสัญลักษณ์ — เดิมสั่งให้พิมพ์ออกมาด้วย แต่ตอนนี้ซ้ำซ้อนกับการ์ด "เวลาในการปฏิบัติงาน"
      (workHoursPrint) ที่เพิ่มมาทีหลังแล้ว จึงซ่อนตอนพิมพ์อีกครั้งตามฟีดแบ็กล่าสุด
@@ -1520,6 +1523,7 @@ var Schedule = (function () {
       '<button class="btn btn-sm" id="pubBtn"><i class="ti ti-send"></i> เผยแพร่</button>' +
       '<button class="btn btn-sm" id="printBtn"><i class="ti ti-printer"></i> พิมพ์</button>' +
       '<button class="btn btn-sm" id="printColorBtn"><i class="ti ti-printer"></i> พิมพ์สี</button>' +
+      '<button class="btn btn-sm" id="printHandoutBtn" title="พิมพ์แบบไม่แสดงยอดเงิน สำหรับแจกในทีม"><i class="ti ti-printer"></i> พิมพ์แจก</button>' +
       '</div></div>' +
       '<div class="legend" id="legend"></div>' +
       '<div class="sched-wrap"><table class="sched" id="schedTbl"></table></div>' +
@@ -1578,9 +1582,18 @@ var Schedule = (function () {
       document.documentElement.classList.add('print-color');
       printWithPageSize('size:A4 landscape;margin:6mm');
     };
+    /* พิมพ์แจก = พิมพ์ปกติแต่ซ่อนยอดเงิน (.money-only) สำหรับแจกในทีม — ใช้ class ที่ <html>
+       แบบเดียวกับ print-color เพื่อให้ CSS @media print เลือกซ่อนได้โดยไม่ต้อง re-render ตาราง */
+    document.getElementById('printHandoutBtn').onclick = function () {
+      document.documentElement.classList.add('print-handout');
+      printWithPageSize('size:A4 landscape;margin:6mm');
+    };
     if (!printColorListenerAdded) {
       printColorListenerAdded = true;
-      window.addEventListener('afterprint', function () { document.documentElement.classList.remove('print-color'); });
+      window.addEventListener('afterprint', function () {
+        document.documentElement.classList.remove('print-color');
+        document.documentElement.classList.remove('print-handout');
+      });
     }
     if (!Session.permissions.publish) document.getElementById('pubBtn').disabled = true;
 
@@ -1654,7 +1667,7 @@ var Schedule = (function () {
       if (k === 'd') {
         /* เวรดึก on call แยกแสดง 2 ช่วงเวลาตามอัตราจริง (325 บาทต่อช่วง) แทนที่จะโชว์รวดเดียว
            00.00-08.00 น. — ให้ตรงกับที่ใบเบิกเงินรวมคิดเงินจริงตามฟีดแบ็ก */
-        var dLabel = SHIFT_DEFS.d.short + ' เวรดึก on call (325 บาท)';
+        var dLabel = SHIFT_DEFS.d.short + ' เวรดึก on call<span class="money-only"> (325 บาท)</span>';
         rows.push('<div class="whr-row"><span class="whr-lbl">' + dLabel + '</span><span class="whr-time">ตั้งแต่เวลา 00.00 น.-04.00 น.</span></div>');
         rows.push('<div class="whr-row"><span class="whr-lbl">' + dLabel + '</span><span class="whr-time">ตั้งแต่เวลา 04.01 น.-08.00 น.</span></div>');
         return;

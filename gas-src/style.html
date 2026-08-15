@@ -355,6 +355,9 @@ tbody tr:last-child td{border-bottom:none}
      (เช่น #printSign) จะเพี้ยน/มีเส้นแปลกๆ ตอนพิมพ์ (ตามฟีดแบ็ก "พิมพ์ขาวดำมีเส้น พิมพ์สีไม่มี") — #printSign
      ย้ายไปเป็น sibling ของ #app แล้ว (ดู index.html) จึงไม่โดน filter นี้ครอบอีกต่อไป */
   html:not(.print-color) #app{filter:grayscale(1)}
+  /* ปุ่ม "พิมพ์แจก" — พิมพ์ตารางเวรแบบไม่แสดงยอดเงิน สำหรับแจกในทีม (ดู printHandoutBtn ใน script-schedule.html)
+     ใช้ .money-only ครอบเฉพาะส่วนที่เป็นตัวเงิน จะได้ซ่อนได้โดยไม่กระทบข้อความอื่นในบรรทัดเดียวกัน */
+  html.print-handout .money-only{display:none!important}
   #sb,#topbar,#appFooter,.btn,.rtabs,#violationsPanel,#ovrLogCard,.modal-overlay,#toastWrap,.loading-overlay,#repPersonSel{display:none!important}
   /* แถบคำอธิบายสัญลักษณ์ — เดิมสั่งให้พิมพ์ออกมาด้วย แต่ตอนนี้ซ้ำซ้อนกับการ์ด "เวลาในการปฏิบัติงาน"
      (workHoursPrint) ที่เพิ่มมาทีหลังแล้ว จึงซ่อนตอนพิมพ์อีกครั้งตามฟีดแบ็กล่าสุด
