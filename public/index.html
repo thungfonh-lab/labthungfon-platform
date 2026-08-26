@@ -26,6 +26,9 @@
   --ink:#111E1B; --ink2:#2E423D; --mut:#637069;
   --bg:#F0EDE7; --surface:#FFFFFF; --surface2:#F5F3EE;
   --border:#DDD9D1; --border2:#CAC6BE;
+  /* แรเงาวันลาในตารางเวร — สีดำโปร่ง (ไม่ใช่เทาทึบ) เพื่อให้ซ้อนบนสีวันหยุด/นักขัตฤกษ์แล้วยังเข้มขึ้น
+     จึงแยก "ลาซ้อนวันหยุด" ออกจาก "วันหยุดเฉยๆ" ได้ และจางพอให้อ่านโทเค็นเวรที่ทับอยู่ */
+  --lv-fill:rgba(17,30,27,.16);
   --shadow:0 1px 3px rgba(14,97,88,.06),0 4px 18px rgba(14,97,88,.08);
   --shadow-lg:0 8px 32px rgba(14,97,88,.14);
   --sb:72px; --sb-open:240px;
@@ -43,6 +46,8 @@
   --ink:#E4E0D8; --ink2:#B8B4AC; --mut:#7A827D;
   --bg:#0E1512; --surface:#161F1C; --surface2:#1C2823;
   --border:#273530; --border2:#374740;
+  /* ธีมมืดใช้สีขาวโปร่งแทน — สีดำโปร่งจะจมหายไปกับพื้นมืด */
+  --lv-fill:rgba(228,224,216,.16);
   --shadow:0 1px 3px rgba(0,0,0,.3),0 4px 18px rgba(0,0,0,.35);
   --shadow-lg:0 8px 32px rgba(0,0,0,.5);
 }
@@ -181,18 +186,18 @@ tbody tr:last-child td{border-bottom:none}
 .sched th.dow{height:16px;font-size:10px;color:var(--ink2)}
 .sched td.wknd,.sched th.wknd{background:var(--coral-l)}
 .sched td.holi,.sched th.holi{background:var(--coral-l)}
-/* วันลาทั้งวัน — เดิมพื้นเทาทึบ แต่สีใกล้เคียงกับพื้นวันหยุดตอนพิมพ์ขาวดำจนแยกไม่ออก (ตามฟีดแบ็ก)
-   เปลี่ยนเป็นขีดเส้นทแยงทับแทน (background-image ไม่ใช่ background-color เพื่อไม่ทับสี wknd/holi เดิม
-   ที่เซลล์นั้นอาจมีอยู่แล้ว — เส้นจะซ้อนทับบนสีพื้นเดิมได้ ไม่ต้องเลือกอย่างใดอย่างหนึ่ง) */
-.sched td.lv{background-image:repeating-linear-gradient(135deg, transparent, transparent 3px, var(--mut) 3px, var(--mut) 3.6px)}
-/* ลาครึ่งวัน — ลายทแยงแบบเดียวกันแต่กินแค่ครึ่งช่อง (ซ้าย = ครึ่งเช้า, ขวา = ครึ่งบ่าย)
-   ใช้ background-size + no-repeat กำหนดขอบเขต แล้ว position ชิดซ้าย/ขวา ให้ดูออกทันทีว่าลาช่วงไหน */
-.sched td.lv-am,.sched td.lv-pm{
-  background-image:repeating-linear-gradient(135deg, transparent, transparent 3px, var(--mut) 3px, var(--mut) 3.6px);
-  background-size:50% 100%;background-repeat:no-repeat;
+/* วันลา — แรเงาทึบสีอ่อนทับทั้งช่อง (ตามฟีดแบ็ก แทนลายทแยงเดิมที่รกตาเมื่อมีโทเค็นเวรวางทับ)
+   ยังใช้ background-image (ไม่ใช่ background-color) + สีโปร่งแสง เพื่อ 2 อย่าง:
+   1) ไม่ทับสีพื้น wknd/holi ที่เซลล์นั้นอาจมีอยู่แล้ว — แรเงาจะซ้อนลงไปบนสีเดิม
+   2) วันที่ "ลาแต่ยังมีเวร" ยังอ่านตัวหนังสือในโทเค็นได้ชัด เพราะแรเงาอยู่หลังโทเค็นและจางพอ */
+.sched td.lv,.sched td.lv-am,.sched td.lv-pm{
+  background-image:linear-gradient(var(--lv-fill),var(--lv-fill));
+  background-repeat:no-repeat;
 }
-.sched td.lv-am{background-position:left center}
-.sched td.lv-pm{background-position:right center}
+.sched td.lv{background-size:100% 100%}
+/* ลาครึ่งวัน — แรเงาครึ่งช่องตามแนวนอน: บน = ครึ่งเช้า, ล่าง = ครึ่งบ่าย */
+.sched td.lv-am{background-size:100% 50%;background-position:top}
+.sched td.lv-pm{background-size:100% 50%;background-position:bottom}
 .sched .nm{text-align:left;white-space:nowrap;padding:4px 8px;font-weight:600;font-size:14px;position:sticky;left:0;background:var(--surface);z-index:3;min-width:120px;max-width:160px}
 .sched .sumcol{font-weight:700;background:var(--tl-vl);color:var(--tl-d);font-size:11px;min-width:26px;white-space:nowrap}
 .sched .cell{cursor:pointer;height:30px;display:flex;align-items:center;justify-content:center;gap:1px;flex-wrap:nowrap;padding:1px;position:relative}
@@ -204,21 +209,21 @@ tbody tr:last-child td{border-bottom:none}
 .tok{font-size:9.5px;font-weight:700;padding:1px 3px;border-radius:3px;line-height:1.4;white-space:nowrap}
 .legend{display:flex;gap:12px;flex-wrap:wrap;margin:9px 2px;font-size:12px;color:var(--ink2);align-items:center}
 .legend span{display:inline-flex;align-items:center;gap:5px}
-/* swatch ตัวอย่าง "ลาทั้งวัน" ในแถบคำอธิบาย — ลายเส้นทแยงแบบเดียวกับ .sched td.lv จริง (ไม่ใช่พื้นเทาทึบ) */
-.tok.lv-swatch{background-color:#eee;background-image:repeating-linear-gradient(135deg, transparent, transparent 3px, var(--mut) 3px, var(--mut) 3.6px);color:transparent}
-/* swatch ลาครึ่งวัน — ลายกินครึ่งเดียวเหมือนช่องจริงในตาราง */
-.tok.lv-swatch-am,.tok.lv-swatch-pm{
+/* swatch ตัวอย่างวันลาในแถบคำอธิบาย — แรเงาแบบเดียวกับ .sched td.lv จริง */
+.tok.lv-swatch,.tok.lv-swatch-am,.tok.lv-swatch-pm{
   background-color:#eee;color:transparent;
-  background-image:repeating-linear-gradient(135deg, transparent, transparent 3px, var(--mut) 3px, var(--mut) 3.6px);
-  background-size:50% 100%;background-repeat:no-repeat;
+  background-image:linear-gradient(var(--lv-fill),var(--lv-fill));
+  background-repeat:no-repeat;
 }
-.tok.lv-swatch-am{background-position:left center}
-.tok.lv-swatch-pm{background-position:right center}
+.tok.lv-swatch{background-size:100% 100%}
+/* swatch ลาครึ่งวัน — แรเงาครึ่งเดียวเหมือนช่องจริงในตาราง (บน = เช้า, ล่าง = บ่าย) */
+.tok.lv-swatch-am{background-size:100% 50%;background-position:top}
+.tok.lv-swatch-pm{background-size:100% 50%;background-position:bottom}
 /* swatch เล็กจิ๋วต่อท้ายบรรทัดสรุป "วันราชการ.../วันหยุด.../นักขัตฤกษ์..." (#gridSub) — อธิบายสี "วันหยุด"/"ลา"
    ในตาราง แยกจาก .tok.lv-swatch (ใช้กับแถบ legend เดิมที่ตอนนี้ซ่อนตอนพิมพ์แล้ว) */
 .mini-swatch{display:inline-block;width:13px;height:9px;vertical-align:middle;border:1px solid var(--border);border-radius:2px}
 .mini-swatch-holi{background:var(--coral-l)}
-.mini-swatch-lv{background-color:#eee;background-image:repeating-linear-gradient(135deg, transparent, transparent 3px, var(--mut) 3px, var(--mut) 3.6px)}
+.mini-swatch-lv{background-color:#eee;background-image:linear-gradient(var(--lv-fill),var(--lv-fill))}
 /* ── contact cards ── */
 .contact-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px}
 .contact{border:1px solid var(--border);border-radius:var(--r);padding:11px 13px;background:var(--tl-vl)}
@@ -392,7 +397,7 @@ tbody tr:last-child td{border-bottom:none}
   .legend{display:none!important}
   .legend .tok.lv-swatch{
     background-color:#eee!important;
-    background-image:repeating-linear-gradient(135deg, transparent, transparent 3px, #bbb 3px, #bbb 3.6px)!important;
+    background-image:linear-gradient(rgba(0,0,0,.28),rgba(0,0,0,.28))!important;
     -webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;color-adjust:exact!important;
   }
   .contact i{display:none!important}
@@ -435,21 +440,19 @@ tbody tr:last-child td{border-bottom:none}
     background:#d4d4d4!important;
     -webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;color-adjust:exact!important;
   }
-  /* วันลาทั้งวัน — ขีดเส้นทแยงทับแทนพื้นเทาทึบเดิม (สีเทาเดิมใกล้เคียงกับพื้นวันหยุด #d4d4d4 จนแยกไม่ออกตอนพิมพ์ขาวดำ
-     ตามฟีดแบ็ก) ใช้ background-image ไม่ใช่ background เพื่อไม่ทับสี wknd/holi ที่เซลล์นั้นอาจมีอยู่แล้ว
-     เส้นบางลง (0.7px) สีอ่อนลง (#999 แทน #000) ตามฟีดแบ็ก "ขีดอ่อนๆสีจางๆ ไม่รกเกินไป" */
-  .sched td.lv{
-    background-image:repeating-linear-gradient(135deg, transparent, transparent 3px, #bbb 3px, #bbb 3.6px)!important;
+  /* วันลาตอนพิมพ์ — แรเงาทึบสีอ่อนเหมือนบนจอ ใช้สีดำโปร่ง (ไม่ใช่เทาทึบตายตัว) เพื่อให้
+     "ลาซ้อนวันหยุด" เข้มกว่า "ลาวันธรรมดา" เสมอ จึงแยกออกจากพื้นวันหยุด #d4d4d4 ได้ทุกกรณี
+     (เคยเป็นเทาทึบแล้วกลืนกับพื้นวันหยุดตอนพิมพ์ขาวดำ จึงเลี่ยงการกำหนดสีตายตัวซ้ำรอยเดิม)
+     ความเข้มพอให้เห็นว่าลา แต่ยังอ่านตัวอักษรเวรสีดำที่ทับอยู่ได้ */
+  .sched td.lv,.sched td.lv-am,.sched td.lv-pm{
+    background-image:linear-gradient(rgba(0,0,0,.28),rgba(0,0,0,.28))!important;
+    background-repeat:no-repeat!important;
     -webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;color-adjust:exact!important;
   }
-  /* ลาครึ่งวันตอนพิมพ์ — ลายครึ่งช่องเหมือนบนจอ (ซ้าย = เช้า, ขวา = บ่าย) */
-  .sched td.lv-am,.sched td.lv-pm{
-    background-image:repeating-linear-gradient(135deg, transparent, transparent 3px, #bbb 3px, #bbb 3.6px)!important;
-    background-size:50% 100%!important;background-repeat:no-repeat!important;
-    -webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;color-adjust:exact!important;
-  }
-  .sched td.lv-am{background-position:left center!important}
-  .sched td.lv-pm{background-position:right center!important}
+  .sched td.lv{background-size:100% 100%!important}
+  /* ลาครึ่งวันตอนพิมพ์ — แรเงาครึ่งช่องเหมือนบนจอ (บน = เช้า, ล่าง = บ่าย) */
+  .sched td.lv-am{background-size:100% 50%!important;background-position:top!important}
+  .sched td.lv-pm{background-size:100% 50%!important;background-position:bottom!important}
   /* วันราชการ/วันหยุด/นักขัตฤกษ์ ใต้หัวตารางเวร — เดิมสีเทาอ่อนตาม --mut อ่านยากเมื่อพิมพ์ ปรับเป็นสีดำ
      mini-swatch ต่อท้าย (อธิบาย "วันหยุด"/"ลา") ต้องบังคับพิมพ์สีจริงเหมือน .tok.lv-swatch */
   #gridSub{color:#000!important;font-weight:600}
@@ -457,7 +460,7 @@ tbody tr:last-child td{border-bottom:none}
   #gridSub .mini-swatch-holi{background:#d4d4d4!important;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;color-adjust:exact!important}
   #gridSub .mini-swatch-lv{
     background-color:#eee!important;
-    background-image:repeating-linear-gradient(135deg, transparent, transparent 3px, #bbb 3px, #bbb 3.6px)!important;
+    background-image:linear-gradient(rgba(0,0,0,.28),rgba(0,0,0,.28))!important;
     -webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;color-adjust:exact!important;
   }
   .doc{border:none;padding:0;overflow:visible!important}
