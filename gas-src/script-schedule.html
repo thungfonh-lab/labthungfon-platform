@@ -228,9 +228,12 @@ var Schedule = (function () {
     Promise.all([loadCalendarCached(), availP]).then(function (res) {
       var cal = res[0];
       leaveMap = {};
+      /* เก็บ 'ชนิด' ของวันลาไว้เลย (full/AM/PM) เพื่อให้ช่องในกริดวาดลายต่างกันได้
+         — เดิมเก็บแค่ true จึงแยกลาเต็มวันกับลาครึ่งวันไม่ออก */
       (res[1] || []).forEach(function (r) {
-        if (r.type !== 'leave') return;
-        (leaveMap[r.pid] = leaveMap[r.pid] || {})[r.day] = true;
+        var kind = LEAVE_KIND_[r.type];
+        if (!kind) return;
+        (leaveMap[r.pid] = leaveMap[r.pid] || {})[r.day] = kind;
       });
       calendarData = cal;
       peopleCache = cal.people;
@@ -296,7 +299,10 @@ var Schedule = (function () {
     if (!el) return;
     el.innerHTML = Object.keys(SHIFT_DEFS).map(function (k) {
       return '<span>' + tokEl(k) + ' ' + shiftNameT_(k) + '</span>';
-    }).join('') + '<span><span class="tok lv-swatch">&nbsp;&nbsp;</span> ลาทั้งวัน</span>';
+    }).join('') +
+      '<span><span class="tok lv-swatch">&nbsp;&nbsp;</span> ลาทั้งวัน</span>' +
+      '<span><span class="tok lv-swatch-am">&nbsp;&nbsp;</span> ลาครึ่งวันเช้า</span>' +
+      '<span><span class="tok lv-swatch-pm">&nbsp;&nbsp;</span> ลาครึ่งวันบ่าย</span>';
   }
 
   function shiftNameT_(id) {
@@ -331,6 +337,11 @@ var Schedule = (function () {
       '<div class="whr-list">' + rows.join('') + '</div>' +
       '<div class="whr-row" style="margin-top:4px;font-size:11px;color:var(--mut)">* = มีบันทึก on call ปฏิบัติงานในวันนั้น</div>';
   }
+
+  /* วันลาที่วาดลายบนกริด — ลาครึ่งวันวาดลายครึ่งช่องเพื่อให้เห็นว่าลาช่วงไหน
+     (ชนิดอื่นเช่น noB/noD เป็นแค่ "ไม่สะดวก" ไม่ใช่วันลา จึงไม่วาดลาย) */
+  var LEAVE_KIND_ = { leave: 'full', leaveAM: 'am', leavePM: 'pm' };
+  var LEAVE_CLASS_ = { full: 'lv', am: 'lv-am', pm: 'lv-pm' };
 
   function isHolD(d) { return (calendarData.holidays || []).some(function (h) { return h.day === d; }); }
   function dowCls(d) { return isHolD(d) ? 'holi' : (isWknd(current.year, current.month, d) ? 'wknd' : ''); }
@@ -388,14 +399,15 @@ var Schedule = (function () {
           if ((o.aff || []).indexOf(p.id) === -1) return false;
           return (o.shift === 'd' ? o.day + 1 : o.day) === d2;
         });
-        var onLeave = leaveMap[p.id] && leaveMap[p.id][d2];
+        var leaveKind = leaveMap[p.id] && leaveMap[p.id][d2];
+        var onLeave = leaveKind ? ' ' + LEAVE_CLASS_[leaveKind] : '';
         /* ด (เวรดึก on call) ใส่เครื่องหมาย * ต่อท้ายเฉพาะวันที่มีบันทึก on call จริง (คนไข้/HN/LAB)
            ต่างจากแค่ถูกจัดตารางไว้เฉยๆ — ช่วยแยกว่าวันไหน "อยู่เวร" กับวันไหน "มีคนไข้จริง" */
         var cellHtml = toks.map(function (t) {
           if (t === 'd') return tokEl('d', hasOncallRecord(p, d2, cal) ? '*' : '');
           return tokEl(t);
         }).join('');
-        row += '<td class="' + dowCls(d2) + (onLeave ? ' lv' : '') + '"><div class="cell' + (ovrd ? ' ovrd' : '') + '" data-day="' + d2 + '" data-pid="' + p.id + '">' + cellHtml + '</div></td>';
+        row += '<td class="' + dowCls(d2) + onLeave + '"><div class="cell' + (ovrd ? ' ovrd' : '') + '" data-day="' + d2 + '" data-pid="' + p.id + '">' + cellHtml + '</div></td>';
       }
       var isLA = p.role === 'LA';
       var rmt = isLA ? sums.ch + sums.b1 : sums.ch + sums.b;
@@ -796,7 +808,7 @@ var Schedule = (function () {
       '<div class="oc-form-grid">' +
       '<label>เจ้าหน้าที่<select id="avPid"></select></label>' +
       '<label>วันที่<input id="avDay" type="number" min="1" max="31"></label>' +
-      '<label>ประเภท<select id="avType"><option value="leave">ลาทั้งวัน</option><option value="noB">ไม่สะดวกเวร บ</option><option value="noD">ไม่สะดวกเวร ด</option><option value="noCh">ไม่สะดวกเวร ช (วันหยุด)</option><option value="noN">ไม่สะดวกเวรคลินิกนอกเวลา (' + shiftTime_('n').s.replace('.00','') + '-' + shiftTime_('n').e.replace('.00','') + ')</option><option value="noB1">ไม่สะดวกเวรเสริมบ่าย (16-20)</option><option value="offAll">ไม่ขึ้นเวรทุกเวร (off)</option></select></label>' +
+      '<label>ประเภท<select id="avType"><option value="leave">ลาทั้งวัน</option><option value="leaveAM">ลาครึ่งวันเช้า</option><option value="leavePM">ลาครึ่งวันบ่าย</option><option value="noB">ไม่สะดวกเวร บ</option><option value="noD">ไม่สะดวกเวร ด</option><option value="noCh">ไม่สะดวกเวร ช (วันหยุด)</option><option value="noN">ไม่สะดวกเวรคลินิกนอกเวลา (' + shiftTime_('n').s.replace('.00','') + '-' + shiftTime_('n').e.replace('.00','') + ')</option><option value="noB1">ไม่สะดวกเวรเสริมบ่าย (16-20)</option><option value="offAll">ไม่ขึ้นเวรทุกเวร (off)</option></select></label>' +
       '</div><button class="btn btn-primary" id="avAddBtn"><i class="ti ti-plus"></i> เพิ่มรายการ</button>' +
       '<div class="card" style="margin-top:14px;"><div class="card-title"><i class="ti ti-list"></i>รายการที่แจ้งไว้</div><div class="tbl-wrap"><table class="tbl" id="avTable"></table></div></div>';
 
@@ -841,7 +853,7 @@ var Schedule = (function () {
 
   /* ── รายการวันลา/ความไม่สะดวก: SWR + วาดผลทันทีหลังเพิ่ม/ลบ (แบบเดียวกับหน้า on-call) ── */
   var AV_TBL_HEAD = '<tr><th>เจ้าหน้าที่</th><th>วันที่</th><th>ประเภท</th><th></th></tr>';
-  var AV_TYPE_LABEL = { leave: 'ลาทั้งวัน', noB: 'ไม่สะดวก บ', noD: 'ไม่สะดวก ด', noCh: 'ไม่สะดวก ช', noN: 'ไม่สะดวก น', noB1: 'ไม่สะดวก <u>บ</u>', offAll: 'ไม่ขึ้นเวรทุกเวร (off)' };
+  var AV_TYPE_LABEL = { leave: 'ลาทั้งวัน', leaveAM: 'ลาครึ่งวันเช้า', leavePM: 'ลาครึ่งวันบ่าย', noB: 'ไม่สะดวก บ', noD: 'ไม่สะดวก ด', noCh: 'ไม่สะดวก ช', noN: 'ไม่สะดวก น', noB1: 'ไม่สะดวก <u>บ</u>', offAll: 'ไม่ขึ้นเวรทุกเวร (off)' };
   var avPeople_ = null; /* people ล่าสุด (loadPeople มี cache ในตัว จึงมักได้ทันที) */
   function avCacheKey() { return ymKey('av'); }
 

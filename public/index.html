@@ -185,6 +185,14 @@ tbody tr:last-child td{border-bottom:none}
    เปลี่ยนเป็นขีดเส้นทแยงทับแทน (background-image ไม่ใช่ background-color เพื่อไม่ทับสี wknd/holi เดิม
    ที่เซลล์นั้นอาจมีอยู่แล้ว — เส้นจะซ้อนทับบนสีพื้นเดิมได้ ไม่ต้องเลือกอย่างใดอย่างหนึ่ง) */
 .sched td.lv{background-image:repeating-linear-gradient(135deg, transparent, transparent 3px, var(--mut) 3px, var(--mut) 3.6px)}
+/* ลาครึ่งวัน — ลายทแยงแบบเดียวกันแต่กินแค่ครึ่งช่อง (ซ้าย = ครึ่งเช้า, ขวา = ครึ่งบ่าย)
+   ใช้ background-size + no-repeat กำหนดขอบเขต แล้ว position ชิดซ้าย/ขวา ให้ดูออกทันทีว่าลาช่วงไหน */
+.sched td.lv-am,.sched td.lv-pm{
+  background-image:repeating-linear-gradient(135deg, transparent, transparent 3px, var(--mut) 3px, var(--mut) 3.6px);
+  background-size:50% 100%;background-repeat:no-repeat;
+}
+.sched td.lv-am{background-position:left center}
+.sched td.lv-pm{background-position:right center}
 .sched .nm{text-align:left;white-space:nowrap;padding:4px 8px;font-weight:600;font-size:14px;position:sticky;left:0;background:var(--surface);z-index:3;min-width:120px;max-width:160px}
 .sched .sumcol{font-weight:700;background:var(--tl-vl);color:var(--tl-d);font-size:11px;min-width:26px;white-space:nowrap}
 .sched .cell{cursor:pointer;height:30px;display:flex;align-items:center;justify-content:center;gap:1px;flex-wrap:nowrap;padding:1px;position:relative}
@@ -198,6 +206,14 @@ tbody tr:last-child td{border-bottom:none}
 .legend span{display:inline-flex;align-items:center;gap:5px}
 /* swatch ตัวอย่าง "ลาทั้งวัน" ในแถบคำอธิบาย — ลายเส้นทแยงแบบเดียวกับ .sched td.lv จริง (ไม่ใช่พื้นเทาทึบ) */
 .tok.lv-swatch{background-color:#eee;background-image:repeating-linear-gradient(135deg, transparent, transparent 3px, var(--mut) 3px, var(--mut) 3.6px);color:transparent}
+/* swatch ลาครึ่งวัน — ลายกินครึ่งเดียวเหมือนช่องจริงในตาราง */
+.tok.lv-swatch-am,.tok.lv-swatch-pm{
+  background-color:#eee;color:transparent;
+  background-image:repeating-linear-gradient(135deg, transparent, transparent 3px, var(--mut) 3px, var(--mut) 3.6px);
+  background-size:50% 100%;background-repeat:no-repeat;
+}
+.tok.lv-swatch-am{background-position:left center}
+.tok.lv-swatch-pm{background-position:right center}
 /* swatch เล็กจิ๋วต่อท้ายบรรทัดสรุป "วันราชการ.../วันหยุด.../นักขัตฤกษ์..." (#gridSub) — อธิบายสี "วันหยุด"/"ลา"
    ในตาราง แยกจาก .tok.lv-swatch (ใช้กับแถบ legend เดิมที่ตอนนี้ซ่อนตอนพิมพ์แล้ว) */
 .mini-swatch{display:inline-block;width:13px;height:9px;vertical-align:middle;border:1px solid var(--border);border-radius:2px}
@@ -426,6 +442,14 @@ tbody tr:last-child td{border-bottom:none}
     background-image:repeating-linear-gradient(135deg, transparent, transparent 3px, #bbb 3px, #bbb 3.6px)!important;
     -webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;color-adjust:exact!important;
   }
+  /* ลาครึ่งวันตอนพิมพ์ — ลายครึ่งช่องเหมือนบนจอ (ซ้าย = เช้า, ขวา = บ่าย) */
+  .sched td.lv-am,.sched td.lv-pm{
+    background-image:repeating-linear-gradient(135deg, transparent, transparent 3px, #bbb 3px, #bbb 3.6px)!important;
+    background-size:50% 100%!important;background-repeat:no-repeat!important;
+    -webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;color-adjust:exact!important;
+  }
+  .sched td.lv-am{background-position:left center!important}
+  .sched td.lv-pm{background-position:right center!important}
   /* วันราชการ/วันหยุด/นักขัตฤกษ์ ใต้หัวตารางเวร — เดิมสีเทาอ่อนตาม --mut อ่านยากเมื่อพิมพ์ ปรับเป็นสีดำ
      mini-swatch ต่อท้าย (อธิบาย "วันหยุด"/"ลา") ต้องบังคับพิมพ์สีจริงเหมือน .tok.lv-swatch */
   #gridSub{color:#000!important;font-weight:600}
@@ -1606,9 +1630,12 @@ var Schedule = (function () {
     Promise.all([loadCalendarCached(), availP]).then(function (res) {
       var cal = res[0];
       leaveMap = {};
+      /* เก็บ 'ชนิด' ของวันลาไว้เลย (full/AM/PM) เพื่อให้ช่องในกริดวาดลายต่างกันได้
+         — เดิมเก็บแค่ true จึงแยกลาเต็มวันกับลาครึ่งวันไม่ออก */
       (res[1] || []).forEach(function (r) {
-        if (r.type !== 'leave') return;
-        (leaveMap[r.pid] = leaveMap[r.pid] || {})[r.day] = true;
+        var kind = LEAVE_KIND_[r.type];
+        if (!kind) return;
+        (leaveMap[r.pid] = leaveMap[r.pid] || {})[r.day] = kind;
       });
       calendarData = cal;
       peopleCache = cal.people;
@@ -1672,7 +1699,10 @@ var Schedule = (function () {
     if (!el) return;
     el.innerHTML = Object.keys(SHIFT_DEFS).map(function (k) {
       return '<span>' + tokEl(k) + ' ' + shiftNameT_(k) + '</span>';
-    }).join('') + '<span><span class="tok lv-swatch">&nbsp;&nbsp;</span> ลาทั้งวัน</span>';
+    }).join('') +
+      '<span><span class="tok lv-swatch">&nbsp;&nbsp;</span> ลาทั้งวัน</span>' +
+      '<span><span class="tok lv-swatch-am">&nbsp;&nbsp;</span> ลาครึ่งวันเช้า</span>' +
+      '<span><span class="tok lv-swatch-pm">&nbsp;&nbsp;</span> ลาครึ่งวันบ่าย</span>';
   }
 
   /* ชื่อเวรพร้อมช่วงเวลาปัจจุบัน เช่น "เวรคลินิกนอกเวลา 07-08" — ใช้แทน SHIFT_DEFS[id].name ตรงๆ
@@ -1709,6 +1739,11 @@ var Schedule = (function () {
       '<div class="whr-list">' + rows.join('') + '</div>' +
       '<div class="whr-row" style="margin-top:4px;font-size:11px;color:var(--mut)">* = มีบันทึก on call ปฏิบัติงานในวันนั้น</div>';
   }
+
+  /* วันลาที่วาดลายบนกริด — ลาครึ่งวันวาดลายครึ่งช่องเพื่อให้เห็นว่าลาช่วงไหน
+     (ชนิดอื่นเช่น noB/noD เป็นแค่ "ไม่สะดวก" ไม่ใช่วันลา จึงไม่วาดลาย) */
+  var LEAVE_KIND_ = { leave: 'full', leaveAM: 'am', leavePM: 'pm' };
+  var LEAVE_CLASS_ = { full: 'lv', am: 'lv-am', pm: 'lv-pm' };
 
   function isHolD(d) { return (calendarData.holidays || []).some(function (h) { return h.day === d; }); }
   function dowCls(d) { return isHolD(d) ? 'holi' : (isWknd(current.year, current.month, d) ? 'wknd' : ''); }
@@ -1766,14 +1801,15 @@ var Schedule = (function () {
           if ((o.aff || []).indexOf(p.id) === -1) return false;
           return (o.shift === 'd' ? o.day + 1 : o.day) === d2;
         });
-        var onLeave = leaveMap[p.id] && leaveMap[p.id][d2];
+        var leaveKind = leaveMap[p.id] && leaveMap[p.id][d2];
+        var onLeave = leaveKind ? ' ' + LEAVE_CLASS_[leaveKind] : '';
         /* ด (เวรดึก on call) ใส่เครื่องหมาย * ต่อท้ายเฉพาะวันที่มีบันทึก on call จริง (คนไข้/HN/LAB)
            ต่างจากแค่ถูกจัดตารางไว้เฉยๆ — ช่วยแยกว่าวันไหน "อยู่เวร" กับวันไหน "มีคนไข้จริง" */
         var cellHtml = toks.map(function (t) {
           if (t === 'd') return tokEl('d', hasOncallRecord(p, d2, cal) ? '*' : '');
           return tokEl(t);
         }).join('');
-        row += '<td class="' + dowCls(d2) + (onLeave ? ' lv' : '') + '"><div class="cell' + (ovrd ? ' ovrd' : '') + '" data-day="' + d2 + '" data-pid="' + p.id + '">' + cellHtml + '</div></td>';
+        row += '<td class="' + dowCls(d2) + onLeave + '"><div class="cell' + (ovrd ? ' ovrd' : '') + '" data-day="' + d2 + '" data-pid="' + p.id + '">' + cellHtml + '</div></td>';
       }
       var isLA = p.role === 'LA';
       var rmt = isLA ? sums.ch + sums.b1 : sums.ch + sums.b;
@@ -2174,7 +2210,7 @@ var Schedule = (function () {
       '<div class="oc-form-grid">' +
       '<label>เจ้าหน้าที่<select id="avPid"></select></label>' +
       '<label>วันที่<input id="avDay" type="number" min="1" max="31"></label>' +
-      '<label>ประเภท<select id="avType"><option value="leave">ลาทั้งวัน</option><option value="noB">ไม่สะดวกเวร บ</option><option value="noD">ไม่สะดวกเวร ด</option><option value="noCh">ไม่สะดวกเวร ช (วันหยุด)</option><option value="noN">ไม่สะดวกเวรคลินิกนอกเวลา (' + shiftTime_('n').s.replace('.00','') + '-' + shiftTime_('n').e.replace('.00','') + ')</option><option value="noB1">ไม่สะดวกเวรเสริมบ่าย (16-20)</option><option value="offAll">ไม่ขึ้นเวรทุกเวร (off)</option></select></label>' +
+      '<label>ประเภท<select id="avType"><option value="leave">ลาทั้งวัน</option><option value="leaveAM">ลาครึ่งวันเช้า</option><option value="leavePM">ลาครึ่งวันบ่าย</option><option value="noB">ไม่สะดวกเวร บ</option><option value="noD">ไม่สะดวกเวร ด</option><option value="noCh">ไม่สะดวกเวร ช (วันหยุด)</option><option value="noN">ไม่สะดวกเวรคลินิกนอกเวลา (' + shiftTime_('n').s.replace('.00','') + '-' + shiftTime_('n').e.replace('.00','') + ')</option><option value="noB1">ไม่สะดวกเวรเสริมบ่าย (16-20)</option><option value="offAll">ไม่ขึ้นเวรทุกเวร (off)</option></select></label>' +
       '</div><button class="btn btn-primary" id="avAddBtn"><i class="ti ti-plus"></i> เพิ่มรายการ</button>' +
       '<div class="card" style="margin-top:14px;"><div class="card-title"><i class="ti ti-list"></i>รายการที่แจ้งไว้</div><div class="tbl-wrap"><table class="tbl" id="avTable"></table></div></div>';
 
@@ -2219,7 +2255,7 @@ var Schedule = (function () {
 
   /* ── รายการวันลา/ความไม่สะดวก: SWR + วาดผลทันทีหลังเพิ่ม/ลบ (แบบเดียวกับหน้า on-call) ── */
   var AV_TBL_HEAD = '<tr><th>เจ้าหน้าที่</th><th>วันที่</th><th>ประเภท</th><th></th></tr>';
-  var AV_TYPE_LABEL = { leave: 'ลาทั้งวัน', noB: 'ไม่สะดวก บ', noD: 'ไม่สะดวก ด', noCh: 'ไม่สะดวก ช', noN: 'ไม่สะดวก น', noB1: 'ไม่สะดวก <u>บ</u>', offAll: 'ไม่ขึ้นเวรทุกเวร (off)' };
+  var AV_TYPE_LABEL = { leave: 'ลาทั้งวัน', leaveAM: 'ลาครึ่งวันเช้า', leavePM: 'ลาครึ่งวันบ่าย', noB: 'ไม่สะดวก บ', noD: 'ไม่สะดวก ด', noCh: 'ไม่สะดวก ช', noN: 'ไม่สะดวก น', noB1: 'ไม่สะดวก <u>บ</u>', offAll: 'ไม่ขึ้นเวรทุกเวร (off)' };
   var avPeople_ = null; /* people ล่าสุด (loadPeople มี cache ในตัว จึงมักได้ทันที) */
   function avCacheKey() { return ymKey('av'); }
 

@@ -45,7 +45,14 @@ var BusinessService = (function () {
 
   function byId_(people, pid) { return people.filter(function (p) { return p.id === pid; })[0]; }
 
-  /** Ported from avOff()/avNo() in original (lines 2058-2059). */
+  /* ลาครึ่งวัน — บล็อกเฉพาะเวรที่คาบเกี่ยวช่วงที่ลา ไม่ใช่ทั้งวันแบบ leave/offAll
+     ครึ่งเช้า : ทับ ช (08-16) และ X คลินิก (07-08) → บล็อก noCh + noN
+     ครึ่งบ่าย : ทับ ช (08-16) เท่านั้น → บล็อก noCh
+     เวร บ/บ1 (16.00 เป็นต้นไป) และ ด (00-08) ไม่คาบเกี่ยวกับเวลาราชการ จึงยังจัดให้ได้ตามปกติ */
+  var HALF_DAY_BLOCKS_ = { leaveAM: ['noCh', 'noN'], leavePM: ['noCh'] };
+
+  /** Ported from avOff()/avNo() in original (lines 2058-2059).
+   *  avOff_ = ว่างทั้งวันไหม (ลาครึ่งวันไม่นับ เพราะยังขึ้นเวรที่ไม่คาบเกี่ยวได้) */
   function avOff_(availability, pid, day, month, year) {
     return (availability[pid] || []).some(function (a) {
       return a.day === day && a.mon === month && a.yr === year && (a.type === 'leave' || a.type === 'offAll');
@@ -53,7 +60,9 @@ var BusinessService = (function () {
   }
   function avNo_(availability, pid, day, month, year, type) {
     return (availability[pid] || []).some(function (a) {
-      return a.day === day && a.mon === month && a.yr === year && (a.type === 'leave' || a.type === 'offAll' || a.type === type);
+      if (a.day !== day || a.mon !== month || a.yr !== year) return false;
+      if (a.type === 'leave' || a.type === 'offAll' || a.type === type) return true;
+      return (HALF_DAY_BLOCKS_[a.type] || []).indexOf(type) > -1;
     });
   }
 
