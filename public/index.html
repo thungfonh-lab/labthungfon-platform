@@ -456,16 +456,11 @@ tbody tr:last-child td{border-bottom:none}
   /* ลาครึ่งวันตอนพิมพ์ — เฉียงเหมือนบนจอ (บนซ้าย = เช้า, ล่างขวา = บ่าย) */
   .sched td.lv-am{background-image:linear-gradient(to bottom right,rgba(0,0,0,.28) 49.5%,transparent 50.5%)!important}
   .sched td.lv-pm{background-image:linear-gradient(to top left,rgba(0,0,0,.28) 49.5%,transparent 50.5%)!important}
-  /* วันราชการ/วันหยุด/นักขัตฤกษ์ ใต้หัวตารางเวร — เดิมสีเทาอ่อนตาม --mut อ่านยากเมื่อพิมพ์ ปรับเป็นสีดำ
-     mini-swatch ต่อท้าย (อธิบาย "วันหยุด"/"ลา") ต้องบังคับพิมพ์สีจริงเหมือน .tok.lv-swatch */
+  /* วันราชการ/วันหยุด/นักขัตฤกษ์ ใต้หัวตารางเวร — เดิมสีเทาอ่อนตาม --mut อ่านยากเมื่อพิมพ์ ปรับเป็นสีดำ */
   #gridSub{color:#000!important;font-weight:600}
-  #gridSub .mini-swatch{border-color:#000!important}
-  #gridSub .mini-swatch-holi{background:#d4d4d4!important;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;color-adjust:exact!important}
-  #gridSub .mini-swatch-lv{
-    background-color:#eee!important;
-    background-image:linear-gradient(rgba(0,0,0,.28),rgba(0,0,0,.28))!important;
-    -webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;color-adjust:exact!important;
-  }
+  /* ซ่อนชุด swatch "วันหยุด/ลา" ท้ายบรรทัดตอนพิมพ์ตามฟีดแบ็ก — เหลือแต่ตัวเลขสรุป
+     (บนจอยังแสดงอยู่ เพราะมีแถบสัญลักษณ์เต็มอยู่แล้วไม่เสียหาย) */
+  #gridSub .gridsub-key{display:none!important}
   .doc{border:none;padding:0;overflow:visible!important}
   .tbl-wrap{overflow:visible!important}
   /* รายงาน (.rep-tbl) ใช้ฟอนต์ TH Saraban (Sarabun) — ลด line-height ลงจาก 1.7 เพื่อให้พอดี A4
@@ -1656,11 +1651,14 @@ var Schedule = (function () {
       var N = calendarData.N;
       var nW = 0, nH = (calendarData.holidays || []).length;
       for (var d = 1; d <= N; d++) if (!isWknd(current.year, current.month, d) && !isHolD(d)) nW++;
-      /* เพิ่ม swatch เล็กๆ อธิบายสัญลักษณ์ "วันหยุด"/"ลา" ต่อท้ายบรรทัดสรุป — ย้ายมาจากแถบ legend เดิม
-         (ที่ซ่อนไปตอนพิมพ์เพราะซ้ำกับการ์ด "เวลาในการปฏิบัติงาน") เหลือแค่ 2 อย่างนี้ที่การ์ดนั้นไม่ได้อธิบาย */
+      /* swatch เล็กๆ อธิบายสัญลักษณ์ "วันหยุด"/"ลา" ต่อท้ายบรรทัดสรุป — แสดงเฉพาะบนจอ
+         ตอนพิมพ์ซ่อนทั้งชุดตามฟีดแบ็ก (ดู #gridSub .gridsub-key ใน @media print)
+         ต้องห่อด้วย .gridsub-key ทั้งก้อน เพราะข้อความ "วันหยุด"/"ลา" เป็น text node เปล่า
+         ถ้าซ่อนแค่ .mini-swatch จะเหลือคำลอยค้างอยู่ */
       document.getElementById('gridSub').innerHTML = 'วันราชการ ' + nW + ' · วันหยุด ' + (N - nW) + ' · นักขัตฤกษ์ ' + nH + ' วัน' +
+        '<span class="gridsub-key">' +
         ' &nbsp; <span class="mini-swatch mini-swatch-holi"></span> วันหยุด' +
-        ' &nbsp; <span class="mini-swatch mini-swatch-lv"></span> ลา';
+        ' &nbsp; <span class="mini-swatch mini-swatch-lv"></span> ลา</span>';
       var badge = document.getElementById('statusBadge');
       var map = { draft: ['draft', 'ดราฟต์ (รอตรวจสอบ)'], published: ['pub', 'ประกาศใช้แล้ว'], none: ['none', 'ยังไม่สร้าง'] };
       var m = map[calendarData.status] || map.none;

@@ -445,16 +445,11 @@ tbody tr:last-child td{border-bottom:none}
   /* ลาครึ่งวันตอนพิมพ์ — เฉียงเหมือนบนจอ (บนซ้าย = เช้า, ล่างขวา = บ่าย) */
   .sched td.lv-am{background-image:linear-gradient(to bottom right,rgba(0,0,0,.28) 49.5%,transparent 50.5%)!important}
   .sched td.lv-pm{background-image:linear-gradient(to top left,rgba(0,0,0,.28) 49.5%,transparent 50.5%)!important}
-  /* วันราชการ/วันหยุด/นักขัตฤกษ์ ใต้หัวตารางเวร — เดิมสีเทาอ่อนตาม --mut อ่านยากเมื่อพิมพ์ ปรับเป็นสีดำ
-     mini-swatch ต่อท้าย (อธิบาย "วันหยุด"/"ลา") ต้องบังคับพิมพ์สีจริงเหมือน .tok.lv-swatch */
+  /* วันราชการ/วันหยุด/นักขัตฤกษ์ ใต้หัวตารางเวร — เดิมสีเทาอ่อนตาม --mut อ่านยากเมื่อพิมพ์ ปรับเป็นสีดำ */
   #gridSub{color:#000!important;font-weight:600}
-  #gridSub .mini-swatch{border-color:#000!important}
-  #gridSub .mini-swatch-holi{background:#d4d4d4!important;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;color-adjust:exact!important}
-  #gridSub .mini-swatch-lv{
-    background-color:#eee!important;
-    background-image:linear-gradient(rgba(0,0,0,.28),rgba(0,0,0,.28))!important;
-    -webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;color-adjust:exact!important;
-  }
+  /* ซ่อนชุด swatch "วันหยุด/ลา" ท้ายบรรทัดตอนพิมพ์ตามฟีดแบ็ก — เหลือแต่ตัวเลขสรุป
+     (บนจอยังแสดงอยู่ เพราะมีแถบสัญลักษณ์เต็มอยู่แล้วไม่เสียหาย) */
+  #gridSub .gridsub-key{display:none!important}
   .doc{border:none;padding:0;overflow:visible!important}
   .tbl-wrap{overflow:visible!important}
   /* รายงาน (.rep-tbl) ใช้ฟอนต์ TH Saraban (Sarabun) — ลด line-height ลงจาก 1.7 เพื่อให้พอดี A4
