@@ -186,9 +186,16 @@ var DataService = (function () {
    *  annual cabinet resolution — only years verified against the published government
    *  calendar are listed here. Other years still get all fixed-date holidays seeded;
    *  the lunar ones must be added manually (the UI flags which years were skipped). */
+  /* วันหยุดจันทรคติ (เลื่อนทุกปี) — อ้างอิงประกาศ/ปฏิทินราชการ month เป็น 0-indexed
+     ปีที่ไม่มีในตารางนี้ ระบบยังเติมวันหยุดวันที่ตายตัวให้ได้ แต่ต้องเพิ่มวันจันทรคติเอง (seedThaiHolidays คืน hasLunarTable:false) */
   var THAI_LUNAR_HOLIDAYS_ = {
     2567: [{ month: 1, day: 24, name: 'วันมาฆบูชา' }, { month: 4, day: 22, name: 'วันวิสาขบูชา' }, { month: 6, day: 20, name: 'วันอาสาฬหบูชา' }, { month: 6, day: 21, name: 'วันเข้าพรรษา' }],
-    2568: [{ month: 1, day: 12, name: 'วันมาฆบูชา' }, { month: 4, day: 11, name: 'วันวิสาขบูชา' }, { month: 6, day: 10, name: 'วันอาสาฬหบูชา' }, { month: 6, day: 11, name: 'วันเข้าพรรษา' }]
+    2568: [{ month: 1, day: 12, name: 'วันมาฆบูชา' }, { month: 4, day: 11, name: 'วันวิสาขบูชา' }, { month: 6, day: 10, name: 'วันอาสาฬหบูชา' }, { month: 6, day: 11, name: 'วันเข้าพรรษา' }],
+    2569: [{ month: 2, day: 3, name: 'วันมาฆบูชา' }, { month: 4, day: 31, name: 'วันวิสาขบูชา' }, { month: 6, day: 29, name: 'วันอาสาฬหบูชา' }, { month: 6, day: 30, name: 'วันเข้าพรรษา' }],
+    2570: [{ month: 1, day: 21, name: 'วันมาฆบูชา' }, { month: 4, day: 20, name: 'วันวิสาขบูชา' }, { month: 6, day: 18, name: 'วันอาสาฬหบูชา' }, { month: 6, day: 19, name: 'วันเข้าพรรษา' }],
+    2571: [{ month: 1, day: 10, name: 'วันมาฆบูชา' }, { month: 4, day: 9, name: 'วันวิสาขบูชา' }, { month: 6, day: 6, name: 'วันอาสาฬหบูชา' }, { month: 6, day: 7, name: 'วันเข้าพรรษา' }],
+    2572: [{ month: 1, day: 28, name: 'วันมาฆบูชา' }, { month: 4, day: 27, name: 'วันวิสาขบูชา' }, { month: 6, day: 25, name: 'วันอาสาฬหบูชา' }, { month: 6, day: 26, name: 'วันเข้าพรรษา' }],
+    2573: [{ month: 1, day: 18, name: 'วันมาฆบูชา' }, { month: 4, day: 17, name: 'วันวิสาขบูชา' }, { month: 6, day: 15, name: 'วันอาสาฬหบูชา' }, { month: 6, day: 16, name: 'วันเข้าพรรษา' }]
   };
 
   /** Seeds Thai government holidays into the existing holiday master-data records for

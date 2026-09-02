@@ -1311,8 +1311,9 @@ function fillMY() {
   var now = new Date();
   selM.innerHTML = TH_M.map(function (name, i) { return '<option value="' + i + '">' + name + '</option>'; }).join('');
   var curYear = now.getFullYear() + 543;
+  /* รองรับหลายปี: ย้อนหลัง 3 ปี ถึงล่วงหน้า 6 ปี (เดิมมีแค่ -1..+1 จึงตันที่ 2570) */
   var years = [];
-  for (var y = curYear - 1; y <= curYear + 1; y++) years.push(y);
+  for (var y = curYear - 3; y <= curYear + 6; y++) years.push(y);
   selY.innerHTML = years.map(function (y) { return '<option value="' + y + '">' + y + '</option>'; }).join('');
   selM.value = now.getMonth();
   selY.value = curYear;
