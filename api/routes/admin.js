@@ -153,6 +153,13 @@ router.post('/audit-logs/purge', wrap(async (req, res) => {
 
 // ---------------- Backups (new — JSON snapshot of every data sheet, stored in-sheet) ----------------
 
+// GET /api/storage-stats — per-sheet row count + approx size (diagnostics)
+router.get('/storage-stats', wrap(async (req, res) => {
+  const session = authService.requireSession(getToken(req));
+  await authService.requirePermission(session.user, 'manageSettings', false);
+  ok(res, await backupService.getStorageStats());
+}));
+
 // GET /api/backups — list backup metadata (newest first)
 router.get('/backups', wrap(async (req, res) => {
   const session = authService.requireSession(getToken(req));

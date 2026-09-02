@@ -317,6 +317,7 @@ function _dispatchApi(fnName, token, args) {
     case 'api_getAuditLogs': return apiCall('/api/audit-logs' + qs(Object.assign({ token: token }, args[0] || {})), 'GET');
     case 'api_purgeAuditLogs': return apiCall('/api/audit-logs/purge', 'POST', { token: token, olderThanDays: args[0] });
 
+    case 'api_getStorageStats': return apiCall('/api/storage-stats' + qs({ token: token }), 'GET');
     case 'api_listBackups': return apiCall('/api/backups' + qs({ token: token }), 'GET');
     case 'api_createBackup': return apiCall('/api/backups', 'POST', { token: token, keep: args[0] });
     case 'api_downloadBackup': return apiCall('/api/backups/' + encodeURIComponent(args[0]) + '/download' + qs({ token: token }), 'GET');
