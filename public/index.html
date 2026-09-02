@@ -1309,14 +1309,22 @@ function toggleDark() {
 function fillMY() {
   var selM = document.getElementById('selM'), selY = document.getElementById('selY');
   var now = new Date();
+  /* คงเดือน/ปีที่เลือกไว้เมื่อสร้างตัวเลือกใหม่ (เช่นหลังบันทึกปีสิ้นสุด) — ไม่ให้เด้งกลับเดือนปัจจุบัน */
+  var prevM = selM.value, prevY = selY.value;
   selM.innerHTML = TH_M.map(function (name, i) { return '<option value="' + i + '">' + name + '</option>'; }).join('');
   var curYear = now.getFullYear() + 543;
-  /* รองรับหลายปี: ย้อนหลัง 3 ปี ถึงล่วงหน้า 6 ปี (เดิมมีแค่ -1..+1 จึงตันที่ 2570) */
+  /* รองรับหลายปี: ย้อนหลัง 3 ปี ถึงปีสิ้นสุดที่ตั้งค่าไว้ (schedYearEnd) — ไม่ตั้งค่า = ล่วงหน้า 6 ปี
+     ผู้ดูแลเพิ่มปีเองได้ที่ ตั้งค่า > หน่วยงาน & ทีม > ปีสิ้นสุด */
+  var endY = parseInt((Session.settings || {}).schedYearEnd, 10);
+  if (!endY || isNaN(endY)) endY = curYear + 6;
+  if (endY < curYear + 1) endY = curYear + 1; /* อย่างน้อยเห็นปีปัจจุบัน+1 เสมอ */
   var years = [];
-  for (var y = curYear - 3; y <= curYear + 6; y++) years.push(y);
+  for (var y = curYear - 3; y <= endY; y++) years.push(y);
+  /* ถ้าปีที่เลือกไว้เกินช่วงใหม่ ก็ขยายช่วงให้ครอบคลุมไว้ด้วย (กันตัวเลือกหาย) */
+  if (prevY && years.indexOf(+prevY) === -1 && +prevY >= curYear - 3) { for (var yy = endY + 1; yy <= +prevY; yy++) years.push(yy); }
   selY.innerHTML = years.map(function (y) { return '<option value="' + y + '">' + y + '</option>'; }).join('');
-  selM.value = now.getMonth();
-  selY.value = curYear;
+  selM.value = (prevM !== '' && prevM != null) ? prevM : now.getMonth();
+  selY.value = prevY || curYear;
   selM.onchange = selY.onchange = function () {
     if (window.Schedule) Schedule.setMonthYear(+selY.value, +selM.value);
   };
@@ -2921,6 +2929,7 @@ var Schedule = (function () {
       '<label>ชื่อโรงพยาบาล<input id="cfHosp" value="' + (s.hosp || '') + '"></label>' +
       '<label>ที่อยู่<input id="cfProv" value="' + (s.prov || '') + '"></label>' +
       '<label>อักษรย่อโลโก้<input id="cfLogo" value="' + (s.logo || '') + '"></label>' +
+      '<label>ปีสิ้นสุดในตัวเลือกปี (พ.ศ.)<input id="cfYearEnd" type="number" min="2560" max="2700" value="' + (s.schedYearEnd || (new Date().getFullYear() + 543 + 6)) + '"><span style="font-size:10.5px;color:var(--mut);margin-top:2px;">ตัวเลือกปีจะแสดงถึงปีนี้ · เพิ่มเลขปีเพื่อขยายเอง</span></label>' +
       '</div><div style="margin-top:10px;display:flex;align-items:center;gap:10px;">' +
       '<label style="font-size:11.5px;color:var(--mut);">สีหลัก</label><input type="color" id="cfTheme" value="' + (s.themeColor || '#0E6158') + '">' +
       '<label style="font-size:11.5px;color:var(--mut);">สีเสริม</label><input type="color" id="cfAcc" value="' + (s.themeAcc || '#B8862E') + '">' +
@@ -2929,10 +2938,13 @@ var Schedule = (function () {
       saveField(e.target, function () {
         var fields = {
           org: val('cfOrg'), hosp: val('cfHosp'), prov: val('cfProv'), logo: val('cfLogo'),
+          schedYearEnd: val('cfYearEnd'),
           themeColor: val('cfTheme'), themeAcc: val('cfAcc')
         };
         return gsRun('api_saveSettings', Session.token, fields).then(function (res) {
-          applyBranding(Object.assign({}, Session.settings, fields));
+          Session.settings = Object.assign({}, Session.settings, fields);
+          applyBranding(Session.settings);
+          fillMY(); /* สร้างตัวเลือกปีใหม่ตามปีสิ้นสุดที่บันทึก โดยไม่ต้องรีเฟรช */
           return res;
         });
       });
