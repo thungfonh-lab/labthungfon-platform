@@ -1466,7 +1466,13 @@ var Schedule = (function () {
   function dowLabel() { return ['อา', 'จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส']; }
   function isWknd(year, month, d) { var w = new Date(year - 543, month, d).getDay(); return w === 0 || w === 6; }
 
-  function tokEl(t, suffix) { var s = SHIFT_DEFS[t]; return '<span class="tok" style="background:' + s.bg + ';color:' + s.color + (s.u ? ';text-decoration:underline;text-underline-offset:2px' : '') + '">' + s.short + (suffix || '') + '</span>'; }
+  /* เวรคลินิก (x) ของผู้ช่วย (LA) ใช้สีคนละชุดกับของนักเทคนิค (MT) เพื่อไม่ให้สับสนตอนจัดตาราง
+     ว่า x ช่องนั้นเป็นเวรของใคร — ตอนพิมพ์ขาวดำไม่ต้องทำอะไรเพิ่ม เพราะกฎ
+     html:not(.print-color) .tok{...!important} บังคับทุกโทเค็นเป็นดำพื้นใสอยู่แล้ว (สีนี้เป็น inline style) */
+  var N_LA_DEF_ = { short: 'x', name: 'เวรคลินิกนอกเวลา (ผู้ช่วย)', bg: '#f9d8e4', color: '#9d2b5e' };
+
+  /* defOvr = ชุดสี/สัญลักษณ์ที่ใช้แทน SHIFT_DEFS[t] (ใช้กับ x ของ LA) — ไม่ส่งมาก็ใช้ของเดิม */
+  function tokEl(t, suffix, defOvr) { var s = defOvr || SHIFT_DEFS[t]; return '<span class="tok" style="background:' + s.bg + ';color:' + s.color + (s.u ? ';text-decoration:underline;text-underline-offset:2px' : '') + '">' + s.short + (suffix || '') + '</span>'; }
 
   function loadPeople() {
     if (peopleCache) return Promise.resolve(peopleCache);
@@ -1712,6 +1718,9 @@ var Schedule = (function () {
     var el = document.getElementById('legend');
     if (!el) return;
     el.innerHTML = Object.keys(SHIFT_DEFS).map(function (k) {
+      /* x มี 2 สี — ต่อป้าย (MT)/(ผู้ช่วย) กำกับ จะได้รู้ว่าสีไหนของใคร */
+      if (k === 'n') return '<span>' + tokEl(k) + ' ' + shiftNameT_(k) + ' (MT)</span>' +
+        '<span>' + tokEl('n', '', N_LA_DEF_) + ' ' + shiftNameT_(k) + ' (ผู้ช่วย)</span>';
       return '<span>' + tokEl(k) + ' ' + shiftNameT_(k) + '</span>';
     }).join('') +
       '<span><span class="tok lv-swatch">&nbsp;&nbsp;</span> ลาทั้งวัน</span>' +
@@ -1821,6 +1830,8 @@ var Schedule = (function () {
            ต่างจากแค่ถูกจัดตารางไว้เฉยๆ — ช่วยแยกว่าวันไหน "อยู่เวร" กับวันไหน "มีคนไข้จริง" */
         var cellHtml = toks.map(function (t) {
           if (t === 'd') return tokEl('d', hasOncallRecord(p, d2, cal) ? '*' : '');
+          /* x ของผู้ช่วย (อยู่ใน clinicLa) ใช้สีอีกชุด — ดูจาก list ที่คนนั้นอยู่จริง ไม่ใช่เดาจาก role */
+          if (t === 'n' && (cal.clinicLa[d2] || []).indexOf(p.id) > -1) return tokEl('n', '', N_LA_DEF_);
           return tokEl(t);
         }).join('');
         row += '<td class="' + dowCls(d2) + onLeave + '"><div class="cell' + (ovrd ? ' ovrd' : '') + '" data-day="' + d2 + '" data-pid="' + p.id + '">' + cellHtml + '</div></td>';
