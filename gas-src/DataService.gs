@@ -195,8 +195,13 @@ var DataService = (function () {
     2570: [{ month: 1, day: 21, name: 'วันมาฆบูชา' }, { month: 4, day: 20, name: 'วันวิสาขบูชา' }, { month: 6, day: 18, name: 'วันอาสาฬหบูชา' }, { month: 6, day: 19, name: 'วันเข้าพรรษา' }],
     2571: [{ month: 1, day: 10, name: 'วันมาฆบูชา' }, { month: 4, day: 9, name: 'วันวิสาขบูชา' }, { month: 6, day: 6, name: 'วันอาสาฬหบูชา' }, { month: 6, day: 7, name: 'วันเข้าพรรษา' }],
     2572: [{ month: 1, day: 28, name: 'วันมาฆบูชา' }, { month: 4, day: 27, name: 'วันวิสาขบูชา' }, { month: 6, day: 25, name: 'วันอาสาฬหบูชา' }, { month: 6, day: 26, name: 'วันเข้าพรรษา' }],
-    2573: [{ month: 1, day: 18, name: 'วันมาฆบูชา' }, { month: 4, day: 17, name: 'วันวิสาขบูชา' }, { month: 6, day: 15, name: 'วันอาสาฬหบูชา' }, { month: 6, day: 16, name: 'วันเข้าพรรษา' }]
+    2573: [{ month: 1, day: 18, name: 'วันมาฆบูชา' }, { month: 4, day: 17, name: 'วันวิสาขบูชา' }, { month: 6, day: 15, name: 'วันอาสาฬหบูชา' }, { month: 6, day: 16, name: 'วันเข้าพรรษา' }],
+    /* 2574-2575: ค่าประมาณการ (ยังไม่มีประกาศราชการ) อิงจันทร์เพ็ญ + การเลื่อน ~11 วัน/ปี — โปรดตรวจสอบเมื่อมีประกาศ */
+    2574: [{ month: 1, day: 7, name: 'วันมาฆบูชา' }, { month: 4, day: 6, name: 'วันวิสาขบูชา' }, { month: 6, day: 4, name: 'วันอาสาฬหบูชา' }, { month: 6, day: 5, name: 'วันเข้าพรรษา' }],
+    2575: [{ month: 1, day: 26, name: 'วันมาฆบูชา' }, { month: 4, day: 25, name: 'วันวิสาขบูชา' }, { month: 6, day: 22, name: 'วันอาสาฬหบูชา' }, { month: 6, day: 23, name: 'วันเข้าพรรษา' }]
   };
+  /* ปีที่วันจันทรคติเป็นค่าประมาณการ (ยังไม่มีประกาศราชการ) — ใช้แจ้งเตือนให้ผู้ดูแลตรวจสอบ */
+  var THAI_LUNAR_ESTIMATED_ = [2574, 2575];
 
   /** Seeds Thai government holidays into the existing holiday master-data records for
    *  one Buddhist year, skipping days already present so re-running (or the per-month
@@ -215,7 +220,7 @@ var DataService = (function () {
       crudMasterData(MASTER_CATEGORY.HOLIDAY, 'create', { year: year, month: h.month, day: h.day, name: h.name });
       added++;
     });
-    return { added: added, hasLunarTable: !!THAI_LUNAR_HOLIDAYS_[year] };
+    return { added: added, hasLunarTable: !!THAI_LUNAR_HOLIDAYS_[year], estimated: THAI_LUNAR_ESTIMATED_.indexOf(year) > -1 };
   }
 
   function crudMasterData(category, op, payload) {
