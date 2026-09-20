@@ -83,6 +83,15 @@ var ReportService = (function () {
 
   function fullN_(p) { return p ? (p.pfx || '') + p.name : ''; }
   function roleOf_(p) { return p.role === 'LA' ? 'LA' : 'MT'; }
+  /* จัดลำดับคนให้ MT (รวม HT) อยู่กลุ่มเดียวกัน LA อยู่กลุ่มเดียวกัน แล้วเรียงตาม Priority ในแต่ละกลุ่ม
+     ใช้กับ people ต้นทางของทุกรายงาน (repPay_/repTeamOverview_/ฯลฯ) ให้แถวคนในรายงานเรียงลำดับ
+     เดียวกับตารางเวรและการ์ดติดต่อ */
+  function sortByGroupPriority_(people) {
+    return people.slice().sort(function (a, b) {
+      var ga = a.role === 'LA' ? 1 : 0, gb = b.role === 'LA' ? 1 : 0;
+      return (ga - gb) || ((a.priority || 99) - (b.priority || 99));
+    });
+  }
 
   function sigRow_(settings) {
     function block_(name, title) {
@@ -579,7 +588,7 @@ var ReportService = (function () {
   /** Ported from renderRep() dispatcher (2703-2731). */
   function renderReport(kind, year, month, pid) {
     var settings = DataService.getSettings();
-    var people = DataService.getPeople();
+    var people = sortByGroupPriority_(DataService.getPeople());
     var rateOvr = DataService.getRateOverrides();
     var rates = DataService.getRates();
     var stations = BusinessService.rotateStationsForMonth_(DataService.getStations(), year, month);
