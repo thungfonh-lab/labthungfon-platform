@@ -1809,6 +1809,15 @@ var Schedule = (function () {
      ที่อื่น (การ์ดติดต่อ/รายงาน/ลงนาม/dropdown) ยังใช้ fullN() แบบมีคำนำหน้าเหมือนเดิม */
   function gridN_(p) { return p.name; }
 
+  /* จัดลำดับคนให้ MT (รวม HT) อยู่กลุ่มเดียวกัน LA อยู่กลุ่มเดียวกัน แล้วเรียงตาม Priority ในแต่ละกลุ่ม
+     ใช้ร่วมกันทั้งตารางเวร/การ์ดติดต่อ/ตัวเลือกบุคคลในหน้ารายงาน ให้แสดงผลลำดับเดียวกันทั้งแอป */
+  function sortByGroupPriority_(people) {
+    return people.slice().sort(function (a, b) {
+      var ga = a.role === 'LA' ? 1 : 0, gb = b.role === 'LA' ? 1 : 0;
+      return (ga - gb) || ((a.priority || 99) - (b.priority || 99));
+    });
+  }
+
   function renderGridTable(cal) {
     var dl = dowLabel();
     var r1 = '<th class="nm" rowspan="2">ชื่อ-สกุล</th>', r2 = '';
@@ -1823,10 +1832,7 @@ var Schedule = (function () {
     var totals = { ch: 0, b: 0, b1: 0, n: 0, n1: 0, d: 0 };
     /* จัดแถวให้ MT อยู่กลุ่มเดียวกัน LA อยู่กลุ่มเดียวกัน แล้วเรียงตาม Priority ที่ตั้งค่าไว้ในแต่ละกลุ่ม
        (ไม่แก้ cal.people ตรงๆ เพราะที่อื่นยังอ้างลำดับเดิมจากชีตอยู่ เช่น peopleCache) */
-    var gridPeople = cal.people.slice().sort(function (a, b) {
-      var ga = a.role === 'LA' ? 1 : 0, gb = b.role === 'LA' ? 1 : 0;
-      return (ga - gb) || ((a.priority || 99) - (b.priority || 99));
-    });
+    var gridPeople = sortByGroupPriority_(cal.people);
     gridPeople.forEach(function (p) {
       var sums = { ch: 0, b: 0, b1: 0, n: 0, n1: 0, d: 0 };
       var row = '<tr><td class="nm">' + gridN_(p) + '</td>';
@@ -1895,7 +1901,7 @@ var Schedule = (function () {
         stationOf[pid] = stationOf[pid] ? stationOf[pid] + ', ' + s.name : s.name;
       });
     });
-    document.getElementById('contactGrid').innerHTML = people.filter(function (p) { return p.active !== false; }).map(function (p) {
+    document.getElementById('contactGrid').innerHTML = sortByGroupPriority_(people).filter(function (p) { return p.active !== false; }).map(function (p) {
       return '<div class="contact"><div class="cn">' + fullN(p) + '</div><div class="cp">' + (p.title || '') + '</div>' +
         (stationOf[p.id] ? '<div class="cp" style="color:var(--tl);"><i class="ti ti-map-pin"></i> ' + stationOf[p.id] + '</div>' : '') +
         '<div class="cc">' + (p.phone ? '<i class="ti ti-phone"></i> ' + p.phone : '<span style="color:var(--mut)">ไม่มีเบอร์โทร</span>') + '</div></div>';
@@ -2796,7 +2802,7 @@ var Schedule = (function () {
       sel.style.display = personOptionsNeeded(kind) ? 'inline-block' : 'none';
       if (personOptionsNeeded(kind) && sel.dataset.loadedFor !== kind) {
         loadPeople().then(function (people) {
-          var opts = people.map(function (p) { return '<option value="' + p.id + '">' + fullN(p) + '</option>'; }).join('');
+          var opts = sortByGroupPriority_(people).map(function (p) { return '<option value="' + p.id + '">' + fullN(p) + '</option>'; }).join('');
           if (kind === 'ocrec') opts = '<option value="all">ทุกคน</option>' + opts;
           sel.innerHTML = opts; sel.dataset.loadedFor = kind;
           sel.onchange = function () { loadReport(curKind); };
