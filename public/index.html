@@ -176,9 +176,13 @@ tbody tr:last-child td{border-bottom:none}
 .btn-danger{background:var(--coral-l);color:var(--coral);border-color:var(--coral-l)}
 .btn[disabled]{opacity:.45;cursor:not-allowed}
 /* ── schedule grid (ported from .sched/.tok in original) ── */
-.sched-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:var(--r);background:var(--surface);-webkit-overflow-scrolling:touch}
-.sched{border-collapse:collapse;font-size:11px;min-width:900px}
-.sched th,.sched td{border:1px solid var(--border);text-align:center;padding:0;min-width:30px}
+.sched-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:var(--r);background:var(--surface);-webkit-overflow-scrolling:touch;contain:layout style}
+/* border-collapse:separate แก้ Safari/iOS bug ที่ sticky header+column repaint ทุก scroll frame
+   เมื่อใช้ border-collapse:collapse — ทำให้ scroll บน iPad ลื่นขึ้นมาก */
+.sched{border-collapse:separate;border-spacing:0;font-size:11px;min-width:900px}
+.sched th,.sched td{border-right:1px solid var(--border);border-bottom:1px solid var(--border);text-align:center;padding:0;min-width:30px}
+.sched th:first-child,.sched td:first-child{border-left:1px solid var(--border)}
+.sched thead tr:first-child th{border-top:1px solid var(--border)}
 /* คอลัมน์วันกว้างเท่ากันทุกช่อง — ไม่ให้ช่องที่มีหลายเวร (ชบด) ดันคอลัมน์กว้างกว่าช่องอื่น */
 .sched td:not(.nm):not(.sumcol){width:30px;max-width:30px}
 .sched thead th{background:var(--tl-vl);color:var(--tl-d);font-weight:600;position:sticky;top:0;z-index:4}
