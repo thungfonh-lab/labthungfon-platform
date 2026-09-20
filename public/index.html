@@ -388,12 +388,10 @@ tbody tr:last-child td{border-bottom:none}
      หมายเหตุ: เคยใช้ named page (@page repPage + .doc{page:repPage}) แต่ Chrome จะแทรกหน้าเปล่าหน้าแรก
      เมื่อสลับ named page กลางเอกสาร — เปลี่ยนมาตั้งขนาดกระดาษแบบไดนามิกด้วย #printPageSize (ดู printWithPageSize() ใน script-schedule.html) */
   @page{size:A4 landscape;margin:6mm}
-  /* ค่าเริ่มต้น = พิมพ์ขาวดำ (กดปุ่ม "พิมพ์") — กดปุ่ม "พิมพ์สี" จะเติม class print-color ที่ <html> ก่อนสั่งพิมพ์
-     เพื่อข้ามฟิลเตอร์ grayscale และคืนสีจริงของโทเค็นเวร/หัวตาราง (ดู printColorBtn ใน script-schedule.html)
-     filter ต้องอยู่ที่ #app (ไม่ใช่ html) เพราะ Chrome มีบั๊กที่ position:fixed ของลูกหลานที่โดน filter ครอบ
-     (เช่น #printSign) จะเพี้ยน/มีเส้นแปลกๆ ตอนพิมพ์ (ตามฟีดแบ็ก "พิมพ์ขาวดำมีเส้น พิมพ์สีไม่มี") — #printSign
-     ย้ายไปเป็น sibling ของ #app แล้ว (ดู index.html) จึงไม่โดน filter นี้ครอบอีกต่อไป */
-  html:not(.print-color) #app{filter:grayscale(1)}
+  /* ขาวดำ: ไม่ใช้ filter:grayscale บน #app อีกต่อไป — Safari/iOS มีบั๊กที่ filter บน parent ทำให้
+     print preview ว่างเปล่าทั้งหน้า ใช้ CSS rule เฉพาะแต่ละ element แทน (tok/th/td/sumcol มีอยู่แล้ว
+     ด้านล่าง — เพิ่มเฉพาะ thead background ที่ยังขาดอยู่) */
+  html:not(.print-color) .sched thead th{background:#eee!important}
   /* ปุ่ม "พิมพ์แจก" — พิมพ์ตารางเวรแบบไม่แสดงยอดเงิน สำหรับแจกในทีม (ดู printHandoutBtn ใน script-schedule.html)
      ใช้ .money-only ครอบเฉพาะส่วนที่เป็นตัวเงิน จะได้ซ่อนได้โดยไม่กระทบข้อความอื่นในบรรทัดเดียวกัน */
   html.print-handout .money-only{display:none!important}
