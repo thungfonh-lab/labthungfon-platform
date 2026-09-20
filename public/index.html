@@ -411,7 +411,8 @@ tbody tr:last-child td{border-bottom:none}
   .print-only{display:block!important}
   #content{overflow:visible}
   .frame{padding:0;overflow:visible!important;height:auto!important}
-  .sched-wrap{overflow:visible;border:none;width:100%;page-break-inside:avoid}
+  /* contain:none รีเซ็ต containment ที่ใส่เพื่อประสิทธิภาพบนจอ — Safari/iOS ต้องการ layout ปกติตอนพิมพ์ */
+  .sched-wrap{overflow:visible;border:none;width:100%;page-break-inside:avoid;contain:none}
   /* ตารางเวรคือตัวหลักของรายงาน — ให้ฟอนต์/ระยะใหญ่กว่าส่วนอื่น ส่วนข้อมูลรองบีบให้เล็กลงแทน */
   .sched{font-size:7.8px;width:100%;min-width:0;table-layout:fixed}
   .sched th,.sched td{padding:1.5px 2px;min-width:0;width:auto;border-width:0.5px}
