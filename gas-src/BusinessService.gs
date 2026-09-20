@@ -621,7 +621,7 @@ var BusinessService = (function () {
   /** ตั้งแต่รองรับหลายคนต่อ 1 เวร/1 วัน (ผ่าน override) — ch/b/d และ clinicMt/clinicLa/laB
    *  เก็บเป็น array ของ pid แทนค่าเดียว (rows ที่ day+shiftType ซ้ำกันคือหลายคนอยู่เวรเดียวกัน) */
   function unflattenAssignments_(rows, N) {
-    var assign = {}, clinicMt = {}, clinicLa = {}, laB = {};
+    var assign = {}, clinicMt = {}, clinicLa = {}, laB = {}, n1 = {};
     for (var d = 1; d <= N; d++) assign[d] = { ch: [], b: [], d: [] };
     rows.forEach(function (r) {
       if (!r.pid) return;
@@ -631,8 +631,11 @@ var BusinessService = (function () {
       else if (r.shiftType === 'n_mt') (clinicMt[r.day] = clinicMt[r.day] || []).push(r.pid);
       else if (r.shiftType === 'n_la') (clinicLa[r.day] = clinicLa[r.day] || []).push(r.pid);
       else if (r.shiftType === 'b1') (laB[r.day] = laB[r.day] || []).push(r.pid);
+      /* n1 = เวรคลินิกนอกเวลา 2 (ค่าเริ่มต้น 06.00-08.00 น. — แก้เวลาได้ที่ตั้งค่า > เวลาปฏิบัติงานแต่ละเวร)
+         กำหนดคนเองผ่าน Override ในตารางเวรเท่านั้น ไม่มีการจัดอัตโนมัติจาก generateSchedule() */
+      else if (r.shiftType === 'n1') (n1[r.day] = n1[r.day] || []).push(r.pid);
     });
-    return { assign: assign, clinicMt: clinicMt, clinicLa: clinicLa, laB: laB, N: N };
+    return { assign: assign, clinicMt: clinicMt, clinicLa: clinicLa, laB: laB, n1: n1, N: N };
   }
 
   /* ============================================================
@@ -700,7 +703,7 @@ var BusinessService = (function () {
 
     return {
       year: year, month: month, N: N, status: status,
-      assign: unflat.assign, clinicMt: unflat.clinicMt, clinicLa: unflat.clinicLa, laB: unflat.laB,
+      assign: unflat.assign, clinicMt: unflat.clinicMt, clinicLa: unflat.clinicLa, laB: unflat.laB, n1: unflat.n1,
       holidays: DataService.getHolidays(year, month),
       ruleViolations: DataService.getRuleViolations(year, month),
       overrides: DataService.getOverrides(year, month),
@@ -725,7 +728,7 @@ var BusinessService = (function () {
     var payAdjRows = DataService.getPayAdjustments(year, month);
 
     var r = {};
-    people.forEach(function (p) { r[p.id] = { ch: [], b: [], b1: [], n: [], d: [], d0: [], d1: [] }; });
+    people.forEach(function (p) { r[p.id] = { ch: [], b: [], b1: [], n: [], n1: [], d: [], d0: [], d1: [] }; });
 
     for (var d = 1; d <= N; d++) {
       var a = unflat.assign[d];
@@ -736,6 +739,7 @@ var BusinessService = (function () {
       (unflat.laB[d] || []).forEach(function (pid) { if (r[pid]) r[pid].b1.push(d); });
       (unflat.clinicMt[d] || []).forEach(function (pid) { if (r[pid]) r[pid].n.push(d); });
       (unflat.clinicLa[d] || []).forEach(function (pid) { if (r[pid]) r[pid].n.push(d); });
+      (unflat.n1[d] || []).forEach(function (pid) { if (r[pid]) r[pid].n1.push(d); });
     }
     /* เวร ด (on call) นับเป็น 2 ช่วงเวลาแยกกัน: 00.00-04.00 (d0) และ 04.00-08.00 (d1)
        on call หลายเวลาในช่วงเดียวกันของวันเดียวกัน นับเป็น 1 ครั้งของช่วงนั้น ไม่ใช่นับซ้ำต่อเวลา */
@@ -750,7 +754,7 @@ var BusinessService = (function () {
     payAdjRows.forEach(function (adj) {
       if (r[adj.pid]) {
         Object.keys(adj).forEach(function (sh) {
-          if (['ch', 'b', 'b1', 'n', 'd', 'd0', 'd1'].indexOf(sh) > -1) r[adj.pid][sh] = adj[sh];
+          if (['ch', 'b', 'b1', 'n', 'n1', 'd', 'd0', 'd1'].indexOf(sh) > -1) r[adj.pid][sh] = adj[sh];
         });
       }
     });
@@ -764,6 +768,7 @@ var BusinessService = (function () {
       r[p.id].b.forEach(function (day) { m += rateFor_(rateOvr, rates, p, 'b', day); });
       r[p.id].b1.forEach(function (day) { m += rateFor_(rateOvr, rates, p, 'b1', day); });
       r[p.id].n.forEach(function (day) { m += rateFor_(rateOvr, rates, p, 'n', day); });
+      r[p.id].n1.forEach(function (day) { m += rateFor_(rateOvr, rates, p, 'n1', day); });
       r[p.id].d0.forEach(function (day) { m += rateFor_(rateOvr, rates, p, 'd0', day); });
       r[p.id].d1.forEach(function (day) { m += rateFor_(rateOvr, rates, p, 'd1', day); });
       money[p.id] = m;

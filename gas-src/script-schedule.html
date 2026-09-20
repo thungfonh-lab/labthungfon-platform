@@ -35,6 +35,10 @@ var Schedule = (function () {
     b: { short: 'บ', name: 'เวรบ่าย 16-00', bg: '#e7eef8', color: '#2f5fa0' },
     d: { short: 'ด', name: 'เวรดึก On call 00-08', bg: '#f7ecd6', color: '#7a5618' },
     n: { short: 'x', name: 'เวรคลินิกนอกเวลา 07-08', bg: '#ede0c4', color: '#6b4e16' },
+    /* n1 = เวรคลินิกนอกเวลา 2 (ค่าเริ่มต้น 06.00-08.00 น. แก้ได้ที่ตั้งค่า > เวลาปฏิบัติงานแต่ละเวร) —
+       เวรใหม่แยกจาก n โดยสิ้นเชิง มีเวลา/อัตราของตัวเอง กำหนดคนขึ้นเวรเองผ่าน Override ในตารางเวรเท่านั้น
+       (ไม่มีการจัดอัตโนมัติจาก generateSchedule) สัญลักษณ์ "x ขีดเส้นใต้" ให้แยกจาก x เดิมแบบเดียวกับ บ/บ1 */
+    n1: { short: 'x', u: true, name: 'เวรคลินิกนอกเวลา 2 06-08', bg: '#ede0c4', color: '#6b4e16' },
     /* สัญลักษณ์ บ1 เปลี่ยนเป็น "บ ขีดเส้นใต้" ตามฟีดแบ็ก — u:true ให้ tokEl ใส่เส้นใต้
        (key 'b1' และข้อความที่บันทึกลง log/option ยังคง "บ1" เดิม ไม่กระทบข้อมูล) */
     b1: { short: 'บ', u: true, name: 'เวรบ่าย 16-20', bg: '#efe7f7', color: '#7a4fa0' }
@@ -292,8 +296,8 @@ var Schedule = (function () {
      เวลาแสดงแบบเต็ม เช่น 08.00-16.00 ตามฟีดแบ็ก (ไม่ใช่แบบย่อ 08-16) */
   /* ค่าเริ่มต้นเวลาปฏิบัติงาน — ค่าจริงมาจาก settings.shiftTimes (ตั้งค่า > เวลาปฏิบัติงานแต่ละเวร)
      เวร ด ไม่ให้แก้ เพราะแบ่งเป็น 2 ช่วงอัตราตายตัวตามระเบียบ (00.00-04.00 / 04.01-08.00) */
-  var WORK_HOURS_FULL_ = { ch: { s: '08.00', e: '16.00' }, b1: { s: '16.00', e: '20.00' }, b: { s: '16.00', e: '00.00' }, d: { s: '00.00', e: '08.00' }, n: { s: '07.00', e: '08.00' } };
-  var EDITABLE_SHIFT_TIMES_ = ['ch', 'b1', 'b', 'n'];
+  var WORK_HOURS_FULL_ = { ch: { s: '08.00', e: '16.00' }, b1: { s: '16.00', e: '20.00' }, b: { s: '16.00', e: '00.00' }, d: { s: '00.00', e: '08.00' }, n: { s: '07.00', e: '08.00' }, n1: { s: '06.00', e: '08.00' } };
+  var EDITABLE_SHIFT_TIMES_ = ['ch', 'b1', 'b', 'n', 'n1'];
   /* เวลาที่ตั้งไว้ของเดือนที่กำลังดู — โหลดมาพร้อม calendar/setup bundle แล้วใช้ทั้งกริดและการ์ดพิมพ์ */
   var shiftTimesCfg = {};
   function shiftTime_(key) {
@@ -327,7 +331,7 @@ var Schedule = (function () {
   function renderWorkHoursPrint() {
     var el = document.getElementById('workHoursPrint');
     if (!el) return;
-    var order = ['ch', 'b1', 'b', 'd', 'n'];
+    var order = ['ch', 'b1', 'b', 'd', 'n', 'n1'];
     var rows = [];
     order.forEach(function (k) {
       if (k === 'd') {
@@ -359,7 +363,7 @@ var Schedule = (function () {
   function dowCls(d) { return isHolD(d) ? 'holi' : (isWknd(current.year, current.month, d) ? 'wknd' : ''); }
 
   /* เรียงตามเวลาเริ่มเวรจริง: ด (ต่อเนื่องจากเมื่อคืน จบ 08:00) · น 07-08 · ช 08-16 · บ1 16-20 · บ 16-00 */
-  var TOK_TIME_ORDER = { d: 0, n: 1, ch: 2, b1: 3, b: 4 };
+  var TOK_TIME_ORDER = { d: 0, n: 1, n1: 1, ch: 2, b1: 3, b: 4 };
   function cellToks(p, d, cal) {
     var t = [];
     var a = cal.assign[d] || {};
@@ -368,6 +372,7 @@ var Schedule = (function () {
     var prevA = cal.assign[d - 1];
     if (prevA && (prevA.d || []).indexOf(p.id) > -1) t.push('d');
     if ((cal.clinicMt[d] || []).indexOf(p.id) > -1 || (cal.clinicLa[d] || []).indexOf(p.id) > -1) t.push('n');
+    if ((cal.n1[d] || []).indexOf(p.id) > -1) t.push('n1');
     if ((cal.laB[d] || []).indexOf(p.id) > -1) t.push('b1');
     t.sort(function (x, y) { return TOK_TIME_ORDER[x] - TOK_TIME_ORDER[y]; });
     return t;
@@ -397,12 +402,18 @@ var Schedule = (function () {
       r1 += '<th class="dnum ' + c + '">' + d + '</th>';
       r2 += '<th class="dow ' + c + '">' + dl[new Date(cal.year - 543, cal.month, d).getDay()] + '</th>';
     }
-    r1 += '<th class="sumcol" rowspan="2">x</th><th class="sumcol" rowspan="2">ช</th><th class="sumcol" rowspan="2"><u>บ</u></th><th class="sumcol" rowspan="2">บ</th><th class="sumcol" rowspan="2">ด</th><th class="sumcol" rowspan="2">รวม</th>';
+    r1 += '<th class="sumcol" rowspan="2">x</th><th class="sumcol" rowspan="2"><u>x</u></th><th class="sumcol" rowspan="2">ช</th><th class="sumcol" rowspan="2"><u>บ</u></th><th class="sumcol" rowspan="2">บ</th><th class="sumcol" rowspan="2">ด</th><th class="sumcol" rowspan="2">รวม</th>';
     var h = '<thead><tr>' + r1 + '</tr><tr>' + r2 + '</tr></thead><tbody>';
 
-    var totals = { ch: 0, b: 0, b1: 0, n: 0, d: 0 };
-    cal.people.forEach(function (p) {
-      var sums = { ch: 0, b: 0, b1: 0, n: 0, d: 0 };
+    var totals = { ch: 0, b: 0, b1: 0, n: 0, n1: 0, d: 0 };
+    /* จัดแถวให้ MT อยู่กลุ่มเดียวกัน LA อยู่กลุ่มเดียวกัน แล้วเรียงตาม Priority ที่ตั้งค่าไว้ในแต่ละกลุ่ม
+       (ไม่แก้ cal.people ตรงๆ เพราะที่อื่นยังอ้างลำดับเดิมจากชีตอยู่ เช่น peopleCache) */
+    var gridPeople = cal.people.slice().sort(function (a, b) {
+      var ga = a.role === 'LA' ? 1 : 0, gb = b.role === 'LA' ? 1 : 0;
+      return (ga - gb) || ((a.priority || 99) - (b.priority || 99));
+    });
+    gridPeople.forEach(function (p) {
+      var sums = { ch: 0, b: 0, b1: 0, n: 0, n1: 0, d: 0 };
       var row = '<tr><td class="nm">' + gridN_(p) + '</td>';
       for (var d2 = 1; d2 <= cal.N; d2++) {
         var toks = cellToks(p, d2, cal);
@@ -425,13 +436,13 @@ var Schedule = (function () {
       }
       var isLA = p.role === 'LA';
       var rmt = isLA ? sums.ch + sums.b1 : sums.ch + sums.b;
-      row += '<td class="sumcol">' + sums.n + '</td><td class="sumcol">' + sums.ch + '</td><td class="sumcol">' + sums.b1 + '</td><td class="sumcol">' + sums.b + '</td><td class="sumcol">' + sums.d + '</td><td class="sumcol" style="font-size:12px">' + rmt + '</td></tr>';
+      row += '<td class="sumcol">' + sums.n + '</td><td class="sumcol">' + sums.n1 + '</td><td class="sumcol">' + sums.ch + '</td><td class="sumcol">' + sums.b1 + '</td><td class="sumcol">' + sums.b + '</td><td class="sumcol">' + sums.d + '</td><td class="sumcol" style="font-size:12px">' + rmt + '</td></tr>';
       h += row;
-      ['ch', 'b', 'b1', 'n', 'd'].forEach(function (t) { totals[t] += sums[t] || 0; });
+      ['ch', 'b', 'b1', 'n', 'n1', 'd'].forEach(function (t) { totals[t] += sums[t] || 0; });
     });
     h += '<tr class="sum-row"><td class="nm" style="text-align:right;font-size:11px;color:var(--mut)">รวมทั้งหมด</td>';
     for (var d3 = 1; d3 <= cal.N; d3++) h += '<td></td>';
-    h += '<td class="sumcol">' + totals.n + '</td><td class="sumcol">' + totals.ch + '</td><td class="sumcol">' + totals.b1 + '</td><td class="sumcol">' + totals.b + '</td><td class="sumcol">' + totals.d + '</td><td class="sumcol">—</td></tr></tbody>';
+    h += '<td class="sumcol">' + totals.n + '</td><td class="sumcol">' + totals.n1 + '</td><td class="sumcol">' + totals.ch + '</td><td class="sumcol">' + totals.b1 + '</td><td class="sumcol">' + totals.b + '</td><td class="sumcol">' + totals.d + '</td><td class="sumcol">—</td></tr></tbody>';
 
     var table = document.getElementById('schedTbl');
     table.innerHTML = h;
@@ -503,7 +514,10 @@ var Schedule = (function () {
   /* ── manual override modal (ported from openOvr()/applyOvr()) ── */
   var OVR_SHIFT_OPTS = [
     ['ch', 'เวรเช้า (วันหยุด)'], ['b', 'เวรบ่าย'], ['d', 'เวรดึก On call'],
-    ['n_mt', 'เวรคลินิกนอกเวลา (MT)'], ['n_la', 'เวรคลินิกนอกเวลา (LA)'], ['b1', '<u>บ</u> เวรเสริมบ่าย']
+    ['n_mt', 'เวรคลินิกนอกเวลา (MT)'], ['n_la', 'เวรคลินิกนอกเวลา (LA)'], ['b1', '<u>บ</u> เวรเสริมบ่าย'],
+    /* n1 = เวรคลินิกนอกเวลา 2 (06.00-08.00 น. ค่าเริ่มต้น) — กำหนดคนขึ้นเวรผ่าน Override ตรงนี้เท่านั้น
+       ไม่มีการจัดอัตโนมัติ (ต่างจาก n_mt/n_la ที่ generateSchedule() จัดให้อัตโนมัติทุกเดือน) */
+    ['n1', '<u>x</u> เวรคลินิกนอกเวลา 2']
   ];
   var OVR_SHIFT_LABEL_ = {}; OVR_SHIFT_OPTS.forEach(function (o) { OVR_SHIFT_LABEL_[o[0]] = o[1]; });
   var OVR_BLOCK_PRESETS = [
@@ -520,7 +534,7 @@ var Schedule = (function () {
   function currentOccupants_(cal, day, shift) {
     var map = {
       ch: (cal.assign[day] || {}).ch, b: (cal.assign[day] || {}).b, d: (cal.assign[day - 1] || {}).d,
-      n_mt: cal.clinicMt[day], n_la: cal.clinicLa[day], b1: cal.laB[day]
+      n_mt: cal.clinicMt[day], n_la: cal.clinicLa[day], b1: cal.laB[day], n1: cal.n1[day]
     };
     return map[shift] || [];
   }
@@ -1887,13 +1901,13 @@ var Schedule = (function () {
 
   function renderRatesSection(rates, rateOvr, people) {
     var body = document.getElementById('accRates');
-    var SH = ['ch', 'b', 'd0', 'd1', 'n', 'b1'];
+    var SH = ['ch', 'b', 'd0', 'd1', 'n', 'n1', 'b1'];
     var SH_FULL_LABEL = {
       ch: shiftNameT_('ch'), b: shiftNameT_('b'),
       d0: 'เวรดึก On call 00.00-04.00', d1: 'เวรดึก On call 04.00-08.00',
-      /* SH_FULL_LABEL[b1] ใช้ทั้งใน <td> และ <option> (บรรทัด 1378) — <option> render HTML ไม่ได้
-         จึงคงเป็น text ล้วน (ตัด "1" ออกแทนใส่ <u>) ไม่ใช้ tag ที่นี่ */
-      n: shiftNameT_('n'), b1: 'บ ' + shiftNameT_('b1')
+      /* SH_FULL_LABEL[b1]/[n1] ใช้ทั้งใน <td> และ <option> (บรรทัด 1378) — <option> render HTML ไม่ได้
+         จึงคงเป็น text ล้วน (ตัด "1"/"2" ออกแทนใส่ <u>) ไม่ใช้ tag ที่นี่ */
+      n: shiftNameT_('n'), n1: shiftNameT_('n1'), b1: 'บ ' + shiftNameT_('b1')
     };
     var ROLE_LABEL_ = { MT: 'MT/HT', LA: 'ผู้ช่วย (LA)' };
     var rateRow = function (role, label) {
@@ -1906,7 +1920,7 @@ var Schedule = (function () {
     };
     body.innerHTML = '<div class="card-title" style="margin-top:0;">อัตรามาตรฐาน</div>' +
       '<p style="font-size:11px;color:var(--mut);margin:-4px 0 8px;">เวร ด (on call) แยก 2 อัตราตามช่วงเวลา — ใครมี on call หลายเวลาในช่วงเดียวกันของวันเดียวกัน นับเป็น 1 ครั้งของช่วงนั้น · กรอกได้ทศนิยม 2 ตำแหน่ง (เช่น 41.25)</p>' +
-      '<div class="tbl-wrap"><table class="tbl" style="table-layout:fixed;"><tr><th style="width:18%;">กลุ่ม</th><th>ช</th><th>บ</th><th>ด (00.00-04.00)</th><th>ด (04.00-08.00)</th><th>น</th><th><u>บ</u></th></tr>' + rateRow('MT', 'MT/HT') + rateRow('LA', 'ผู้ช่วย (LA)') + '</table></div>' +
+      '<div class="tbl-wrap"><table class="tbl" style="table-layout:fixed;"><tr><th style="width:18%;">กลุ่ม</th><th>ช</th><th>บ</th><th>ด (00.00-04.00)</th><th>ด (04.00-08.00)</th><th>น</th><th><u>น</u></th><th><u>บ</u></th></tr>' + rateRow('MT', 'MT/HT') + rateRow('LA', 'ผู้ช่วย (LA)') + '</table></div>' +
       '<button class="btn btn-primary btn-sm" id="ratesSaveBtn" style="margin-top:10px;">บันทึกอัตรา</button>' +
       '<div class="card-title" style="margin-top:18px;">อัตราพิเศษ (Override)</div>' +
       '<p style="font-size:11.5px;color:var(--mut);margin-bottom:8px;">เจาะจงมากกว่า = ใช้ก่อน: บุคคล &gt; บทบาท &gt; ช่วงวันที่ &gt; อัตรามาตรฐาน</p>' +

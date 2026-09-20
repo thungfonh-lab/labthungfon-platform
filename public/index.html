@@ -1816,7 +1816,13 @@ var Schedule = (function () {
     var h = '<thead><tr>' + r1 + '</tr><tr>' + r2 + '</tr></thead><tbody>';
 
     var totals = { ch: 0, b: 0, b1: 0, n: 0, n1: 0, d: 0 };
-    cal.people.forEach(function (p) {
+    /* จัดแถวให้ MT อยู่กลุ่มเดียวกัน LA อยู่กลุ่มเดียวกัน แล้วเรียงตาม Priority ที่ตั้งค่าไว้ในแต่ละกลุ่ม
+       (ไม่แก้ cal.people ตรงๆ เพราะที่อื่นยังอ้างลำดับเดิมจากชีตอยู่ เช่น peopleCache) */
+    var gridPeople = cal.people.slice().sort(function (a, b) {
+      var ga = a.role === 'LA' ? 1 : 0, gb = b.role === 'LA' ? 1 : 0;
+      return (ga - gb) || ((a.priority || 99) - (b.priority || 99));
+    });
+    gridPeople.forEach(function (p) {
       var sums = { ch: 0, b: 0, b1: 0, n: 0, n1: 0, d: 0 };
       var row = '<tr><td class="nm">' + gridN_(p) + '</td>';
       for (var d2 = 1; d2 <= cal.N; d2++) {

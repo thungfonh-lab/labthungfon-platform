@@ -14,6 +14,10 @@ var SHIFT_DEFS = {
   /* สัญลักษณ์ บ1 → "บ ขีดเส้นใต้" ตามฟีดแบ็ก — short ใช้เฉพาะใน HTML ของรายงาน (chip/หัวตาราง) */
   b1: { name: 'เวรเสริมบ่าย 16-20', short: '<u>บ</u>', color: '#7a4fa0', bg: '#efe7f7' },
   n: { name: 'เวรคลินิกนอกเวลา 07-08', short: 'น', color: '#6b4e16', bg: '#ede0c4' },
+  /* n1 = เวรคลินิกนอกเวลา 2 (ค่าเริ่มต้น 06.00-08.00 น.) — เวรใหม่แยกจาก n โดยสิ้นเชิง มีเวลา/อัตรา
+     ของตัวเอง กำหนดคนขึ้นเวรเองผ่าน Override ในตารางเวรเท่านั้น (ไม่มีการจัดอัตโนมัติ) ตามฟีดแบ็ก —
+     สัญลักษณ์ "น ขีดเส้นใต้" ให้เข้าชุดเดียวกับ n แต่แยกแยะได้แบบเดียวกับ บ/บ1 */
+  n1: { name: 'เวรคลินิกนอกเวลา 2 06-08', short: '<u>น</u>', color: '#6b4e16', bg: '#ede0c4' },
   d: { name: 'เวรดึก On call (00-08)', short: 'ด', color: '#7a5618', bg: '#f7ecd6' },
   d0: { name: 'เวรดึก On call (00.00-04.00)', short: 'ด', color: '#7a5618', bg: '#f7ecd6' },
   d1: { name: 'เวรดึก On call (04.00-08.00)', short: 'ด', color: '#7a5618', bg: '#f7ecd6' }
@@ -26,7 +30,8 @@ var DEFAULT_SHIFT_TIMES = {
   ch: { s: '08.00', e: '16.00' },
   b: { s: '16.00', e: '00.00' },
   b1: { s: '16.00', e: '20.00' },
-  n: { s: '07.00', e: '08.00' }
+  n: { s: '07.00', e: '08.00' },
+  n1: { s: '06.00', e: '08.00' }
 };
 
 var ReportService = (function () {
@@ -276,7 +281,7 @@ var ReportService = (function () {
     var d = r[pid];
     if (!p || !d) return '<div style="padding:20px;color:var(--mut)">ไม่พบข้อมูล</div>';
     var isLA = roleOf_(p) === 'LA';
-    var rows = isLA ? [['ch', d.ch], ['b1', d.b1], ['n', d.n]] : [['ch', d.ch], ['b', d.b], ['n', d.n], ['d0', d.d0], ['d1', d.d1]];
+    var rows = isLA ? [['ch', d.ch], ['b1', d.b1], ['n', d.n], ['n1', d.n1]] : [['ch', d.ch], ['b', d.b], ['n', d.n], ['n1', d.n1], ['d0', d.d0], ['d1', d.d1]];
     var tot = 0;
     var h = '<div style="margin:8px 0;font-size:13.5px">ชื่อ <b>' + fullN_(p) + '</b> · ตำแหน่ง ' + p.title + '</div>';
     h += '<div class="rep-tbl-wrap"><table class="rep-tbl"><thead><tr><th>ประเภทเวร</th><th>อัตรา</th><th>วันที่</th><th>จำนวน</th><th>รวมเงิน</th></tr></thead><tbody>';
@@ -301,7 +306,7 @@ var ReportService = (function () {
     var d = r[pid];
     if (!p || !d) return '<div style="padding:20px;color:var(--mut)">ไม่พบข้อมูล</div>';
     var isLA = roleOf_(p) === 'LA';
-    var shiftIds = isLA ? ['ch', 'b1', 'n'] : ['ch', 'b', 'n', 'd'];
+    var shiftIds = isLA ? ['ch', 'b1', 'n', 'n1'] : ['ch', 'b', 'n', 'n1', 'd'];
     var totalAmt = 0, totalDays = 0;
     var cards = shiftIds.map(function (id) {
       var sd = SHIFT_DEFS[id];
@@ -342,7 +347,7 @@ var ReportService = (function () {
 
   /** Ported from repTeamOverview() (2835-2888), excluding calendar heatmap (kept as separate frontend grid view). */
   function repTeamOverview_(r, people, rateOvr, rates, year, month) {
-    var shiftIds = ['ch', 'b', 'b1', 'n', 'd'];
+    var shiftIds = ['ch', 'b', 'b1', 'n', 'n1', 'd'];
     var h = '<div style="font-size:13.5px;font-weight:600;margin-bottom:10px">ภาพรวมการขึ้นเวร เดือน ' + TH_M[month] + ' ' + year + ' — ทุกคน</div>';
     var totByShift = {}; shiftIds.forEach(function (s) { totByShift[s] = 0; });
     people.forEach(function (p) { shiftIds.forEach(function (s) { totByShift[s] += ((r[p.id] || {})[s] || []).length; }); });
@@ -661,7 +666,7 @@ var ReportService = (function () {
     var workload = BusinessService.calculateWorkload(year, month);
     return workload.people.map(function (p) {
       var d = workload.byPerson[p.id];
-      var totalDays = ['ch', 'b', 'b1', 'n', 'd'].reduce(function (s, k) { return s + (d[k] || []).length; }, 0);
+      var totalDays = ['ch', 'b', 'b1', 'n', 'n1', 'd'].reduce(function (s, k) { return s + (d[k] || []).length; }, 0);
       return { pid: p.id, name: fullN_(p), role: p.role, totalDays: totalDays, money: workload.money[p.id] };
     });
   }
