@@ -44,7 +44,9 @@ var Schedule = (function () {
     b1: { short: 'บ', u: true, name: 'เวรบ่าย 16-20', bg: '#efe7f7', color: '#7a4fa0' }
   };
   var REPORT_TABS = [
-    { id: 'otsheet', label: 'OT timesheet' }, { id: 'otsheetb1', label: 'OT timesheet (<u>บ</u>)' }, { id: 'otsheetd', label: 'OT timesheet (เวรดึก)' }, { id: 'nsheet', label: 'เวรคลินิก (น)' },
+    { id: 'otsheet', label: 'OT timesheet' }, { id: 'otsheetb1', label: 'OT timesheet (<u>บ</u>)' },
+    { id: 'otsheetb1split', label: 'OT timesheet (<u>บ</u> แยก LA/MT)' },
+    { id: 'otsheetd', label: 'OT timesheet (เวรดึก)' }, { id: 'nsheet', label: 'เวรคลินิก (น)' },
     { id: 'pay', label: 'ใบเบิกเงินรวม' }, { id: 'payLandscape', label: 'ใบเบิกเงินรวม (แนวนอน A4)' },
     { id: 'payperson', label: 'รายบุคคล' },
     { id: 'shiftsummary', label: 'สรุปรายเวร' }, { id: 'teamoverview', label: 'ภาพรวมทีม' },
@@ -2041,6 +2043,7 @@ var Schedule = (function () {
   var DEFAULT_REPORT_TITLES = {
     otsheet: 'บัญชีลงเวลาการปฏิบัติงานนอกเวลาราชการ  เวรเช้าบ่าย',
     otsheetb1: 'บัญชีลงเวลาการปฏิบัติงานนอกเวลาราชการ เวรเสริมบ่าย',
+    otsheetb1split: 'บัญชีลงเวลาการปฏิบัติงานนอกเวลาราชการ 16.00-20.00 (แยก LA/MT)',
     otsheetd: 'บัญชีลงเวลาการปฏิบัติงานนอกเวลาราชการ  เวรดึก On call',
     nsheet: 'บัญชีลงเวลาการปฏิบัติงานนอกเวลาราชการ เวรคลินิกนอกเวลา',
     pay: 'หลักฐานการจ่ายเงินค่าตอบแทนปฏิบัติงานนอกเวลาราชการและในวันหยุดราชการ',

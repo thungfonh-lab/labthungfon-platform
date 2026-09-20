@@ -168,6 +168,34 @@ var ReportService = (function () {
     return h + '</tbody></table>';
   }
 
+  /* เหมือน repOTB1_ ทุกอย่าง แต่แยกเป็น 2 ตารางตามบทบาท (LA/MT) — ปกติเวร บ1 (16.00-20.00) จัดอัตโนมัติ
+     ให้เฉพาะ LA (ดู laPool ใน BusinessService.generateSchedule_) แต่ผ่านหน้า Override หัวหน้าใส่ MT
+     เข้าเวรนี้ได้เหมือนกัน รายงานนี้จึงแยกเซ็นชื่อเป็นคนละชุดให้ตรวจสอบ/เก็บง่ายขึ้นตามฟีดแบ็ก */
+  function repOTB1Split_(workload, year, month, laB, N, settings) {
+    var tB1 = shiftTime_(settings, 'b1');
+    var laRows = [], mtRows = [];
+    for (var d = 1; d <= N; d++) {
+      (laB[d] || []).forEach(function (pid) {
+        var p = workload.people.filter(function (x) { return x.id === pid; })[0];
+        if (!p) return;
+        (roleOf_(p) === 'LA' ? laRows : mtRows).push([d, p, tB1.s, tB1.e]);
+      });
+    }
+    function tableFor(rows, groupLabel) {
+      if (!rows.length) return '';
+      var t = '<div style="font-weight:700;font-size:13px;margin:14px 0 4px">' + groupLabel + '</div>' +
+        '<table class="rep-tbl rep-tbl-sig"><thead>' + reportHeaderRows_(settings, year, month, 8) + SIG_HEAD_ROW_ + '</thead><tbody>';
+      rows.forEach(function (row) {
+        var d2 = row[0], p = row[1], s = row[2], e = row[3];
+        t += '<tr><td class="c">' + dStr_(d2, year, month) + '</td><td class="l">' + fullN_(p) + '</td><td class="c">' + p.title + '</td>' +
+          '<td class="c">เวรบ่าย</td><td class="c">' + s + '</td><td class="sig-col"></td><td class="c">' + e + '</td><td class="sig-col"></td></tr>';
+      });
+      return t + '</tbody></table>';
+    }
+    var html = tableFor(laRows, 'กลุ่ม LA (ผู้ช่วยห้องปฏิบัติการ)') + tableFor(mtRows, 'กลุ่ม MT (นักเทคนิคการแพทย์)');
+    return html || '<div style="padding:20px;color:var(--mut);text-align:center">ยังไม่มีข้อมูล</div>';
+  }
+
   /** OT timesheet สำหรับเวรดึก (on call) — รูปแบบจัดวางเดียวกับ repOT_ (otsheet) ทุกอย่าง
    *  แยกเป็น 2 ช่วงเวลาตามฟีดแบ็ก: ด (00.00-04.00) และ ด (04.00-08.00) — ดึงจากบันทึก on call จริง
    *  (ไม่ใช่ตารางเวร) นับ 1 แถวต่อคน/วัน/ช่วงเวลา ไม่ซ้ำแม้มีหลาย LAB ในช่วงเดียวกัน */
@@ -573,6 +601,7 @@ var ReportService = (function () {
   var REPORT_TITLES = {
     otsheet: 'บัญชีลงเวลาการปฏิบัติงานนอกเวลาราชการ  เวรเช้าบ่าย',
     otsheetb1: 'บัญชีลงเวลาการปฏิบัติงานนอกเวลาราชการ เวรเสริมบ่าย',
+    otsheetb1split: 'บัญชีลงเวลาการปฏิบัติงานนอกเวลาราชการ 16.00-20.00 (แยก LA/MT)',
     otsheetd: 'บัญชีลงเวลาการปฏิบัติงานนอกเวลาราชการ  เวรดึก On call',
     nsheet: 'บัญชีลงเวลาการปฏิบัติงานนอกเวลาราชการ เวรคลินิกนอกเวลา',
     pay: 'หลักฐานการจ่ายเงินค่าตอบแทนปฏิบัติงานนอกเวลาราชการและในวันหยุดราชการ',
@@ -615,6 +644,7 @@ var ReportService = (function () {
     var r = workload.byPerson;
     if (kind === 'otsheet') return { title: titleFor_(settings, kind), html: repOT_(workload, year, month, calendar.assign, calendar.N, settings, calendar.holidays) };
     if (kind === 'otsheetb1') return { title: titleFor_(settings, kind), html: repOTB1_(workload, year, month, calendar.laB, calendar.N, settings) };
+    if (kind === 'otsheetb1split') return { title: titleFor_(settings, kind), html: repOTB1Split_(workload, year, month, calendar.laB, calendar.N, settings) };
     if (kind === 'nsheet') return { title: titleFor_(settings, kind), html: repN_(workload, year, month, calendar.clinicMt, calendar.clinicLa, calendar.N, settings) };
     if (kind === 'pay') return { title: titleFor_(settings, 'pay'), html: '<div class="pay-portrait">' + repPay_(r, people, rateOvr, rates, settings, year, month) + '</div>' };
     if (kind === 'payLandscape') return { title: titleFor_(settings, 'payLandscape'), html: '<div class="pay-landscape">' + repPay_(r, people, rateOvr, rates, settings, year, month) + '</div>' };
