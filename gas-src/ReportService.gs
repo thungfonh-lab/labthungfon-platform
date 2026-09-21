@@ -297,7 +297,9 @@ var ReportService = (function () {
     h += g.h; tot += g.sub;
     g = payGroup_('วันที่ปฏิบัติงาน ' + paySectionLabel_(settings, 'b'), MT.map(function (p) { return { p: p, days: (r[p.id] || {}).b }; }), 'b', rateOvr, rates);
     h += g.h; tot += g.sub;
-    g = payGroup_('วันที่ปฏิบัติงาน ' + paySectionLabel_(settings, 'b1'), LA.map(function (p) { return { p: p, days: (r[p.id] || {}).b1 }; }), 'b1', rateOvr, rates);
+    /* บ1 ปกติมีแต่ LA แต่ MT อาจได้ผ่าน Override เข้ามาด้วย (payGroup_ ข้ามคนที่ไม่มีวันอยู่แล้ว
+       จึงใส่ MT.concat(LA) ได้โดยไม่กระทบคนที่ไม่มี บ1) — ไม่งั้นเงิน MT ที่ทำ บ1 จะตกหล่นจากใบเบิกเงิน */
+    g = payGroup_('วันที่ปฏิบัติงาน ' + paySectionLabel_(settings, 'b1'), MT.concat(LA).map(function (p) { return { p: p, days: (r[p.id] || {}).b1 }; }), 'b1', rateOvr, rates);
     h += g.h; tot += g.sub;
     h += '<tr class="tot"><td colspan="6" class="r">รวมจ่ายทั้งสิ้น</td><td class="r">' + money_(tot) + '</td><td></td></tr></tbody></table></div>';
     h += '<div style="margin-top:7px;font-size:12.5px">รวมเป็นเงิน (ตัวอักษร) <b>' + bahtText_(tot) + '</b></div>';
@@ -313,6 +315,10 @@ var ReportService = (function () {
     if (!p || !d) return '<div style="padding:20px;color:var(--mut)">ไม่พบข้อมูล</div>';
     var isLA = roleOf_(p) === 'LA';
     var rows = isLA ? [['ch', d.ch], ['b1', d.b1], ['n', d.n], ['n1', d.n1]] : [['ch', d.ch], ['b', d.b], ['n', d.n], ['n1', d.n1], ['d0', d.d0], ['d1', d.d1]];
+    /* เวรข้ามบทบาทจาก Override (เช่น MT ได้ บ1, LA ได้ บ) ไม่อยู่ในลิสต์ข้างบนตามปกติ — เพิ่มแถวให้เฉพาะ
+       ตอนมีข้อมูลจริงเท่านั้น ไม่งั้นทุกคนจะโผล่แถว 0 วัน/0 บาท ที่ไม่มีความหมายเต็มรายงาน */
+    if (isLA && (d.b || []).length) rows.push(['b', d.b]);
+    if (!isLA && (d.b1 || []).length) rows.push(['b1', d.b1]);
     var tot = 0;
     var h = '<div style="margin:8px 0;font-size:13.5px">ชื่อ <b>' + fullN_(p) + '</b> · ตำแหน่ง ' + p.title + '</div>';
     h += '<div class="rep-tbl-wrap"><table class="rep-tbl"><thead><tr><th>ประเภทเวร</th><th>อัตรา</th><th>วันที่</th><th>จำนวน</th><th>รวมเงิน</th></tr></thead><tbody>';
@@ -338,6 +344,10 @@ var ReportService = (function () {
     if (!p || !d) return '<div style="padding:20px;color:var(--mut)">ไม่พบข้อมูล</div>';
     var isLA = roleOf_(p) === 'LA';
     var shiftIds = isLA ? ['ch', 'b1', 'n', 'n1'] : ['ch', 'b', 'n', 'n1', 'd'];
+    /* เวรข้ามบทบาทจาก Override (เช่น MT ได้ บ1, LA ได้ บ) ไม่อยู่ใน list ข้างบนตามปกติ — เพิ่มการ์ดให้
+       เฉพาะตอนมีข้อมูลจริงเท่านั้น เหมือน repPayPerson_ ด้านบน */
+    if (isLA && (d.b || []).length) shiftIds.push('b');
+    if (!isLA && (d.b1 || []).length) shiftIds.push('b1');
     var totalAmt = 0, totalDays = 0;
     var cards = shiftIds.map(function (id) {
       var sd = SHIFT_DEFS[id];
@@ -396,12 +406,13 @@ var ReportService = (function () {
     h += '<th>รวมวัน</th><th>รวมเงิน</th></tr></thead><tbody>';
     var grandTotal = 0;
     people.forEach(function (p) {
-      var isLA = roleOf_(p) === 'LA', rowTotal = 0, rowAmt = 0;
+      var rowTotal = 0, rowAmt = 0;
       h += '<tr><td class="l">' + fullN_(p) + '</td><td class="l" style="font-size:11px">' + p.title + '</td>';
+      /* เดิมซ่อนคอลัมน์ที่ไม่ตรงบทบาท (LA→ไม่โชว์ บ/ด, MT→ไม่โชว์ บ1) เป็น "—" เสมอ ทำให้เวรข้ามบทบาท
+         จาก Override (เช่น MT ได้ บ1) หายทั้งจำนวนวันและเงินไปจากแถวและยอดรวมทั้งหมด — ตอนนี้แสดงตาม
+         ข้อมูลจริง (days.length) แทน ถ้าไม่มีจริงก็ยังเป็น "—" เหมือนเดิมอยู่ดี */
       shiftIds.forEach(function (s) {
         var days = (r[p.id] || {})[s] || [];
-        var skip = (isLA && (s === 'b' || s === 'd')) || (!isLA && s === 'b1');
-        if (skip) { h += '<td style="color:#ccc;text-align:center">—</td>'; return; }
         var rp = r[p.id] || {};
         var amt = s === 'd'
           ? (rp.d0 || []).reduce(function (sum, dy) { return sum + BusinessService.rateFor_(rateOvr, rates, p, 'd0', dy); }, 0) +
