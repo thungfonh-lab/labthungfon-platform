@@ -244,16 +244,21 @@ var ReportService = (function () {
 
   /** Ported from pg() helper (2752-2757). คอลัมน์สุดท้ายเป็นช่องเซ็นชื่อผู้รับเงินเปล่าๆ ให้กรอกด้วยมือ
    *  ต่อจาก "จำนวนเงิน" ตามตัวอย่างฟอร์มที่หน่วยงานแนบมา. */
-  function payGroup_(title, rows, shift, rateOvr, rates) {
+  /* showZero: แสดงแถวของคนที่ไม่มีวันปฏิบัติงานในเวรนี้ด้วย (รวม 0 วัน/0 บาท) แทนการข้ามไปเงียบๆ
+     ใช้กับเวรดึก On call (d0/d1) ตามฟีดแบ็ก — เดือนไหนไม่มีใครโดนตาราง On call เลย ส่วนนั้นเคยว่างเปล่า
+     ไม่มีแถวข้อมูลใต้หัวข้อกลุ่มเลย (ดูเหมือนรายงานพัง) ทั้งที่ควรยืนยันชัดเจนว่า "ไม่มีใครขึ้นเวรนี้จริง"
+     เวรอื่น (ch/b/b1) ยังคงพฤติกรรมเดิม (ข้ามคนที่ไม่มีวันเพื่อไม่ให้รายชื่อพนักงานที่ไม่เกี่ยวข้องมาปน) */
+  function payGroup_(title, rows, shift, rateOvr, rates, showZero) {
     var h = '<tr class="grp"><td colspan="8">' + title + '</td></tr>', i = 0, sub = 0;
     rows.forEach(function (item) {
-      if (!item.days || !item.days.length) return;
+      var has = item.days && item.days.length;
+      if (!has && !showZero) return;
       i++;
-      var amt = item.days.reduce(function (s, d) { return s + BusinessService.rateFor_(rateOvr, rates, item.p, shift, d); }, 0);
+      var amt = has ? item.days.reduce(function (s, d) { return s + BusinessService.rateFor_(rateOvr, rates, item.p, shift, d); }, 0) : 0;
       sub += amt;
-      var rate = BusinessService.rateFor_(rateOvr, rates, item.p, shift, item.days[0]);
+      var rate = has ? BusinessService.rateFor_(rateOvr, rates, item.p, shift, item.days[0]) : BusinessService.rateFor_(rateOvr, rates, item.p, shift);
       h += '<tr><td class="c">' + i + '</td><td class="l">' + fullN_(item.p) + '</td><td class="l">' + item.p.title + '</td><td class="c">' + rate + '</td>' +
-        '<td class="l" style="white-space:normal">' + item.days.join(', ') + '</td><td class="c">' + item.days.length + '</td><td class="r">' + money_(amt) + '</td><td></td></tr>';
+        '<td class="l" style="white-space:normal">' + (has ? item.days.join(', ') : '—') + '</td><td class="c">' + (has ? item.days.length : 0) + '</td><td class="r">' + money_(amt) + '</td><td></td></tr>';
     });
     return { h: h, sub: sub };
   }
@@ -291,9 +296,9 @@ var ReportService = (function () {
        ไม่เท่ากับจำนวนเงิน การเงินตรวจสอบยอดไม่ได้. */
     var tot = 0;
     var h = payPageHeader_(title, settings, year, month) + '<div class="rep-tbl-wrap"><table class="rep-tbl">' + theadRow + '<tbody>';
-    var g = payGroup_('วันที่ปฏิบัติงาน ' + paySectionLabel_(settings, 'd0'), MT.map(function (p) { return { p: p, days: (r[p.id] || {}).d0 }; }), 'd0', rateOvr, rates);
+    var g = payGroup_('วันที่ปฏิบัติงาน ' + paySectionLabel_(settings, 'd0'), MT.map(function (p) { return { p: p, days: (r[p.id] || {}).d0 }; }), 'd0', rateOvr, rates, true);
     h += g.h; tot += g.sub;
-    g = payGroup_('วันที่ปฏิบัติงาน ' + paySectionLabel_(settings, 'd1'), MT.map(function (p) { return { p: p, days: (r[p.id] || {}).d1 }; }), 'd1', rateOvr, rates);
+    g = payGroup_('วันที่ปฏิบัติงาน ' + paySectionLabel_(settings, 'd1'), MT.map(function (p) { return { p: p, days: (r[p.id] || {}).d1 }; }), 'd1', rateOvr, rates, true);
     h += g.h; tot += g.sub;
     g = payGroup_('วันที่ปฏิบัติงาน ' + paySectionLabel_(settings, 'ch'), MT.concat(LA).map(function (p) { return { p: p, days: (r[p.id] || {}).ch }; }), 'ch', rateOvr, rates);
     h += g.h; tot += g.sub;
