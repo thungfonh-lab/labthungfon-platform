@@ -442,8 +442,9 @@ var Schedule = (function () {
         }).join('');
         row += '<td class="' + dowCls(d2) + onLeave + '"><div class="cell' + (ovrd ? ' ovrd' : '') + '" data-day="' + d2 + '" data-pid="' + p.id + '">' + cellHtml + '</div></td>';
       }
-      var isLA = p.role === 'LA';
-      var rmt = isLA ? sums.ch + sums.b1 : sums.ch + sums.b;
+      /* รวมนับ ช+บ+บ1 เสมอ ไม่แยกตามบทบาท — ปกติ MT จะไม่มี บ1 (LA เท่านั้น) และ LA จะไม่มี บ (MT เท่านั้น)
+         อยู่แล้ว แต่ถ้ามีการ Override ข้ามบทบาท (เช่น MT ได้ บ1 เพิ่ม) ต้องนับรวมด้วย ไม่ตกหล่น */
+      var rmt = sums.ch + sums.b + sums.b1;
       row += '<td class="sumcol">' + sums.n + '</td><td class="sumcol">' + sums.n1 + '</td><td class="sumcol">' + sums.ch + '</td><td class="sumcol">' + sums.b1 + '</td><td class="sumcol">' + sums.b + '</td><td class="sumcol">' + sums.d + '</td><td class="sumcol" style="font-size:12px">' + rmt + '</td></tr>';
       h += row;
       ['ch', 'b', 'b1', 'n', 'n1', 'd'].forEach(function (t) { totals[t] += sums[t] || 0; });
