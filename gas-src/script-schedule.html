@@ -34,11 +34,13 @@ var Schedule = (function () {
     ch: { short: 'ช', name: 'เวรเช้า 08-16', bg: '#d9ebe8', color: '#0a4f47' },
     b: { short: 'บ', name: 'เวรบ่าย 16-00', bg: '#e7eef8', color: '#2f5fa0' },
     d: { short: 'ด', name: 'เวรดึก On call 00-08', bg: '#f7ecd6', color: '#7a5618' },
-    n: { short: 'x', name: 'เวรคลินิกนอกเวลา 07-08', bg: '#ede0c4', color: '#6b4e16' },
-    /* n1 = เวรคลินิกนอกเวลา 2 (ค่าเริ่มต้น 06.00-08.00 น. แก้ได้ที่ตั้งค่า > เวลาปฏิบัติงานแต่ละเวร) —
+    /* ตามฟีดแบ็ก: เลขกำกับเวรคลินิกนอกเวลาอิงเวลาเริ่ม ไม่ใช่ลำดับที่เพิ่มเข้าระบบ — n (07-08, เพิ่มก่อน)
+       ชื่อว่า "2" เพราะเริ่มทีหลัง n1 (06-08, เพิ่มทีหลัง) ที่ชื่อว่า "1" เพราะเริ่มก่อน */
+    n: { short: 'x', name: 'เวรคลินิกนอกเวลา 2 07-08', bg: '#ede0c4', color: '#6b4e16' },
+    /* n1 = เวรคลินิกนอกเวลา 1 (ค่าเริ่มต้น 06.00-08.00 น. แก้ได้ที่ตั้งค่า > เวลาปฏิบัติงานแต่ละเวร) —
        เวรใหม่แยกจาก n โดยสิ้นเชิง มีเวลา/อัตราของตัวเอง กำหนดคนขึ้นเวรเองผ่าน Override ในตารางเวรเท่านั้น
        (ไม่มีการจัดอัตโนมัติจาก generateSchedule) สัญลักษณ์ "x ขีดเส้นใต้" ให้แยกจาก x เดิมแบบเดียวกับ บ/บ1 */
-    n1: { short: 'x', u: true, name: 'เวรคลินิกนอกเวลา 2 06-08', bg: '#f8dfc4', color: '#b5541c' },
+    n1: { short: 'x', u: true, name: 'เวรคลินิกนอกเวลา 1 06-08', bg: '#f8dfc4', color: '#b5541c' },
     /* สัญลักษณ์ บ1 เปลี่ยนเป็น "บ ขีดเส้นใต้" ตามฟีดแบ็ก — u:true ให้ tokEl ใส่เส้นใต้
        (key 'b1' และข้อความที่บันทึกลง log/option ยังคง "บ1" เดิม ไม่กระทบข้อมูล) */
     b1: { short: 'บ', u: true, name: 'เวรบ่าย 16-20', bg: '#efe7f7', color: '#7a4fa0' }
@@ -62,7 +64,7 @@ var Schedule = (function () {
   /* เวรคลินิก (x) ของผู้ช่วย (LA) ใช้สีคนละชุดกับของนักเทคนิค (MT) เพื่อไม่ให้สับสนตอนจัดตาราง
      ว่า x ช่องนั้นเป็นเวรของใคร — ตอนพิมพ์ขาวดำไม่ต้องทำอะไรเพิ่ม เพราะกฎ
      html:not(.print-color) .tok{...!important} บังคับทุกโทเค็นเป็นดำพื้นใสอยู่แล้ว (สีนี้เป็น inline style) */
-  var N_LA_DEF_ = { short: 'x', name: 'เวรคลินิกนอกเวลา (ผู้ช่วย)', bg: '#f9d8e4', color: '#9d2b5e' };
+  var N_LA_DEF_ = { short: 'x', name: 'เวรคลินิกนอกเวลา 2 (ผู้ช่วย)', bg: '#f9d8e4', color: '#9d2b5e' };
 
   /* defOvr = ชุดสี/สัญลักษณ์ที่ใช้แทน SHIFT_DEFS[t] (ใช้กับ x ของ LA) — ไม่ส่งมาก็ใช้ของเดิม */
   function tokEl(t, suffix, defOvr) { var s = defOvr || SHIFT_DEFS[t]; return '<span class="tok" style="background:' + s.bg + ';color:' + s.color + (s.u ? ';text-decoration:underline;text-underline-offset:2px' : '') + '">' + s.short + (suffix || '') + '</span>'; }
@@ -528,10 +530,10 @@ var Schedule = (function () {
   /* ── manual override modal (ported from openOvr()/applyOvr()) ── */
   var OVR_SHIFT_OPTS = [
     ['ch', 'เวรเช้า (วันหยุด)'], ['b', 'เวรบ่าย'], ['d', 'เวรดึก On call'],
-    ['n_mt', 'เวรคลินิกนอกเวลา (MT)'], ['n_la', 'เวรคลินิกนอกเวลา (LA)'], ['b1', '<u>บ</u> เวรเสริมบ่าย'],
-    /* n1 = เวรคลินิกนอกเวลา 2 (06.00-08.00 น. ค่าเริ่มต้น) — กำหนดคนขึ้นเวรผ่าน Override ตรงนี้เท่านั้น
+    ['n_mt', 'เวรคลินิกนอกเวลา 2 (MT)'], ['n_la', 'เวรคลินิกนอกเวลา 2 (LA)'], ['b1', '<u>บ</u> เวรเสริมบ่าย'],
+    /* n1 = เวรคลินิกนอกเวลา 1 (06.00-08.00 น. ค่าเริ่มต้น) — กำหนดคนขึ้นเวรผ่าน Override ตรงนี้เท่านั้น
        ไม่มีการจัดอัตโนมัติ (ต่างจาก n_mt/n_la ที่ generateSchedule() จัดให้อัตโนมัติทุกเดือน) */
-    ['n1', '<u>x</u> เวรคลินิกนอกเวลา 2']
+    ['n1', '<u>x</u> เวรคลินิกนอกเวลา 1']
   ];
   var OVR_SHIFT_LABEL_ = {}; OVR_SHIFT_OPTS.forEach(function (o) { OVR_SHIFT_LABEL_[o[0]] = o[1]; });
   /* เรียงชิปเวรในหน้า Override ตามเวลาเริ่มปฏิบัติงานจริง (ด 00:00 → x2 06:00 → x(MT/LA) 07:00
@@ -860,7 +862,7 @@ var Schedule = (function () {
       '<div class="oc-form-grid">' +
       '<label>เจ้าหน้าที่<select id="avPid"></select></label>' +
       '<label>วันที่<input id="avDay" type="number" min="1" max="31"></label>' +
-      '<label>ประเภท<select id="avType"><option value="leave">ลาทั้งวัน</option><option value="leaveAM">ลาครึ่งวันเช้า</option><option value="leavePM">ลาครึ่งวันบ่าย</option><option value="noB">ไม่สะดวกเวร บ</option><option value="noD">ไม่สะดวกเวร ด</option><option value="noCh">ไม่สะดวกเวร ช (วันหยุด)</option><option value="noN">ไม่สะดวกเวรคลินิกนอกเวลา (' + shiftTime_('n').s.replace('.00','') + '-' + shiftTime_('n').e.replace('.00','') + ')</option><option value="noB1">ไม่สะดวกเวรเสริมบ่าย (16-20)</option><option value="offAll">ไม่ขึ้นเวรทุกเวร (off)</option></select></label>' +
+      '<label>ประเภท<select id="avType"><option value="leave">ลาทั้งวัน</option><option value="leaveAM">ลาครึ่งวันเช้า</option><option value="leavePM">ลาครึ่งวันบ่าย</option><option value="noB">ไม่สะดวกเวร บ</option><option value="noD">ไม่สะดวกเวร ด</option><option value="noCh">ไม่สะดวกเวร ช (วันหยุด)</option><option value="noN">ไม่สะดวกเวรคลินิกนอกเวลา 2 (' + shiftTime_('n').s.replace('.00','') + '-' + shiftTime_('n').e.replace('.00','') + ')</option><option value="noB1">ไม่สะดวกเวรเสริมบ่าย (16-20)</option><option value="offAll">ไม่ขึ้นเวรทุกเวร (off)</option></select></label>' +
       '</div><button class="btn btn-primary" id="avAddBtn"><i class="ti ti-plus"></i> เพิ่มรายการ</button>' +
       '<div class="card" style="margin-top:14px;"><div class="card-title"><i class="ti ti-list"></i>รายการที่แจ้งไว้</div><div class="tbl-wrap"><table class="tbl" id="avTable"></table></div></div>';
 
@@ -2052,7 +2054,7 @@ var Schedule = (function () {
     otsheetb1la: 'บัญชีลงเวลาการปฏิบัติงานนอกเวลาราชการ 16.00-20.00 (ผู้ช่วยห้องปฏิบัติการ)',
     otsheetb1mt: 'บัญชีลงเวลาการปฏิบัติงานนอกเวลาราชการ 16.00-20.00 (นักเทคนิคการแพทย์)',
     otsheetd: 'บัญชีลงเวลาการปฏิบัติงานนอกเวลาราชการ  เวรดึก On call',
-    nsheet: 'บัญชีลงเวลาการปฏิบัติงานนอกเวลาราชการ เวรคลินิกนอกเวลา',
+    nsheet: 'บัญชีลงเวลาการปฏิบัติงานนอกเวลาราชการ เวรคลินิกนอกเวลา 2',
     pay: 'หลักฐานการจ่ายเงินค่าตอบแทนปฏิบัติงานนอกเวลาราชการและในวันหยุดราชการ',
     payLandscape: 'หลักฐานการจ่ายเงินค่าตอบแทนปฏิบัติงานนอกเวลาราชการและในวันหยุดราชการ',
     payperson: 'หลักฐานการจ่ายเงิน (รายบุคคล)',
