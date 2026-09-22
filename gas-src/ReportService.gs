@@ -253,6 +253,9 @@ var ReportService = (function () {
     rows.forEach(function (item) {
       var has = item.days && item.days.length;
       if (!has && !showZero) return;
+      /* คนที่ปิดใช้งาน (ลาออก) ไม่มีวันปฏิบัติงานเวรนี้เลย ไม่ต้องโชว์แถว 0 วัน/0 บาท แม้ showZero เปิดอยู่
+         (d0/d1) — ต่างจากคนที่ยัง active ซึ่ง "ไม่มีใครขึ้นเวรนี้จริง" ยังต้องยืนยันชัดเจนตามเดิม */
+      if (!has && item.p.active === false) return;
       i++;
       var amt = has ? item.days.reduce(function (s, d) { return s + BusinessService.rateFor_(rateOvr, rates, item.p, shift, d); }, 0) : 0;
       sub += amt;
