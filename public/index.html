@@ -1828,7 +1828,7 @@ var Schedule = (function () {
       r1 += '<th class="dnum ' + c + '">' + d + '</th>';
       r2 += '<th class="dow ' + c + '">' + dl[new Date(cal.year - 543, cal.month, d).getDay()] + '</th>';
     }
-    r1 += '<th class="sumcol" rowspan="2">x</th><th class="sumcol" rowspan="2"><u>x</u></th><th class="sumcol" rowspan="2">ช</th><th class="sumcol" rowspan="2"><u>บ</u></th><th class="sumcol" rowspan="2">บ</th><th class="sumcol" rowspan="2">ด</th><th class="sumcol" rowspan="2">รวม</th>';
+    r1 += '<th class="sumcol" rowspan="2"><u>x</u></th><th class="sumcol" rowspan="2">x</th><th class="sumcol" rowspan="2">ช</th><th class="sumcol" rowspan="2"><u>บ</u></th><th class="sumcol" rowspan="2">บ</th><th class="sumcol" rowspan="2">ด</th><th class="sumcol" rowspan="2">รวม</th>';
     var h = '<thead><tr>' + r1 + '</tr><tr>' + r2 + '</tr></thead><tbody>';
 
     var totals = { ch: 0, b: 0, b1: 0, n: 0, n1: 0, d: 0 };
@@ -1860,7 +1860,7 @@ var Schedule = (function () {
       /* รวมนับ ช+บ+บ1 เสมอ ไม่แยกตามบทบาท — ปกติ MT จะไม่มี บ1 (LA เท่านั้น) และ LA จะไม่มี บ (MT เท่านั้น)
          อยู่แล้ว แต่ถ้ามีการ Override ข้ามบทบาท (เช่น MT ได้ บ1 เพิ่ม) ต้องนับรวมด้วย ไม่ตกหล่น */
       var rmt = sums.ch + sums.b + sums.b1;
-      row += '<td class="sumcol">' + sums.n + '</td><td class="sumcol">' + sums.n1 + '</td><td class="sumcol">' + sums.ch + '</td><td class="sumcol">' + sums.b1 + '</td><td class="sumcol">' + sums.b + '</td><td class="sumcol">' + sums.d + '</td><td class="sumcol" style="font-size:12px">' + rmt + '</td></tr>';
+      row += '<td class="sumcol">' + sums.n1 + '</td><td class="sumcol">' + sums.n + '</td><td class="sumcol">' + sums.ch + '</td><td class="sumcol">' + sums.b1 + '</td><td class="sumcol">' + sums.b + '</td><td class="sumcol">' + sums.d + '</td><td class="sumcol" style="font-size:12px">' + rmt + '</td></tr>';
       /* คนที่ปิดใช้งาน (ลาออก) ให้ซ่อนแถวออกจากตารางเวร แต่ยังคงข้อมูลเวรเดือนเก่าไว้ครบ —
          ซ่อนเฉพาะเดือนที่ไม่มีข้อมูลเวร/วันลาของคนนั้นเลย เดือนที่เคยมีเวรอยู่แล้วยังแสดงตามปกติ */
       var hasData = sums.ch + sums.b + sums.b1 + sums.n + sums.n1 + sums.d > 0 ||
@@ -1871,7 +1871,7 @@ var Schedule = (function () {
     });
     h += '<tr class="sum-row"><td class="nm" style="text-align:right;font-size:11px;color:var(--mut)">รวมทั้งหมด</td>';
     for (var d3 = 1; d3 <= cal.N; d3++) h += '<td></td>';
-    h += '<td class="sumcol">' + totals.n + '</td><td class="sumcol">' + totals.n1 + '</td><td class="sumcol">' + totals.ch + '</td><td class="sumcol">' + totals.b1 + '</td><td class="sumcol">' + totals.b + '</td><td class="sumcol">' + totals.d + '</td><td class="sumcol">—</td></tr></tbody>';
+    h += '<td class="sumcol">' + totals.n1 + '</td><td class="sumcol">' + totals.n + '</td><td class="sumcol">' + totals.ch + '</td><td class="sumcol">' + totals.b1 + '</td><td class="sumcol">' + totals.b + '</td><td class="sumcol">' + totals.d + '</td><td class="sumcol">—</td></tr></tbody>';
 
     var table = document.getElementById('schedTbl');
     table.innerHTML = h;
@@ -2810,7 +2810,9 @@ var Schedule = (function () {
       sel.style.display = personOptionsNeeded(kind) ? 'inline-block' : 'none';
       if (personOptionsNeeded(kind) && sel.dataset.loadedFor !== kind) {
         loadPeople().then(function (people) {
-          var opts = sortByGroupPriority_(people).map(function (p) { return '<option value="' + p.id + '">' + fullN(p) + '</option>'; }).join('');
+          /* ไม่แสดงคนที่ปิดใช้งาน (ลาออก) ใน dropdown เลือกบุคคล — ไม่กระทบข้อมูลเวรเดือนเก่าที่บันทึกไว้แล้ว
+             แค่ไม่ให้เลือกออกรายงานรายบุคคลใหม่ให้คนที่ปิดไปแล้วเท่านั้น */
+          var opts = sortByGroupPriority_(people).filter(function (p) { return p.active !== false; }).map(function (p) { return '<option value="' + p.id + '">' + fullN(p) + '</option>'; }).join('');
           if (kind === 'ocrec') opts = '<option value="all">ทุกคน</option>' + opts;
           sel.innerHTML = opts; sel.dataset.loadedFor = kind;
           sel.onchange = function () { loadReport(curKind); };

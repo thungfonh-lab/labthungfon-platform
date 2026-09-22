@@ -414,7 +414,7 @@ var ReportService = (function () {
     var grandTotal = 0;
     people.forEach(function (p) {
       var rowTotal = 0, rowAmt = 0;
-      h += '<tr><td class="l">' + fullN_(p) + '</td><td class="l" style="font-size:11px">' + p.title + '</td>';
+      var row = '<tr><td class="l">' + fullN_(p) + '</td><td class="l" style="font-size:11px">' + p.title + '</td>';
       /* เดิมซ่อนคอลัมน์ที่ไม่ตรงบทบาท (LA→ไม่โชว์ บ/ด, MT→ไม่โชว์ บ1) เป็น "—" เสมอ ทำให้เวรข้ามบทบาท
          จาก Override (เช่น MT ได้ บ1) หายทั้งจำนวนวันและเงินไปจากแถวและยอดรวมทั้งหมด — ตอนนี้แสดงตาม
          ข้อมูลจริง (days.length) แทน ถ้าไม่มีจริงก็ยังเป็น "—" เหมือนเดิมอยู่ดี */
@@ -426,13 +426,17 @@ var ReportService = (function () {
             (rp.d1 || []).reduce(function (sum, dy) { return sum + BusinessService.rateFor_(rateOvr, rates, p, 'd1', dy); }, 0)
           : days.reduce(function (sum, dy) { return sum + BusinessService.rateFor_(rateOvr, rates, p, s, dy); }, 0);
         rowTotal += days.length; rowAmt += amt;
-        h += '<td style="text-align:center">';
-        if (days.length) h += '<div style="font-weight:700">' + days.length + '</div><div style="font-size:10px;color:var(--mut)">' + money_(amt) + '</div>';
-        else h += '<span style="color:#ccc">—</span>';
-        h += '</td>';
+        row += '<td style="text-align:center">';
+        if (days.length) row += '<div style="font-weight:700">' + days.length + '</div><div style="font-size:10px;color:var(--mut)">' + money_(amt) + '</div>';
+        else row += '<span style="color:#ccc">—</span>';
+        row += '</td>';
       });
+      row += '<td style="text-align:center;font-weight:700">' + rowTotal + '</td><td style="text-align:right;font-weight:700">' + money_(rowAmt) + '</td></tr>';
+      /* คนที่ปิดใช้งาน (ลาออก) ไม่มีเวรเดือนนี้เลย ให้ซ่อนแถวออก — เดือนเก่าที่เคยมีเวรจริงยังแสดงตามปกติ
+         สอดคล้องกับตารางเวร (grid) ที่ซ่อนคนปิดใช้งานแบบเดียวกัน */
+      if (p.active === false && rowTotal === 0 && rowAmt === 0) return;
+      h += row;
       grandTotal += rowAmt;
-      h += '<td style="text-align:center;font-weight:700">' + rowTotal + '</td><td style="text-align:right;font-weight:700">' + money_(rowAmt) + '</td></tr>';
     });
     h += '<tr class="tot"><td colspan="2" class="r">รวมทั้งสิ้น</td>';
     shiftIds.forEach(function (s) { h += '<td class="c">' + totByShift[s] + '</td>'; });
