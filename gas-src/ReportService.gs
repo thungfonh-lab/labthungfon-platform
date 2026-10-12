@@ -363,6 +363,14 @@ var ReportService = (function () {
     return { h: h, sub: sub, subN: subN, subH: subH };
   }
 
+  /* หัวแบบฟอร์มราชการ 2 บรรทัด: ชื่อเอกสาร + "ส่วนราชการ ... ประจำเดือน ... พ.ศ. ..." ตามต้นฉบับ */
+  function payFormHeader_(title, settings, year, month) {
+    return '<div style="text-align:center;margin-bottom:10px;line-height:1.55;">' +
+      '<div style="font-weight:700;font-size:15px;">' + title + '</div>' +
+      '<div style="font-size:12.5px;">ส่วนราชการ ' + [settings.org, settings.hosp, settings.prov].filter(Boolean).join(' ') +
+      ' &nbsp; ประจำเดือน ' + TH_M[month] + ' &nbsp; พ.ศ. ' + year + '</div></div>';
+  }
+
   function repPayForm_(r, people, rateOvr, rates, settings, year, month, holidays) {
     var MT = people.filter(function (p) { return p.role !== 'LA'; });
     var LA = people.filter(function (p) { return p.role === 'LA'; });
@@ -374,7 +382,7 @@ var ReportService = (function () {
       '<tr>' + emptyHead + '<th>วันปกติ<br>(ชั่วโมง)</th><th>วันหยุด<br>(ชั่วโมง)</th></tr></thead>';
     var groups = [['d0', MT, true], ['d1', MT, true], ['ch', MT.concat(LA), false], ['b', MT, false], ['b1', MT.concat(LA), false]];
     var tot = 0, totN = 0, totH = 0;
-    var h = payPageHeader_(titleFor_(settings, 'payForm'), settings, year, month) + '<div class="rep-tbl-wrap"><table class="rep-tbl payform-tbl">' + thead + '<tbody>';
+    var h = payFormHeader_(titleFor_(settings, 'payForm'), settings, year, month) + '<div class="rep-tbl-wrap"><table class="rep-tbl payform-tbl">' + thead + '<tbody>';
     groups.forEach(function (gd) {
       var key = gd[0];
       var g = payFormGroup_('วันที่ปฏิบัติงาน ' + paySectionLabel_(settings, key), gd[1].map(function (p) { return { p: p, days: (r[p.id] || {})[key] }; }), key, rateOvr, rates, gd[2], settings, isOffDay);
@@ -382,7 +390,9 @@ var ReportService = (function () {
     });
     h += '<tr class="tot"><td colspan="' + (PAYFORM_DAY_COLS_ + 2) + '" class="r">รวม</td><td class="c">' + hrs_(totN) + '</td><td class="c">' + hrs_(totH) + '</td><td class="r">' + money_(tot) + '</td><td></td><td></td><td></td></tr></tbody></table></div>';
     h += '<div style="margin-top:7px;font-size:12.5px">รวมเงินจ่ายทั้งสิ้น (ตัวอักษร) <b>' + bahtText_(tot) + '</b></div>';
-    h += '<div style="font-size:12px;margin-top:4px">ขอรับรองว่า ผู้มีรายชื่อข้างต้นปฏิบัติงานนอกเวลาจริง</div>' + sigRow_(settings);
+    h += '<div style="font-size:12.5px;margin-top:4px">ขอรับรองว่า ผู้มีรายชื่อข้างต้นปฏิบัติงานนอกเวลาจริง</div>' +
+    '<div class="payform-sign">ลงชื่อ ............................................................ ผู้รับรองการปฏิบัติงาน' +
+    '<span style="display:inline-block;width:60px"></span>ลายมือชื่อ ............................................................ ผู้จ่ายเงิน</div>';
     return h;
   }
 
