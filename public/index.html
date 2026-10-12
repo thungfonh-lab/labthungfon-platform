@@ -513,9 +513,11 @@ tbody tr:last-child td{border-bottom:none}
   .pay-form > div:first-child{margin-bottom:6px!important}
   .pay-form .sig-row{margin-top:20px!important;page-break-inside:avoid}
   /* แนวตั้ง A4: 20 คอลัมน์ในหน้ากว้างแคบ จึงบีบฟอนต์/ระยะลงจากแนวนอน */
-  .pay-form-portrait .rep-tbl{font-size:10px!important;line-height:1.3!important}
-  .pay-form-portrait .rep-tbl th,.pay-form-portrait .rep-tbl tr.grp td{font-size:10px!important}
-  .pay-form-portrait .rep-tbl th,.pay-form-portrait .rep-tbl td{padding:2px 2px!important}
+  .pay-form-portrait .rep-tbl{font-size:12px!important;line-height:1.45!important}
+  .pay-form-portrait .rep-tbl th,.pay-form-portrait .rep-tbl tr.grp td{font-size:12px!important}
+  .pay-form-portrait .rep-tbl th,.pay-form-portrait .rep-tbl td{padding:3px 2px!important}
+  /* แนวนอน: ลายเซ็นเหลือ 2 บรรทัด (ลงชื่อ + ตำแหน่ง) ซ่อนบรรทัดชื่อ ให้พอดี 1 หน้า (ตามฟีดแบ็ก) */
+  .pay-form:not(.pay-form-portrait) .sig > div:nth-child(2){display:none!important}
   .pay-form-portrait .payform-tbl td.c{min-width:14px}
   .pay-portrait .rep-tbl{line-height:1.6}
   .pay-portrait .rep-tbl th,.pay-portrait .rep-tbl td{padding:3px 6px}
