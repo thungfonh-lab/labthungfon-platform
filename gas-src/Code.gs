@@ -235,7 +235,7 @@ function invalidateCalCache_(year, month) {
 
 function api_getReport(token, kind, year, month, pid) {
   var session = AuthService.requireSession(token);
-  if (kind === 'pay' || kind === 'payLandscape' || kind === 'payPerson' || kind === 'teamOverview') {
+  if (kind === 'pay' || kind === 'payLandscape' || kind === 'payForm' || kind === 'payPerson' || kind === 'teamOverview') {
     AuthService.requirePermission(session.user, 'viewAllPay', true);
   }
   var cacheKey = reportCacheKey_(kind, year, month, pid);

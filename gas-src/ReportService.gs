@@ -319,6 +319,73 @@ var ReportService = (function () {
   }
 
   /** Ported from repPayPerson() (2774-2790). */
+  /* ใบเบิกเงินรวม (แบบฟอร์มหลักฐานการเบิกจ่าย) — รายงานแยกจาก repPay_ เดิม ใช้เงื่อนไขเดียวกันทุกอย่าง
+     แต่จัดหน้าตามแบบฟอร์มราชการ: วันที่ปฏิบัติงาน 12 ช่อง (เกินขึ้นบรรทัดใหม่), รวมเวลาเป็นชั่วโมง
+     แยกวันปกติ/วันหยุด (คิดจากเวลาปฏิบัติงานของแต่ละเวรใน settings.shiftTimes), หมายเหตุปล่อยว่าง */
+  var PAYFORM_DAY_COLS_ = 12;
+  function shiftHours_(settings, key) {
+    var t = key === 'd0' ? { s: '00.00', e: '04.00' } : key === 'd1' ? { s: '04.01', e: '08.00' } : shiftTime_(settings, key);
+    function toMin(x) { var m = String(x || '').split(/[.:]/); return (+m[0] || 0) * 60 + (+m[1] || 0); }
+    var diff = toMin(t.e) - toMin(t.s);
+    if (diff <= 0) diff += 24 * 60;
+    return Math.round(diff / 30) / 2;
+  }
+  function hrs_(n) { return n % 1 === 0 ? String(n) : n.toFixed(1); }
+  function payFormGroup_(title, rows, shift, rateOvr, rates, showZero, settings, isOffDay) {
+    var H = shiftHours_(settings, shift);
+    var h = '<tr class="grp"><td colspan="' + (PAYFORM_DAY_COLS_ + 8) + '" class="l">' + title + '</td></tr>';
+    var i = 0, sub = 0, subN = 0, subH = 0;
+    rows.forEach(function (item) {
+      var days = item.days || [];
+      var has = days.length > 0;
+      if (!has && !showZero) return;
+      if (!has && item.p.active === false) return;
+      i++;
+      var amt = days.reduce(function (s, d) { return s + BusinessService.rateFor_(rateOvr, rates, item.p, shift, d); }, 0);
+      var nOff = days.filter(isOffDay).length;
+      var hN = (days.length - nOff) * H, hH = nOff * H;
+      sub += amt; subN += hN; subH += hH;
+      var chunks = [];
+      for (var k = 0; k < Math.max(days.length, 1); k += PAYFORM_DAY_COLS_) chunks.push(days.slice(k, k + PAYFORM_DAY_COLS_));
+      var rs = chunks.length > 1 ? ' rowspan="' + chunks.length + '"' : '';
+      chunks.forEach(function (ch, ci) {
+        var cells = '';
+        for (var c = 0; c < PAYFORM_DAY_COLS_; c++) cells += '<td class="c">' + (ch[c] != null ? ch[c] : '') + '</td>';
+        if (ci === 0) {
+          h += '<tr><td class="c"' + rs + '>' + i + '</td><td class="l"' + rs + '>' + fullN_(item.p) + '</td>' + cells +
+            '<td class="c"' + rs + '>' + hrs_(hN) + '</td><td class="c"' + rs + '>' + hrs_(hH) + '</td><td class="r"' + rs + '>' + money_(amt) + '</td>' +
+            '<td' + rs + '></td><td' + rs + '></td><td' + rs + '></td></tr>';
+        } else {
+          h += '<tr>' + cells + '</tr>';
+        }
+      });
+    });
+    return { h: h, sub: sub, subN: subN, subH: subH };
+  }
+
+  function repPayForm_(r, people, rateOvr, rates, settings, year, month, holidays) {
+    var MT = people.filter(function (p) { return p.role !== 'LA'; });
+    var LA = people.filter(function (p) { return p.role === 'LA'; });
+    function isOffDay(d) { return BusinessService.isOff_(year, month, d, holidays || []); }
+    var emptyHead = '';
+    for (var k = 0; k < PAYFORM_DAY_COLS_; k++) emptyHead += '<th></th>';
+    var thead = '<thead><tr><th rowspan="2">ลำดับที่</th><th rowspan="2">ชื่อ</th><th colspan="' + PAYFORM_DAY_COLS_ + '">วันที่ปฏิบัติงาน</th>' +
+      '<th colspan="2">รวมเวลาปฏิบัติงาน</th><th rowspan="2">จำนวนเงิน</th><th rowspan="2">วัน เดือน ปี<br>ที่รับเงิน</th><th rowspan="2">ลายมือชื่อ<br>ผู้รับเงิน</th><th rowspan="2">หมายเหตุ</th></tr>' +
+      '<tr>' + emptyHead + '<th>วันปกติ<br>(ชั่วโมง)</th><th>วันหยุด<br>(ชั่วโมง)</th></tr></thead>';
+    var groups = [['d0', MT, true], ['d1', MT, true], ['ch', MT.concat(LA), false], ['b', MT, false], ['b1', MT.concat(LA), false]];
+    var tot = 0, totN = 0, totH = 0;
+    var h = payPageHeader_(titleFor_(settings, 'payForm'), settings, year, month) + '<div class="rep-tbl-wrap"><table class="rep-tbl payform-tbl">' + thead + '<tbody>';
+    groups.forEach(function (gd) {
+      var key = gd[0];
+      var g = payFormGroup_('วันที่ปฏิบัติงาน ' + paySectionLabel_(settings, key), gd[1].map(function (p) { return { p: p, days: (r[p.id] || {})[key] }; }), key, rateOvr, rates, gd[2], settings, isOffDay);
+      h += g.h; tot += g.sub; totN += g.subN; totH += g.subH;
+    });
+    h += '<tr class="tot"><td colspan="' + (PAYFORM_DAY_COLS_ + 2) + '" class="r">รวม</td><td class="c">' + hrs_(totN) + '</td><td class="c">' + hrs_(totH) + '</td><td class="r">' + money_(tot) + '</td><td></td><td></td><td></td></tr></tbody></table></div>';
+    h += '<div style="margin-top:7px;font-size:12.5px">รวมเงินจ่ายทั้งสิ้น (ตัวอักษร) <b>' + bahtText_(tot) + '</b></div>';
+    h += '<div style="font-size:12px;margin-top:4px">ขอรับรองว่า ผู้มีรายชื่อข้างต้นปฏิบัติงานนอกเวลาจริง</div>' + sigRow_(settings);
+    return h;
+  }
+
   function repPayPerson_(r, pid, people, rateOvr, rates, settings) {
     var p = people.filter(function (x) { return x.id === pid; })[0];
     var d = r[pid];
@@ -626,6 +693,7 @@ var ReportService = (function () {
     nsheet: 'บัญชีลงเวลาการปฏิบัติงานนอกเวลาราชการ เวรคลินิกนอกเวลา 2',
     pay: 'หลักฐานการจ่ายเงินค่าตอบแทนปฏิบัติงานนอกเวลาราชการและในวันหยุดราชการ',
     payLandscape: 'หลักฐานการจ่ายเงินค่าตอบแทนปฏิบัติงานนอกเวลาราชการและในวันหยุดราชการ',
+    payForm: 'หลักฐานการเบิกจ่ายเงินตอบแทนการปฏิบัติงานนอกเวลาราชการ',
     payperson: 'หลักฐานการจ่ายเงิน (รายบุคคล)',
     shiftsummary: 'สรุปเวรรายบุคคล',
     teamoverview: 'ภาพรวมการขึ้นเวรทั้งทีม',
@@ -669,6 +737,7 @@ var ReportService = (function () {
     if (kind === 'nsheet') return { title: titleFor_(settings, kind), html: repN_(workload, year, month, calendar.clinicMt, calendar.clinicLa, calendar.N, settings) };
     if (kind === 'pay') return { title: titleFor_(settings, 'pay'), html: '<div class="pay-portrait">' + repPay_(r, people, rateOvr, rates, settings, year, month) + '</div>' };
     if (kind === 'payLandscape') return { title: titleFor_(settings, 'payLandscape'), html: '<div class="pay-landscape">' + repPay_(r, people, rateOvr, rates, settings, year, month) + '</div>' };
+    if (kind === 'payForm') return { title: titleFor_(settings, 'payForm'), html: '<div class="pay-landscape">' + repPayForm_(r, people, rateOvr, rates, settings, year, month, calendar.holidays) + '</div>' };
     if (kind === 'payperson') return { title: titleFor_(settings, kind), html: header + repPayPerson_(r, pid, people, rateOvr, rates, settings) };
     if (kind === 'shiftsummary') return { title: titleFor_(settings, kind), html: header + repShiftSummary_(r, pid, people, rateOvr, rates, settings, stations, year, month) };
     if (kind === 'teamoverview') return { title: titleFor_(settings, kind), html: header + repTeamOverview_(r, people, rateOvr, rates, year, month) };
