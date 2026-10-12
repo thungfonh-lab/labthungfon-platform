@@ -504,11 +504,12 @@ tbody tr:last-child td{border-bottom:none}
      (margin-top:140px ของ .sig-row ด้านล่าง) จึงขยายแถวให้อ่านง่ายขึ้นได้อีกโดยยังพอดี 1 หน้า */
   .payform-tbl th,.payform-tbl td{padding:2px 4px}
   .payform-tbl td.c{min-width:22px}
-  .payform-sign{margin-top:24px;font-size:12.5px;text-align:center;white-space:nowrap}
+  .payform-sign{margin-top:24px;font-size:13.5px;text-align:center;white-space:nowrap}
   /* ใบเบิกเงินรวม (แบบฟอร์มหลักฐานการเบิกจ่าย) — บีบให้พอดี 1 หน้า A4 แนวนอน รวมช่องลงนาม (ตามฟีดแบ็ก) */
-  .pay-form .rep-tbl{font-size:11.5px!important;line-height:1.2!important}
-  .pay-form .rep-tbl th,.pay-form .rep-tbl td{padding:1px 3px!important}
-  .pay-form .rep-tbl th{font-size:11px!important}
+  .pay-form .rep-tbl{font-size:12.5px!important;line-height:1.3!important}
+  .pay-form .rep-tbl th,.pay-form .rep-tbl td{padding:2px 4px!important}
+  .pay-form .rep-tbl th{font-size:12px!important}
+  .pay-form .rep-tbl tr.grp td{font-size:12.5px!important;padding-top:3px!important}
   .pay-form > div:first-child{margin-bottom:6px!important}
   .pay-form .payform-sign{margin-top:18px!important;page-break-inside:avoid}
   .pay-portrait .rep-tbl{line-height:1.6}
@@ -594,6 +595,11 @@ tbody tr:last-child td{border-bottom:none}
      (พอสำหรับเส้นภายในเพราะเซลล์ติดกันแชร์เส้นเดียว) แล้วเติมซ้ายเฉพาะคอลัมน์แรก บนเฉพาะแถวหัว ให้ครบกรอบนอก */
   .rep-tbl th,.rep-tbl td{border-style:solid!important;border-color:#000!important;border-width:0 .5px .5px 0!important}
   .rep-tbl th{border-top-width:.5px!important}
+  /* ใบเบิกเงินรวม (แบบฟอร์ม) — หัวตาราง 2 แถว + rowspan ทำให้เส้นบนของ th ซ้อนกับเส้นล่างแถวบน และกรอบ wrap ซ้อนเส้นเซลล์
+     ขอบนอก จึงหนาบางไม่เท่ากัน (ตามฟีดแบ็ก) — ใช้ collapse เส้นเดียวทุกด้านเฉพาะรายงานนี้ (wrap แคบกว่าขอบกระดาษอยู่แล้ว) */
+  .pay-form .rep-tbl-wrap{border:none!important}
+  .pay-form .rep-tbl{border-collapse:collapse!important}
+  .pay-form .rep-tbl th,.pay-form .rep-tbl td{border:1px solid #000!important}
   .rep-tbl td:first-child,.rep-tbl th:first-child{border-left-width:.5px!important}
   /* ใบเบิกเงินรวม/oncall record ฯลฯ (ห่อด้วย .rep-tbl-wrap) — กฎ 3 บรรทัดด้านบนเติมซ้าย/บนให้คอลัมน์แรก/แถวหัว
      เพื่อให้ .rep-tbl-sig (ไม่มี div ห่อ) วาดกรอบนอกของตัวเองครบ 4 ด้าน แต่ตารางที่มี .rep-tbl-wrap ห่ออยู่แล้ว

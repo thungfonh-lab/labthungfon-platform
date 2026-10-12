@@ -366,8 +366,8 @@ var ReportService = (function () {
   /* หัวแบบฟอร์มราชการ 2 บรรทัด: ชื่อเอกสาร + "ส่วนราชการ ... ประจำเดือน ... พ.ศ. ..." ตามต้นฉบับ */
   function payFormHeader_(title, settings, year, month) {
     return '<div style="text-align:center;margin-bottom:10px;line-height:1.55;">' +
-      '<div style="font-weight:700;font-size:15px;">' + title + '</div>' +
-      '<div style="font-size:12.5px;">ส่วนราชการ ' + [settings.org, settings.hosp, settings.prov].filter(Boolean).join(' ') +
+      '<div style="font-weight:700;font-size:16.5px;">' + title + '</div>' +
+      '<div style="font-size:13.5px;">ส่วนราชการ ' + [settings.org, settings.hosp, settings.prov].filter(Boolean).join(' ') +
       ' &nbsp; ประจำเดือน ' + TH_M[month] + ' &nbsp; พ.ศ. ' + year + '</div></div>';
   }
 
@@ -389,8 +389,8 @@ var ReportService = (function () {
       h += g.h; tot += g.sub; totN += g.subN; totH += g.subH;
     });
     h += '<tr class="tot"><td colspan="' + (PAYFORM_DAY_COLS_ + 2) + '" class="r">รวม</td><td class="c">' + hrs_(totN) + '</td><td class="c">' + hrs_(totH) + '</td><td class="r">' + money_(tot) + '</td><td></td><td></td><td></td></tr></tbody></table></div>';
-    h += '<div style="margin-top:7px;font-size:12.5px">รวมเงินจ่ายทั้งสิ้น (ตัวอักษร) <b>' + bahtText_(tot) + '</b></div>';
-    h += '<div style="font-size:12.5px;margin-top:4px">ขอรับรองว่า ผู้มีรายชื่อข้างต้นปฏิบัติงานนอกเวลาจริง</div>' +
+    h += '<div style="margin-top:8px;font-size:13.5px">รวมเงินจ่ายทั้งสิ้น (ตัวอักษร) <b>' + bahtText_(tot) + '</b></div>';
+    h += '<div style="font-size:13.5px;margin-top:4px">ขอรับรองว่า ผู้มีรายชื่อข้างต้นปฏิบัติงานนอกเวลาจริง</div>' +
     '<div class="payform-sign">ลงชื่อ ............................................................ ผู้รับรองการปฏิบัติงาน' +
     '<span style="display:inline-block;width:60px"></span>ลายมือชื่อ ............................................................ ผู้จ่ายเงิน</div>';
     return h;
