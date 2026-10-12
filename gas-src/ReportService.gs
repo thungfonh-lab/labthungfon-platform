@@ -377,12 +377,15 @@ var ReportService = (function () {
     function isOffDay(d) { return BusinessService.isOff_(year, month, d, holidays || []); }
     var emptyHead = '';
     for (var k = 0; k < PAYFORM_DAY_COLS_; k++) emptyHead += '<th></th>';
+    /* ความกว้างคอลัมน์ (มีผลเมื่อ table-layout:fixed — ใช้ในแนวตั้งให้ไม่ล้นขอบขวา) */
+    var colgroup = '<colgroup><col style="width:5%"><col style="width:19%">' + new Array(PAYFORM_DAY_COLS_ + 1).join('<col style="width:2.6%">') +
+      '<col style="width:6%"><col style="width:6%"><col style="width:9%"><col style="width:8%"><col style="width:8%"><col style="width:7.8%"></colgroup>';
     var thead = '<thead><tr><th rowspan="2">ลำดับที่</th><th rowspan="2">ชื่อ</th><th colspan="' + PAYFORM_DAY_COLS_ + '">วันที่ปฏิบัติงาน</th>' +
       '<th colspan="2">รวมเวลาปฏิบัติงาน</th><th rowspan="2">จำนวนเงิน</th><th rowspan="2">วัน เดือน ปี<br>ที่รับเงิน</th><th rowspan="2">ลายมือชื่อ<br>ผู้รับเงิน</th><th rowspan="2">หมายเหตุ</th></tr>' +
       '<tr>' + emptyHead + '<th>วันปกติ<br>(ชั่วโมง)</th><th>วันหยุด<br>(ชั่วโมง)</th></tr></thead>';
     var groups = [['d0', MT, true], ['d1', MT, true], ['ch', MT.concat(LA), false], ['b', MT, false], ['b1', MT.concat(LA), false]];
     var tot = 0, totN = 0, totH = 0;
-    var h = payFormHeader_(titleFor_(settings, titleKind || 'payForm'), settings, year, month) + '<div class="rep-tbl-wrap"><table class="rep-tbl payform-tbl">' + thead + '<tbody>';
+    var h = payFormHeader_(titleFor_(settings, titleKind || 'payForm'), settings, year, month) + '<div class="rep-tbl-wrap"><table class="rep-tbl payform-tbl">' + colgroup + thead + '<tbody>';
     groups.forEach(function (gd) {
       var key = gd[0];
       var g = payFormGroup_('วันที่ปฏิบัติงาน ' + paySectionLabel_(settings, key), gd[1].map(function (p) { return { p: p, days: (r[p.id] || {})[key] }; }), key, rateOvr, rates, gd[2], settings, isOffDay);
