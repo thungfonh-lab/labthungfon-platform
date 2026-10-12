@@ -586,8 +586,9 @@ tbody tr:last-child td{border-bottom:none}
   .rep-tbl th{border-top-width:.5px!important}
   /* ใบเบิกเงินรวม (แบบฟอร์ม) — หัวตาราง 2 แถว + rowspan ทำให้เส้นบนของ th ซ้อนกับเส้นล่างแถวบน และกรอบ wrap ซ้อนเส้นเซลล์
      ขอบนอก จึงหนาบางไม่เท่ากัน (ตามฟีดแบ็ก) — ใช้ collapse เส้นเดียวทุกด้านเฉพาะรายงานนี้ (wrap แคบกว่าขอบกระดาษอยู่แล้ว) */
-  /* ไม่แสดงเส้นขอบนอกสุด (ตามฟีดแบ็ก) — border-style:hidden ระดับ table ใน collapse mode ซ่อนเส้นนอกของทุกเซลล์ขอบ */
-  .pay-form .rep-tbl-wrap{border:none!important}
+  /* เส้นขอบนอกสุด: เส้นนอกของเซลล์ขอบ Chrome มักตัดหายตอนพิมพ์ จึงซ่อนด้วย border-style:hidden ระดับ table
+     แล้ววาดกรอบนอกจาก .rep-tbl-wrap แทน (1px เท่าเส้นใน) */
+  .pay-form .rep-tbl-wrap{border:1px solid #000!important}
   .pay-form .rep-tbl{border-collapse:collapse!important;border-style:hidden!important}
   .pay-form .rep-tbl th,.pay-form .rep-tbl td{border:1px solid #000!important}
   .rep-tbl td:first-child,.rep-tbl th:first-child{border-left-width:.5px!important}
