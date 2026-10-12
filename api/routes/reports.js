@@ -12,7 +12,7 @@ router.get('/reports/:kind', wrap(async (req, res) => {
   const session = authService.requireSession(getToken(req));
   const { kind } = req.params;
   const year = +req.query.year, month = +req.query.month, pid = req.query.pid || null;
-  if (['pay', 'payLandscape', 'payForm', 'payPerson', 'teamOverview'].indexOf(kind) > -1) {
+  if (['pay', 'payLandscape', 'payForm', 'payFormPortrait', 'payPerson', 'teamOverview'].indexOf(kind) > -1) {
     await authService.requirePermission(session.user, 'viewAllPay', true);
   }
   const cacheKey = cacheService.reportCacheKey(kind, year, month, pid);

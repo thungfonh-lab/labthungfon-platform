@@ -371,7 +371,7 @@ var ReportService = (function () {
       ' &nbsp; ประจำเดือน ' + TH_M[month] + ' &nbsp; พ.ศ. ' + year + '</div></div>';
   }
 
-  function repPayForm_(r, people, rateOvr, rates, settings, year, month, holidays) {
+  function repPayForm_(r, people, rateOvr, rates, settings, year, month, holidays, titleKind) {
     var MT = people.filter(function (p) { return p.role !== 'LA'; });
     var LA = people.filter(function (p) { return p.role === 'LA'; });
     function isOffDay(d) { return BusinessService.isOff_(year, month, d, holidays || []); }
@@ -382,7 +382,7 @@ var ReportService = (function () {
       '<tr>' + emptyHead + '<th>วันปกติ<br>(ชั่วโมง)</th><th>วันหยุด<br>(ชั่วโมง)</th></tr></thead>';
     var groups = [['d0', MT, true], ['d1', MT, true], ['ch', MT.concat(LA), false], ['b', MT, false], ['b1', MT.concat(LA), false]];
     var tot = 0, totN = 0, totH = 0;
-    var h = payFormHeader_(titleFor_(settings, 'payForm'), settings, year, month) + '<div class="rep-tbl-wrap"><table class="rep-tbl payform-tbl">' + thead + '<tbody>';
+    var h = payFormHeader_(titleFor_(settings, titleKind || 'payForm'), settings, year, month) + '<div class="rep-tbl-wrap"><table class="rep-tbl payform-tbl">' + thead + '<tbody>';
     groups.forEach(function (gd) {
       var key = gd[0];
       var g = payFormGroup_('วันที่ปฏิบัติงาน ' + paySectionLabel_(settings, key), gd[1].map(function (p) { return { p: p, days: (r[p.id] || {})[key] }; }), key, rateOvr, rates, gd[2], settings, isOffDay);
@@ -391,8 +391,7 @@ var ReportService = (function () {
     h += '<tr class="tot"><td colspan="' + (PAYFORM_DAY_COLS_ + 2) + '" class="r">รวม</td><td class="c">' + hrs_(totN) + '</td><td class="c">' + hrs_(totH) + '</td><td class="r">' + money_(tot) + '</td><td></td><td></td><td></td></tr></tbody></table></div>';
     h += '<div style="margin-top:8px;font-size:13.5px">รวมเงินจ่ายทั้งสิ้น (ตัวอักษร) <b>' + bahtText_(tot) + '</b></div>';
     h += '<div style="font-size:13.5px;margin-top:4px">ขอรับรองว่า ผู้มีรายชื่อข้างต้นปฏิบัติงานนอกเวลาจริง</div>' +
-    '<div class="payform-sign">ลงชื่อ ........................................ ผู้รับรองการปฏิบัติงาน ' + (settings.signHT || 'หัวหน้ากลุ่มงานเทคนิคการแพทย์') +
-    '<span style="display:inline-block;width:30px"></span>ลายมือชื่อ ........................................ ผู้จ่ายเงิน ' + (settings.signPayT || 'เจ้าพนักงานการเงินและบัญชีชำนาญงาน') + '</div>';
+    sigRow_(settings);
     return h;
   }
 
@@ -704,6 +703,7 @@ var ReportService = (function () {
     pay: 'หลักฐานการจ่ายเงินค่าตอบแทนปฏิบัติงานนอกเวลาราชการและในวันหยุดราชการ',
     payLandscape: 'หลักฐานการจ่ายเงินค่าตอบแทนปฏิบัติงานนอกเวลาราชการและในวันหยุดราชการ',
     payForm: 'หลักฐานการเบิกจ่ายเงินตอบแทนการปฏิบัติงานนอกเวลาราชการ',
+    payFormPortrait: 'หลักฐานการเบิกจ่ายเงินตอบแทนการปฏิบัติงานนอกเวลาราชการ',
     payperson: 'หลักฐานการจ่ายเงิน (รายบุคคล)',
     shiftsummary: 'สรุปเวรรายบุคคล',
     teamoverview: 'ภาพรวมการขึ้นเวรทั้งทีม',
@@ -748,6 +748,7 @@ var ReportService = (function () {
     if (kind === 'pay') return { title: titleFor_(settings, 'pay'), html: '<div class="pay-portrait">' + repPay_(r, people, rateOvr, rates, settings, year, month) + '</div>' };
     if (kind === 'payLandscape') return { title: titleFor_(settings, 'payLandscape'), html: '<div class="pay-landscape">' + repPay_(r, people, rateOvr, rates, settings, year, month) + '</div>' };
     if (kind === 'payForm') return { title: titleFor_(settings, 'payForm'), html: '<div class="pay-form">' + repPayForm_(r, people, rateOvr, rates, settings, year, month, calendar.holidays) + '</div>' };
+    if (kind === 'payFormPortrait') return { title: titleFor_(settings, 'payFormPortrait'), html: '<div class="pay-form pay-form-portrait">' + repPayForm_(r, people, rateOvr, rates, settings, year, month, calendar.holidays, 'payFormPortrait') + '</div>' };
     if (kind === 'payperson') return { title: titleFor_(settings, kind), html: header + repPayPerson_(r, pid, people, rateOvr, rates, settings) };
     if (kind === 'shiftsummary') return { title: titleFor_(settings, kind), html: header + repShiftSummary_(r, pid, people, rateOvr, rates, settings, stations, year, month) };
     if (kind === 'teamoverview') return { title: titleFor_(settings, kind), html: header + repTeamOverview_(r, people, rateOvr, rates, year, month) };

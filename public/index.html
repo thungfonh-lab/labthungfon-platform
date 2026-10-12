@@ -511,7 +511,12 @@ tbody tr:last-child td{border-bottom:none}
   .pay-form .rep-tbl th{font-size:12px!important}
   .pay-form .rep-tbl tr.grp td{font-size:12.5px!important;padding-top:3px!important}
   .pay-form > div:first-child{margin-bottom:6px!important}
-  .pay-form .payform-sign{margin-top:18px!important;page-break-inside:avoid}
+  .pay-form .sig-row{margin-top:20px!important;page-break-inside:avoid}
+  /* แนวตั้ง A4: 20 คอลัมน์ในหน้ากว้างแคบ จึงบีบฟอนต์/ระยะลงจากแนวนอน */
+  .pay-form-portrait .rep-tbl{font-size:10px!important;line-height:1.3!important}
+  .pay-form-portrait .rep-tbl th,.pay-form-portrait .rep-tbl tr.grp td{font-size:10px!important}
+  .pay-form-portrait .rep-tbl th,.pay-form-portrait .rep-tbl td{padding:2px 2px!important}
+  .pay-form-portrait .payform-tbl td.c{min-width:14px}
   .pay-portrait .rep-tbl{line-height:1.6}
   .pay-portrait .rep-tbl th,.pay-portrait .rep-tbl td{padding:3px 6px}
   body,html{overflow:visible!important;height:auto!important}
@@ -1479,7 +1484,7 @@ var Schedule = (function () {
     { id: 'otsheet', label: 'OT timesheet' }, { id: 'otsheetb1', label: 'OT timesheet (<u>บ</u>)' },
     { id: 'otsheetb1la', label: 'OT timesheet (<u>บ</u> LA)' }, { id: 'otsheetb1mt', label: 'OT timesheet (<u>บ</u> MT)' },
     { id: 'otsheetd', label: 'OT timesheet (เวรดึก)' }, { id: 'nsheet', label: 'เวรคลินิก (น)' },
-    { id: 'pay', label: 'ใบเบิกเงินรวม' }, { id: 'payLandscape', label: 'ใบเบิกเงินรวม (แนวนอน A4)' }, { id: 'payForm', label: 'ใบเบิกเงินรวม (แบบฟอร์มหลักฐานการเบิกจ่าย)' },
+    { id: 'pay', label: 'ใบเบิกเงินรวม' }, { id: 'payLandscape', label: 'ใบเบิกเงินรวม (แนวนอน A4)' }, { id: 'payForm', label: 'ใบเบิกเงินรวม (แบบฟอร์มหลักฐานการเบิกจ่าย)' }, { id: 'payFormPortrait', label: 'ใบเบิกเงินรวม (แบบฟอร์มหลักฐานการเบิกจ่าย แนวตั้ง)' },
     { id: 'payperson', label: 'รายบุคคล' },
     { id: 'shiftsummary', label: 'สรุปรายเวร' }, { id: 'teamoverview', label: 'ภาพรวมทีม' },
     { id: 'ocrec', label: 'บันทึก on-call' }, { id: 'occlaim', label: 'บันทึก on-call (รายละเอียด)' },
@@ -3490,6 +3495,7 @@ var Schedule = (function () {
     pay: 'หลักฐานการจ่ายเงินค่าตอบแทนปฏิบัติงานนอกเวลาราชการและในวันหยุดราชการ',
     payLandscape: 'หลักฐานการจ่ายเงินค่าตอบแทนปฏิบัติงานนอกเวลาราชการและในวันหยุดราชการ',
     payForm: 'หลักฐานการเบิกจ่ายเงินตอบแทนการปฏิบัติงานนอกเวลาราชการ',
+    payFormPortrait: 'หลักฐานการเบิกจ่ายเงินตอบแทนการปฏิบัติงานนอกเวลาราชการ',
     payperson: 'หลักฐานการจ่ายเงิน (รายบุคคล)',
     shiftsummary: 'สรุปเวรรายบุคคล',
     teamoverview: 'ภาพรวมการขึ้นเวรทั้งทีม',
