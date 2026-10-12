@@ -737,7 +737,7 @@ var ReportService = (function () {
     if (kind === 'nsheet') return { title: titleFor_(settings, kind), html: repN_(workload, year, month, calendar.clinicMt, calendar.clinicLa, calendar.N, settings) };
     if (kind === 'pay') return { title: titleFor_(settings, 'pay'), html: '<div class="pay-portrait">' + repPay_(r, people, rateOvr, rates, settings, year, month) + '</div>' };
     if (kind === 'payLandscape') return { title: titleFor_(settings, 'payLandscape'), html: '<div class="pay-landscape">' + repPay_(r, people, rateOvr, rates, settings, year, month) + '</div>' };
-    if (kind === 'payForm') return { title: titleFor_(settings, 'payForm'), html: '<div class="pay-landscape">' + repPayForm_(r, people, rateOvr, rates, settings, year, month, calendar.holidays) + '</div>' };
+    if (kind === 'payForm') return { title: titleFor_(settings, 'payForm'), html: '<div class="pay-form">' + repPayForm_(r, people, rateOvr, rates, settings, year, month, calendar.holidays) + '</div>' };
     if (kind === 'payperson') return { title: titleFor_(settings, kind), html: header + repPayPerson_(r, pid, people, rateOvr, rates, settings) };
     if (kind === 'shiftsummary') return { title: titleFor_(settings, kind), html: header + repShiftSummary_(r, pid, people, rateOvr, rates, settings, stations, year, month) };
     if (kind === 'teamoverview') return { title: titleFor_(settings, kind), html: header + repTeamOverview_(r, people, rateOvr, rates, year, month) };
