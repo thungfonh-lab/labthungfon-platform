@@ -344,7 +344,7 @@ var ReportService = (function () {
       if (!has && item.p.active === false) return;
       i++;
       var rl = has ? days.map(function (d) { return BusinessService.rateFor_(rateOvr, rates, item.p, shift, d); }) : [BusinessService.rateFor_(rateOvr, rates, item.p, shift)];
-      var rateTxt = rl.filter(function (v, k) { return rl.indexOf(v) === k; }).join(', ');
+      var rateTxt = rl.filter(function (v, k) { return rl.indexOf(v) === k; }).map(function (v) { return v + '/เวร'; }).join(', ');
       var amt = days.reduce(function (s, d) { return s + BusinessService.rateFor_(rateOvr, rates, item.p, shift, d); }, 0);
       var nOff = days.filter(isOffDay).length;
       var hN = (days.length - nOff) * H, hH = nOff * H;
@@ -352,7 +352,7 @@ var ReportService = (function () {
       h += '<tr><td class="c">' + i + '</td><td class="l">' + fullN_(item.p) + '</td>' +
         '<td class="l" style="white-space:normal">' + days.join(', ') + '</td>' +
         '<td class="c">' + hrs_(hN) + '</td><td class="c">' + hrs_(hH) + '</td><td class="r">' + money_(amt) + '</td>' +
-        '<td></td><td></td><td class="l" style="white-space:normal">อัตรา ' + rateTxt + ' บาท/เวร</td></tr>';
+        '<td></td><td></td><td class="l" style="white-space:normal">' + rateTxt + '</td></tr>';
     });
     return { h: h, sub: sub, subN: subN, subH: subH };
   }
