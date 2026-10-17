@@ -1437,7 +1437,7 @@ var Schedule = (function () {
       gsRun('api_exportExcel', Session.token, curKind, current.year, current.month, pid).then(downloadBase64);
     };
     document.getElementById('repPrintBtn').onclick = function () {
-      var landscapeKinds = ['payLandscape', 'payForm', 'ocrec'];
+      var landscapeKinds = ['payLandscape', 'payForm'];
       printWithPageSize(landscapeKinds.indexOf(curKind) > -1 ? 'size:A4 landscape;margin:6mm' : 'size:A4 portrait;margin:9mm');
     };
 
