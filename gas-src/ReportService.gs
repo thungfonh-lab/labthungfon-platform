@@ -320,9 +320,10 @@ var ReportService = (function () {
 
   /** Ported from repPayPerson() (2774-2790). */
   /* ใบเบิกเงินรวม (แบบฟอร์มหลักฐานการเบิกจ่าย) — รายงานแยกจาก repPay_ เดิม ใช้เงื่อนไขเดียวกันทุกอย่าง
-     แต่จัดหน้าตามแบบฟอร์มราชการ: วันที่ปฏิบัติงาน 12 ช่อง (เกินขึ้นบรรทัดใหม่), รวมเวลาเป็นชั่วโมง
-     แยกวันปกติ/วันหยุด (คิดจากเวลาปฏิบัติงานของแต่ละเวรใน settings.shiftTimes), หมายเหตุปล่อยว่าง */
-  var PAYFORM_DAY_COLS_ = 12;
+     แต่จัดหน้าตามแบบฟอร์มราชการ: วันที่ปฏิบัติงานรวมเป็นช่องเดียว (เรียงวันจากน้อยไปมาก ไม่แบ่งช่องขีดๆ),
+     รวมเวลาเป็นชั่วโมงแยกวันปกติ/วันหยุด (คิดจากเวลาปฏิบัติงานของแต่ละเวรใน settings.shiftTimes),
+     หมายเหตุใส่ "อัตรา ... บาท/เวร" ตามตำแหน่ง (MT/ผู้ช่วย) ของแต่ละคน */
+  var PAYFORM_COLS_ = 9; /* ลำดับ, ชื่อ, วันที่ปฏิบัติงาน, วันปกติ, วันหยุด, จำนวนเงิน, วัน เดือน ปี ที่รับเงิน, ลายมือชื่อ, หมายเหตุ */
   function shiftHours_(settings, key) {
     var t = key === 'd0' ? { s: '00.00', e: '04.00' } : key === 'd1' ? { s: '04.01', e: '08.00' } : shiftTime_(settings, key);
     function toMin(x) { var m = String(x || '').split(/[.:]/); return (+m[0] || 0) * 60 + (+m[1] || 0); }
@@ -333,32 +334,25 @@ var ReportService = (function () {
   function hrs_(n) { return n % 1 === 0 ? String(n) : n.toFixed(1); }
   function payFormGroup_(title, rows, shift, rateOvr, rates, showZero, settings, isOffDay) {
     var H = shiftHours_(settings, shift);
-    var h = '<tr class="grp"><td colspan="' + (PAYFORM_DAY_COLS_ + 8) + '" class="l">' + title + '</td></tr>';
+    var h = '<tr class="grp"><td colspan="' + PAYFORM_COLS_ + '" class="l">' + title + '</td></tr>';
     var i = 0, sub = 0, subN = 0, subH = 0;
     rows.forEach(function (item) {
-      var days = item.days || [];
+      /* เรียงวันจากน้อยไปมาก — วัน On call เรียงตามลำดับที่บันทึก (เช่น 11, 10) จึงต้องเรียงใหม่ก่อนแสดง */
+      var days = (item.days || []).slice().sort(function (x, y) { return x - y; });
       var has = days.length > 0;
       if (!has && !showZero) return;
       if (!has && item.p.active === false) return;
       i++;
+      var rl = has ? days.map(function (d) { return BusinessService.rateFor_(rateOvr, rates, item.p, shift, d); }) : [BusinessService.rateFor_(rateOvr, rates, item.p, shift)];
+      var rateTxt = rl.filter(function (v, k) { return rl.indexOf(v) === k; }).join(', ');
       var amt = days.reduce(function (s, d) { return s + BusinessService.rateFor_(rateOvr, rates, item.p, shift, d); }, 0);
       var nOff = days.filter(isOffDay).length;
       var hN = (days.length - nOff) * H, hH = nOff * H;
       sub += amt; subN += hN; subH += hH;
-      var chunks = [];
-      for (var k = 0; k < Math.max(days.length, 1); k += PAYFORM_DAY_COLS_) chunks.push(days.slice(k, k + PAYFORM_DAY_COLS_));
-      var rs = chunks.length > 1 ? ' rowspan="' + chunks.length + '"' : '';
-      chunks.forEach(function (ch, ci) {
-        var cells = '';
-        for (var c = 0; c < PAYFORM_DAY_COLS_; c++) cells += '<td class="c">' + (ch[c] != null ? ch[c] : '') + '</td>';
-        if (ci === 0) {
-          h += '<tr><td class="c"' + rs + '>' + i + '</td><td class="l"' + rs + '>' + fullN_(item.p) + '</td>' + cells +
-            '<td class="c"' + rs + '>' + hrs_(hN) + '</td><td class="c"' + rs + '>' + hrs_(hH) + '</td><td class="r"' + rs + '>' + money_(amt) + '</td>' +
-            '<td' + rs + '></td><td' + rs + '></td><td' + rs + '></td></tr>';
-        } else {
-          h += '<tr>' + cells + '</tr>';
-        }
-      });
+      h += '<tr><td class="c">' + i + '</td><td class="l">' + fullN_(item.p) + '</td>' +
+        '<td class="l" style="white-space:normal">' + days.join(', ') + '</td>' +
+        '<td class="c">' + hrs_(hN) + '</td><td class="c">' + hrs_(hH) + '</td><td class="r">' + money_(amt) + '</td>' +
+        '<td></td><td></td><td class="l" style="white-space:normal">อัตรา ' + rateTxt + ' บาท/เวร</td></tr>';
     });
     return { h: h, sub: sub, subN: subN, subH: subH };
   }
@@ -375,14 +369,12 @@ var ReportService = (function () {
     var MT = people.filter(function (p) { return p.role !== 'LA'; });
     var LA = people.filter(function (p) { return p.role === 'LA'; });
     function isOffDay(d) { return BusinessService.isOff_(year, month, d, holidays || []); }
-    var emptyHead = '';
-    for (var k = 0; k < PAYFORM_DAY_COLS_; k++) emptyHead += '<th></th>';
     /* ความกว้างคอลัมน์ (มีผลเมื่อ table-layout:fixed — ใช้ในแนวตั้งให้ไม่ล้นขอบขวา) */
-    var colgroup = '<colgroup><col style="width:5%"><col style="width:19%">' + new Array(PAYFORM_DAY_COLS_ + 1).join('<col style="width:2.6%">') +
-      '<col style="width:6%"><col style="width:6%"><col style="width:9%"><col style="width:8%"><col style="width:8%"><col style="width:7.8%"></colgroup>';
-    var thead = '<thead><tr><th rowspan="2">ลำดับที่</th><th rowspan="2">ชื่อ</th><th colspan="' + PAYFORM_DAY_COLS_ + '">วันที่ปฏิบัติงาน</th>' +
+    var colgroup = '<colgroup><col style="width:5%"><col style="width:19%"><col style="width:28%"><col style="width:6%"><col style="width:6%">' +
+      '<col style="width:9%"><col style="width:8%"><col style="width:8%"><col style="width:11%"></colgroup>';
+    var thead = '<thead><tr><th rowspan="2">ลำดับที่</th><th rowspan="2">ชื่อ</th><th rowspan="2">วันที่ปฏิบัติงาน</th>' +
       '<th colspan="2">รวมเวลาปฏิบัติงาน</th><th rowspan="2">จำนวนเงิน</th><th rowspan="2">วัน เดือน ปี<br>ที่รับเงิน</th><th rowspan="2">ลายมือชื่อ<br>ผู้รับเงิน</th><th rowspan="2">หมายเหตุ</th></tr>' +
-      '<tr>' + emptyHead + '<th>วันปกติ<br>(ชั่วโมง)</th><th>วันหยุด<br>(ชั่วโมง)</th></tr></thead>';
+      '<tr><th>วันปกติ<br>(ชั่วโมง)</th><th>วันหยุด<br>(ชั่วโมง)</th></tr></thead>';
     var groups = [['d0', MT, true], ['d1', MT, true], ['ch', MT.concat(LA), false], ['b', MT, false], ['b1', MT.concat(LA), false]];
     var tot = 0, totN = 0, totH = 0;
     var h = payFormHeader_(titleFor_(settings, titleKind || 'payForm'), settings, year, month) + '<div class="rep-tbl-wrap"><table class="rep-tbl payform-tbl">' + colgroup + thead + '<tbody>';
@@ -391,7 +383,7 @@ var ReportService = (function () {
       var g = payFormGroup_('วันที่ปฏิบัติงาน ' + paySectionLabel_(settings, key), gd[1].map(function (p) { return { p: p, days: (r[p.id] || {})[key] }; }), key, rateOvr, rates, gd[2], settings, isOffDay);
       h += g.h; tot += g.sub; totN += g.subN; totH += g.subH;
     });
-    h += '<tr class="tot"><td colspan="' + (PAYFORM_DAY_COLS_ + 2) + '" class="r">รวม</td><td class="c">' + hrs_(totN) + '</td><td class="c">' + hrs_(totH) + '</td><td class="r">' + money_(tot) + '</td><td></td><td></td><td></td></tr></tbody></table></div>';
+    h += '<tr class="tot"><td colspan="3" class="r">รวม</td><td class="c">' + hrs_(totN) + '</td><td class="c">' + hrs_(totH) + '</td><td class="r">' + money_(tot) + '</td><td></td><td></td><td></td></tr></tbody></table></div>';
     h += '<div style="margin-top:8px;font-size:13.5px">รวมเงินจ่ายทั้งสิ้น (ตัวอักษร) <b>' + bahtText_(tot) + '</b></div>';
     h += '<div style="font-size:13.5px;margin-top:4px">ขอรับรองว่า ผู้มีรายชื่อข้างต้นปฏิบัติงานนอกเวลาจริง</div>' +
     sigRow_(settings);
