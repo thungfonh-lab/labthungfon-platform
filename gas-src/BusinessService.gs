@@ -904,22 +904,36 @@ var BusinessService = (function () {
   /** จุดปฏิบัติงานที่ตั้ง rotate:true + rotateWith คู่กัน ให้สลับ assigned กันทุกๆ เดือนคู่/เดือนคี่
    *  (ตั้งค่า "หมุนเวียน" ไว้แต่ไม่มีจุดไหนเรียกใช้จริง — เพิ่ม logic นี้เพื่อให้สลับเมื่อเปลี่ยนเดือนจริง). */
   function rotateStationsForMonth_(stations, year, month) {
-    var swapMonth = (year * 12 + month) % 2 === 1;
-    var byId = {};
+    var k = year * 12 + month;
+    var byId = {}, orig = {};
     var result = (stations || []).map(function (s) {
       var copy = Object.assign({}, s, { assigned: (s.assigned || []).slice() });
       byId[copy.id] = copy;
+      orig[copy.id] = copy.assigned;
       return copy;
     });
-    if (!swapMonth) return result;
     var done = {};
     result.forEach(function (s) {
-      if (s.rotate && s.rotateWith && byId[s.rotateWith] && !done[s.id] && !done[s.rotateWith]) {
+      if (done[s.id] || !s.rotate || !s.rotateWith || !byId[s.rotateWith]) return;
+      /* ตามสาย rotateWith ไปเรื่อยๆ — ถ้าวนกลับมาที่ตัวเองคือวงหมุนเวียน (คู่ = วง 2 จุด, 3 จุดขึ้นไปก็ได้)
+         คนประจำจุดหนึ่งย้ายไปจุดที่ตั้ง "สลับกับ" ไว้ ทีละ 1 ก้าวต่อเดือน (วง n จุดครบรอบทุก n เดือน) */
+      var order = [s.id], next = byId[s.rotateWith];
+      while (next && order.indexOf(next.id) === -1) {
+        order.push(next.id);
+        next = (next.rotate && next.rotateWith) ? byId[next.rotateWith] : null;
+      }
+      if (next && next.id === s.id) {
+        var n = order.length, steps = k % n;
+        order.forEach(function (id, i) {
+          byId[order[(i + steps) % n]].assigned = orig[id];
+          done[id] = true;
+        });
+      } else if (k % 2 === 1 && !done[s.rotateWith]) {
+        /* สายไม่ปิดเป็นวง (จุดปลายทางไม่ได้ตั้งหมุนเวียน) — คงพฤติกรรมเดิม: สลับคู่ทุกเดือนคี่ */
         var partner = byId[s.rotateWith];
-        var tmp = s.assigned;
-        s.assigned = partner.assigned;
-        partner.assigned = tmp;
-        done[s.id] = done[s.rotateWith] = true;
+        s.assigned = orig[partner.id];
+        partner.assigned = orig[s.id];
+        done[s.id] = done[partner.id] = true;
       }
     });
     return result;
