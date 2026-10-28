@@ -470,7 +470,10 @@ tbody tr:last-child td{border-bottom:none}
   /* ซ่อนชุด swatch "วันหยุด/ลา" ท้ายบรรทัดตอนพิมพ์ตามฟีดแบ็ก — เหลือแต่ตัวเลขสรุป
      (บนจอยังแสดงอยู่ เพราะมีแถบสัญลักษณ์เต็มอยู่แล้วไม่เสียหาย) */
   #gridSub .gridsub-key{display:none!important}
-  .doc{border:none;padding:0;overflow:visible!important}
+  .doc{border:none;padding:0;overflow:visible!important;background:#fff!important;border-radius:0!important}
+  /* Safari บน iPad พิมพ์สีพื้นหลังด้วยเสมอ (Chrome ไม่พิมพ์ถ้าไม่ติ๊ก Background graphics) — พื้นครีมของแอป
+     กับขอบมนของ .doc เลยติดมาเป็นแถบ/เส้นด้านบนรายงาน บังคับพื้นขาวทุกชั้นตอนพิมพ์ */
+  html,body,#app,#content,.frame{background:#fff!important}
   .tbl-wrap{overflow:visible!important}
   /* รายงาน (.rep-tbl) ใช้ฟอนต์ TH Saraban (Sarabun) — ลด line-height ลงจาก 1.7 เพื่อให้พอดี A4
      ขยับจาก 10px → 11.5px ตามฟีดแบ็ก ("ตัวหนังสือขยายให้พอดีตาราง") — คอลัมน์ .rep-tbl ทั่วไป (ใบเบิกเงินรวม ฯลฯ)
