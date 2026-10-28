@@ -382,6 +382,17 @@ tbody tr:last-child td{border-bottom:none}
 .mo-chip.off{background:var(--surface2);color:var(--mut)}
 .mo-chip.on{background:var(--tl-l);color:var(--tl-d);border-color:var(--tl)}
 /* ── print: hide chrome, keep only report/sched content (fixes "ไม่ต้องพิมพ์เมนู") ── */
+/* ใบเบิกเงินรวม (แบบตารางรายวัน) — 31 คอลัมน์วันที่ ต้องบีบให้พอดี A4 แนวนอน (ใช้ทั้งจอและพิมพ์)
+   selector ยาวกว่า .pay-form:not(.pay-form-portrait) .rep-tbl ใน @media print เพื่อให้ชนะกฎบีบของ payForm */
+.pay-form.pay-grid .rep-tbl.paygrid-tbl{table-layout:fixed!important;width:100%!important;font-size:10.5px!important;line-height:1.3!important}
+.pay-form.pay-grid .rep-tbl.paygrid-tbl th{font-size:10px!important;white-space:normal!important}
+.pay-form.pay-grid .rep-tbl.paygrid-tbl th,.pay-form.pay-grid .rep-tbl.paygrid-tbl td{padding:2px 1px!important;overflow:hidden}
+.pay-form.pay-grid .rep-tbl.paygrid-tbl td.l{padding-left:3px!important;white-space:nowrap}
+.pay-form.pay-grid .rep-tbl.paygrid-tbl td.r{padding-right:3px!important}
+.paygrid-tbl .pg-col-no{width:28px}.paygrid-tbl .pg-col-name{width:auto}.paygrid-tbl .pg-col-rate{width:42px}
+.paygrid-tbl .pg-col-day{width:21px}.paygrid-tbl .pg-col-cnt{width:30px}.paygrid-tbl .pg-col-amt{width:58px}.paygrid-tbl .pg-col-sig{width:62px}
+.paygrid-tbl .pg-off{background:#dbe7f5!important;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
+.pay-form.pay-grid .rep-tbl.paygrid-tbl tr.pg-legend td{font-size:9.5px!important;white-space:normal!important}
 .print-sign{display:none}
 @media print{
   /* ตารางเวร = แนวนอน (กว้าง 31 วัน) · รายงาน (.doc) = แนวตั้ง (แถวเยอะ)
@@ -1507,7 +1518,7 @@ var Schedule = (function () {
     { id: 'otsheet', label: 'OT timesheet' }, { id: 'otsheetb1', label: 'OT timesheet (<u>บ</u>)' },
     { id: 'otsheetb1la', label: 'OT timesheet (<u>บ</u> LA)' }, { id: 'otsheetb1mt', label: 'OT timesheet (<u>บ</u> MT)' },
     { id: 'otsheetd', label: 'OT timesheet (เวรดึก)' }, { id: 'nsheet', label: 'เวรคลินิก (น)' },
-    { id: 'pay', label: 'ใบเบิกเงินรวม' }, { id: 'payLandscape', label: 'ใบเบิกเงินรวม (แนวนอน A4)' }, { id: 'payForm', label: 'ใบเบิกเงินรวม (แบบฟอร์มหลักฐานการเบิกจ่าย)' }, { id: 'payFormPortrait', label: 'ใบเบิกเงินรวม (แบบฟอร์มหลักฐานการเบิกจ่าย แนวตั้ง)' },
+    { id: 'pay', label: 'ใบเบิกเงินรวม' }, { id: 'payLandscape', label: 'ใบเบิกเงินรวม (แนวนอน A4)' }, { id: 'payForm', label: 'ใบเบิกเงินรวม (แบบฟอร์มหลักฐานการเบิกจ่าย)' }, { id: 'payFormPortrait', label: 'ใบเบิกเงินรวม (แบบฟอร์มหลักฐานการเบิกจ่าย แนวตั้ง)' }, { id: 'payGrid', label: 'ใบเบิกเงินรวม (แบบตารางรายวัน)' },
     { id: 'payperson', label: 'รายบุคคล' },
     { id: 'shiftsummary', label: 'สรุปรายเวร' }, { id: 'teamoverview', label: 'ภาพรวมทีม' },
     { id: 'ocrec', label: 'บันทึก on-call' }, { id: 'occlaim', label: 'บันทึก on-call (รายละเอียด)' },
@@ -2895,7 +2906,7 @@ var Schedule = (function () {
       gsRun('api_exportExcel', Session.token, curKind, current.year, current.month, pid).then(downloadBase64);
     };
     document.getElementById('repPrintBtn').onclick = function () {
-      var landscapeKinds = ['payLandscape', 'payForm'];
+      var landscapeKinds = ['payLandscape', 'payForm', 'payGrid'];
       printWithPageSize(landscapeKinds.indexOf(curKind) > -1 ? 'size:A4 landscape;margin:6mm' : 'size:A4 portrait;margin:9mm');
     };
 
@@ -3519,6 +3530,7 @@ var Schedule = (function () {
     payLandscape: 'หลักฐานการจ่ายเงินค่าตอบแทนปฏิบัติงานนอกเวลาราชการและในวันหยุดราชการ',
     payForm: 'หลักฐานการเบิกจ่ายเงินตอบแทนการปฏิบัติงานนอกเวลาราชการ',
     payFormPortrait: 'หลักฐานการเบิกจ่ายเงินตอบแทนการปฏิบัติงานนอกเวลาราชการ',
+    payGrid: 'หลักฐานการเบิกจ่ายเงินตอบแทนการปฏิบัติงานนอกเวลาราชการ',
     payperson: 'หลักฐานการจ่ายเงิน (รายบุคคล)',
     shiftsummary: 'สรุปเวรรายบุคคล',
     teamoverview: 'ภาพรวมการขึ้นเวรทั้งทีม',
