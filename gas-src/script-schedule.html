@@ -19,6 +19,7 @@ function printWithPageSize(size) {
   /* Safari บน iPad ระบายพื้นกระดาษด้วยสีพื้นหลังตอนอยู่บนจอ (ครีม) แม้ CSS ตอนพิมพ์จะสั่งขาวแล้ว — สลับพื้นเป็น
      ขาวตั้งแต่ก่อนสั่งพิมพ์ (class printing ใช้ได้ทั้งจอ/พิมพ์) แล้วค่อยถอดออกหลังพิมพ์ */
   document.documentElement.classList.add('printing');
+  fitIosPrint_();
   printStarted_ = false;
   window.print();
   /* iPad/iPhone Safari: print() ไม่บล็อกเหมือนเดสก์ท็อป และบางครั้งเงียบไปเฉยๆ ไม่เปิดหน้าต่างพิมพ์
@@ -34,6 +35,30 @@ function printWithPageSize(size) {
   }, 2500);
 }
 var printStarted_ = false;
+/* iPad/iPhone: Safari จัดหน้าพิมพ์ด้วยความกว้างจอ แล้วย่อทั้งหน้าให้พอดีความกว้างกระดาษ — ความสูงหน้ากระดาษ
+   (หน่วย CSS px) จึงแปรตามความกว้างจอ/การหมุนเครื่อง ย่อแบบค่าคงที่ (zoom .9) เลยพอดีบ้างไม่พอดีบ้าง
+   คำนวณ zoom ตอนสั่งพิมพ์แทน: ความสูงที่พิมพ์ได้ ≈ ความกว้างจอ × 0.62 (A4 แนวนอนหักขอบ+หัว/ท้ายของ Safari)
+   หารด้วยความสูงจริงของรายงาน ให้ใบเบิกแบบตารางรายวันพร้อมช่องลงชื่ออยู่ในหน้าเดียว */
+var iosFitEl_ = null;
+function fitIosPrint_() {
+  if (!document.documentElement.classList.contains('ios')) return;
+  var els = document.querySelectorAll('.pay-form.pay-grid');
+  for (var i = 0; i < els.length; i++) {
+    if (!els[i].offsetHeight) continue;
+    /* วัดความสูงที่ความกว้างเท่าตอนพิมพ์ (= ความกว้างจอ) ไม่ใช่ความกว้างบนจอที่มีเมนูข้าง — ตารางห่อบรรทัดต่างกัน */
+    els[i].style.zoom = '1';
+    els[i].style.width = window.innerWidth + 'px';
+    var h = els[i].offsetHeight;
+    els[i].style.width = '';
+    var z = Math.min(1, (window.innerWidth * 0.53) / h);
+    els[i].style.zoom = String(Math.max(0.5, Math.floor(z * 100) / 100));
+    iosFitEl_ = els[i];
+    return;
+  }
+}
+function unfitIosPrint_() {
+  if (iosFitEl_) { iosFitEl_.style.zoom = ''; iosFitEl_ = null; }
+}
 /* ติด class ios ที่ <html> ให้ CSS ตอนพิมพ์ปรับเฉพาะ iPad/iPhone ได้ (iPadOS รายงานตัวเป็น Macintosh แต่มีจอสัมผัส) */
 if (/iPad|iPhone|iPod/.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1)) {
   document.documentElement.classList.add('ios');
@@ -41,7 +66,7 @@ if (/iPad|iPhone|iPod/.test(navigator.userAgent) || (/Macintosh/.test(navigator.
 (function () {
   function mark() { printStarted_ = true; }
   window.addEventListener('beforeprint', mark);
-  window.addEventListener('afterprint', function () { document.documentElement.classList.remove('printing'); });
+  window.addEventListener('afterprint', function () { document.documentElement.classList.remove('printing'); unfitIosPrint_(); });
   if (window.matchMedia) {
     var mq = window.matchMedia('print');
     var onChange = function (e) { if (e.matches) mark(); };
