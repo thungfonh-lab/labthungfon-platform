@@ -49,7 +49,7 @@ var Schedule = (function () {
     { id: 'otsheet', label: 'OT timesheet' }, { id: 'otsheetb1', label: 'OT timesheet (<u>บ</u>)' },
     { id: 'otsheetb1la', label: 'OT timesheet (<u>บ</u> LA)' }, { id: 'otsheetb1mt', label: 'OT timesheet (<u>บ</u> MT)' },
     { id: 'otsheetd', label: 'OT timesheet (เวรดึก)' }, { id: 'nsheet', label: 'เวรคลินิก (น)' },
-    { id: 'pay', label: 'ใบเบิกเงินรวม' }, { id: 'payLandscape', label: 'ใบเบิกเงินรวม (แนวนอน A4)' }, { id: 'payForm', label: 'ใบเบิกเงินรวม (แบบฟอร์มหลักฐานการเบิกจ่าย)' }, { id: 'payFormPortrait', label: 'ใบเบิกเงินรวม (แบบฟอร์มหลักฐานการเบิกจ่าย แนวตั้ง)' },
+    { id: 'pay', label: 'ใบเบิกเงินรวม' }, { id: 'payLandscape', label: 'ใบเบิกเงินรวม (แนวนอน A4)' }, { id: 'payForm', label: 'ใบเบิกเงินรวม (แบบฟอร์มหลักฐานการเบิกจ่าย)' }, { id: 'payFormPortrait', label: 'ใบเบิกเงินรวม (แบบฟอร์มหลักฐานการเบิกจ่าย แนวตั้ง)' }, { id: 'payGrid', label: 'ใบเบิกเงินรวม (แบบตารางรายวัน)' },
     { id: 'payperson', label: 'รายบุคคล' },
     { id: 'shiftsummary', label: 'สรุปรายเวร' }, { id: 'teamoverview', label: 'ภาพรวมทีม' },
     { id: 'ocrec', label: 'บันทึก on-call' }, { id: 'occlaim', label: 'บันทึก on-call (รายละเอียด)' },
@@ -1437,7 +1437,7 @@ var Schedule = (function () {
       gsRun('api_exportExcel', Session.token, curKind, current.year, current.month, pid).then(downloadBase64);
     };
     document.getElementById('repPrintBtn').onclick = function () {
-      var landscapeKinds = ['payLandscape', 'payForm'];
+      var landscapeKinds = ['payLandscape', 'payForm', 'payGrid'];
       printWithPageSize(landscapeKinds.indexOf(curKind) > -1 ? 'size:A4 landscape;margin:6mm' : 'size:A4 portrait;margin:9mm');
     };
 
@@ -2061,6 +2061,7 @@ var Schedule = (function () {
     payLandscape: 'หลักฐานการจ่ายเงินค่าตอบแทนปฏิบัติงานนอกเวลาราชการและในวันหยุดราชการ',
     payForm: 'หลักฐานการเบิกจ่ายเงินตอบแทนการปฏิบัติงานนอกเวลาราชการ',
     payFormPortrait: 'หลักฐานการเบิกจ่ายเงินตอบแทนการปฏิบัติงานนอกเวลาราชการ',
+    payGrid: 'หลักฐานการเบิกจ่ายเงินตอบแทนการปฏิบัติงานนอกเวลาราชการ',
     payperson: 'หลักฐานการจ่ายเงิน (รายบุคคล)',
     shiftsummary: 'สรุปเวรรายบุคคล',
     teamoverview: 'ภาพรวมการขึ้นเวรทั้งทีม',

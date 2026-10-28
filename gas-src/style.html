@@ -370,6 +370,17 @@ tbody tr:last-child td{border-bottom:none}
 .mo-chip{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:6px;font-size:10.5px;font-weight:600;cursor:pointer;margin:2px;border:1px solid var(--border)}
 .mo-chip.off{background:var(--surface2);color:var(--mut)}
 .mo-chip.on{background:var(--tl-l);color:var(--tl-d);border-color:var(--tl)}
+/* ใบเบิกเงินรวม (แบบตารางรายวัน) — 31 คอลัมน์วันที่ ต้องบีบให้พอดี A4 แนวนอน (ใช้ทั้งจอและพิมพ์)
+   selector ยาวกว่า .pay-form:not(.pay-form-portrait) .rep-tbl ใน @media print เพื่อให้ชนะกฎบีบของ payForm */
+.pay-form.pay-grid .rep-tbl.paygrid-tbl{table-layout:fixed!important;width:100%!important;font-size:10.5px!important;line-height:1.3!important}
+.pay-form.pay-grid .rep-tbl.paygrid-tbl th{font-size:10px!important;white-space:normal!important}
+.pay-form.pay-grid .rep-tbl.paygrid-tbl th,.pay-form.pay-grid .rep-tbl.paygrid-tbl td{padding:2px 1px!important;overflow:hidden}
+.pay-form.pay-grid .rep-tbl.paygrid-tbl td.l{padding-left:3px!important;white-space:nowrap}
+.pay-form.pay-grid .rep-tbl.paygrid-tbl td.r{padding-right:3px!important}
+.paygrid-tbl .pg-col-no{width:28px}.paygrid-tbl .pg-col-name{width:auto}.paygrid-tbl .pg-col-rate{width:42px}
+.paygrid-tbl .pg-col-day{width:21px}.paygrid-tbl .pg-col-cnt{width:30px}.paygrid-tbl .pg-col-amt{width:58px}.paygrid-tbl .pg-col-sig{width:62px}
+.paygrid-tbl .pg-off{background:#dbe7f5!important;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
+.pay-form.pay-grid .rep-tbl.paygrid-tbl tr.pg-legend td{font-size:9.5px!important;white-space:normal!important}
 /* ── print: hide chrome, keep only report/sched content (fixes "ไม่ต้องพิมพ์เมนู") ── */
 .print-sign{display:none}
 @media print{
