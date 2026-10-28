@@ -551,6 +551,8 @@ tbody tr:last-child td{border-bottom:none}
   .pay-form:not(.pay-form-portrait) .sig-row{margin-top:12px!important}
   /* แนวนอน: ลายเซ็นเหลือ 2 บรรทัด (ลงชื่อ + ตำแหน่ง) ซ่อนบรรทัดชื่อ ให้พอดี 1 หน้า (ตามฟีดแบ็ก) */
   .pay-form:not(.pay-form-portrait) .sig > div:nth-child(2){display:none!important}
+  /* ใบเบิกแบบตารางรายวันแสดงชื่อผู้ลงนามเหมือนใบเบิกแนวนอน (ตามฟีดแบ็ก) — ซ้ำ class เพื่อให้ specificity ชนะกฎบรรทัดบน */
+  .pay-form.pay-grid.pay-grid .sig > div:nth-child(2){display:block!important}
   .pay-form-portrait .payform-tbl td.c{min-width:14px}
   .pay-portrait .rep-tbl{line-height:1.6}
   .pay-portrait .rep-tbl th,.pay-portrait .rep-tbl td{padding:3px 6px}
