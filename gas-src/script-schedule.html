@@ -30,6 +30,10 @@ function printWithPageSize(size) {
   }, 2500);
 }
 var printStarted_ = false;
+/* ติด class ios ที่ <html> ให้ CSS ตอนพิมพ์ปรับเฉพาะ iPad/iPhone ได้ (iPadOS รายงานตัวเป็น Macintosh แต่มีจอสัมผัส) */
+if (/iPad|iPhone|iPod/.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1)) {
+  document.documentElement.classList.add('ios');
+}
 (function () {
   function mark() { printStarted_ = true; }
   window.addEventListener('beforeprint', mark);

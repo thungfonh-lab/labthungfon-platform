@@ -389,8 +389,10 @@ tbody tr:last-child td{border-bottom:none}
 .pay-form.pay-grid .rep-tbl.paygrid-tbl th,.pay-form.pay-grid .rep-tbl.paygrid-tbl td{padding:2px 1px!important;overflow:hidden}
 .pay-form.pay-grid .rep-tbl.paygrid-tbl td.l{padding-left:3px!important;white-space:nowrap}
 .pay-form.pay-grid .rep-tbl.paygrid-tbl td.r{padding-right:3px!important}
-.paygrid-tbl .pg-col-name{width:auto}.paygrid-tbl .pg-col-rate{width:42px}
-.paygrid-tbl .pg-col-day{width:21px}.paygrid-tbl .pg-col-cnt{width:30px}.paygrid-tbl .pg-col-amt{width:58px}.paygrid-tbl .pg-col-sig{width:62px}
+/* ความกว้างคอลัมน์เป็น % (เดิมเป็น px รวม ~960px) — Safari บน iPad ไม่สนใจ @page size แล้วใช้กระดาษ Letter
+   ที่แคบกว่า ทำให้คอลัมน์ชื่อ (width:auto) ถูกบีบเหลือ 0 และคอลัมน์ลงชื่อล้นขอบขวา สัดส่วนเท่าเดิมตอนพิมพ์ A4 ใน Chrome */
+.paygrid-tbl .pg-col-name{width:auto}.paygrid-tbl .pg-col-rate{width:3.9%}
+.paygrid-tbl .pg-col-day{width:1.95%}.paygrid-tbl .pg-col-cnt{width:2.8%}.paygrid-tbl .pg-col-amt{width:5.4%}.paygrid-tbl .pg-col-sig{width:5.75%}
 .paygrid-tbl .pg-off{background:#dbe7f5!important;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
 .pay-form.pay-grid .rep-tbl.paygrid-tbl td.pg-name{font-size:9.5px!important}
 .pay-form.pay-grid .rep-tbl.paygrid-tbl tr.pg-legend td{font-size:9.5px!important;white-space:normal!important}
@@ -407,6 +409,9 @@ tbody tr:last-child td{border-bottom:none}
   /* ปุ่ม "พิมพ์แจก" — พิมพ์ตารางเวรแบบไม่แสดงยอดเงิน สำหรับแจกในทีม (ดู printHandoutBtn ใน script-schedule.html)
      ใช้ .money-only ครอบเฉพาะส่วนที่เป็นตัวเงิน จะได้ซ่อนได้โดยไม่กระทบข้อความอื่นในบรรทัดเดียวกัน */
   html.print-handout .money-only{display:none!important}
+  /* iPad/iPhone: Safari พิมพ์บน Letter (เตี้ยกว่า A4 + มีหัว/ท้ายกระดาษของ Safari) ช่องลงชื่อเลยหลุดไปหน้า 2
+     ย่อใบเบิกเงินรวมแบบตารางรายวันลงเล็กน้อยเฉพาะ iOS (class ios ตั้งใน script-schedule) */
+  html.ios .pay-form.pay-grid{zoom:.9}
   #sb,#topbar,#appFooter,.btn,.rtabs,#violationsPanel,#ovrLogCard,.modal-overlay,#toastWrap,.loading-overlay,#repPersonSel{display:none!important}
   /* แถบคำอธิบายสัญลักษณ์ — เดิมสั่งให้พิมพ์ออกมาด้วย แต่ตอนนี้ซ้ำซ้อนกับการ์ด "เวลาในการปฏิบัติงาน"
      (workHoursPrint) ที่เพิ่มมาทีหลังแล้ว จึงซ่อนตอนพิมพ์อีกครั้งตามฟีดแบ็กล่าสุด
@@ -1505,6 +1510,10 @@ function printWithPageSize(size) {
   }, 2500);
 }
 var printStarted_ = false;
+/* ติด class ios ที่ <html> ให้ CSS ตอนพิมพ์ปรับเฉพาะ iPad/iPhone ได้ (iPadOS รายงานตัวเป็น Macintosh แต่มีจอสัมผัส) */
+if (/iPad|iPhone|iPod/.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1)) {
+  document.documentElement.classList.add('ios');
+}
 (function () {
   function mark() { printStarted_ = true; }
   window.addEventListener('beforeprint', mark);
