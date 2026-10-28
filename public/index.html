@@ -397,6 +397,8 @@ tbody tr:last-child td{border-bottom:none}
 .pay-form.pay-grid .rep-tbl.paygrid-tbl td.pg-name{font-size:9.5px!important}
 .pay-form.pay-grid .rep-tbl.paygrid-tbl tr.pg-legend td{font-size:9.5px!important;white-space:normal!important}
 .print-sign{display:none}
+/* พื้นขาวระหว่างสั่งพิมพ์ (ดู printWithPageSize) — อยู่นอก @media print โดยตั้งใจ เพราะ Safari บน iPad ใช้สีพื้นตอนอยู่บนจอ */
+html.printing,html.printing body,html.printing #app,html.printing #content,html.printing .frame{background:#fff!important}
 @media print{
   /* ตารางเวร = แนวนอน (กว้าง 31 วัน) · รายงาน (.doc) = แนวตั้ง (แถวเยอะ)
      หมายเหตุ: เคยใช้ named page (@page repPage + .doc{page:repPage}) แต่ Chrome จะแทรกหน้าเปล่าหน้าแรก
@@ -485,6 +487,7 @@ tbody tr:last-child td{border-bottom:none}
   /* Safari บน iPad พิมพ์สีพื้นหลังด้วยเสมอ (Chrome ไม่พิมพ์ถ้าไม่ติ๊ก Background graphics) — พื้นครีมของแอป
      กับขอบมนของ .doc เลยติดมาเป็นแถบ/เส้นด้านบนรายงาน บังคับพื้นขาวทุกชั้นตอนพิมพ์ */
   html,body,#app,#content,.frame{background:#fff!important}
+  #app{overflow:visible!important}
   .tbl-wrap{overflow:visible!important}
   /* รายงาน (.rep-tbl) ใช้ฟอนต์ TH Saraban (Sarabun) — ลด line-height ลงจาก 1.7 เพื่อให้พอดี A4
      ขยับจาก 10px → 11.5px ตามฟีดแบ็ก ("ตัวหนังสือขยายให้พอดีตาราง") — คอลัมน์ .rep-tbl ทั่วไป (ใบเบิกเงินรวม ฯลฯ)
@@ -1498,15 +1501,10 @@ function printWithPageSize(size) {
     el.id = 'printPageSize';
     document.head.appendChild(el);
   }
-  /* iPad/iPhone: Safari พิมพ์ URL/วันที่/เลขหน้าลงในขอบกระดาษเสมอ (ปิดจากหน้าเว็บไม่ได้) — ตั้ง margin ของ
-     @page เป็น 0 ไม่ให้มีที่ว่างให้ Safari วาด แล้วเว้นขอบด้วย padding ของ body แทน (clone = เว้นทุกหน้า) */
-  if (document.documentElement.classList.contains('ios')) {
-    var mg = /margin:([^;]+)/.exec(size);
-    el.textContent = '@media print{@page{' + size.replace(/margin:[^;]+/, 'margin:0') + '}' +
-      'body{padding:' + (mg ? mg[1] : '6mm') + '!important;-webkit-box-decoration-break:clone;box-decoration-break:clone}}';
-  } else {
-    el.textContent = '@media print{@page{' + size + '}}';
-  }
+  el.textContent = '@media print{@page{' + size + '}}';
+  /* Safari บน iPad ระบายพื้นกระดาษด้วยสีพื้นหลังตอนอยู่บนจอ (ครีม) แม้ CSS ตอนพิมพ์จะสั่งขาวแล้ว — สลับพื้นเป็น
+     ขาวตั้งแต่ก่อนสั่งพิมพ์ (class printing ใช้ได้ทั้งจอ/พิมพ์) แล้วค่อยถอดออกหลังพิมพ์ */
+  document.documentElement.classList.add('printing');
   printStarted_ = false;
   window.print();
   /* iPad/iPhone Safari: print() ไม่บล็อกเหมือนเดสก์ท็อป และบางครั้งเงียบไปเฉยๆ ไม่เปิดหน้าต่างพิมพ์
@@ -1514,10 +1512,11 @@ function printWithPageSize(size) {
      ให้เด้งกล่องให้กดพิมพ์อีกครั้ง (เป็น user gesture ใหม่) หรือพิมพ์ผ่านปุ่มแชร์ของ Safari แทน */
   setTimeout(function () {
     if (printStarted_) return;
+    document.documentElement.classList.remove('printing');
     showModal('ยังไม่เปิดหน้าต่างพิมพ์',
       '<div style="font-size:13px;line-height:1.7">ถ้าหน้าต่างพิมพ์ไม่ขึ้น ให้กดปุ่ม <b>พิมพ์อีกครั้ง</b> ด้านล่าง<br>' +
       'หรือบน iPad/iPhone กดปุ่มแชร์ของ Safari <i class="ti ti-share-2"></i> แล้วเลือก <b>พิมพ์</b></div>',
-      'พิมพ์อีกครั้ง', function () { closeModal(); printStarted_ = false; window.print(); });
+      'พิมพ์อีกครั้ง', function () { closeModal(); printStarted_ = false; document.documentElement.classList.add('printing'); window.print(); });
   }, 2500);
 }
 var printStarted_ = false;
@@ -1528,6 +1527,7 @@ if (/iPad|iPhone|iPod/.test(navigator.userAgent) || (/Macintosh/.test(navigator.
 (function () {
   function mark() { printStarted_ = true; }
   window.addEventListener('beforeprint', mark);
+  window.addEventListener('afterprint', function () { document.documentElement.classList.remove('printing'); });
   if (window.matchMedia) {
     var mq = window.matchMedia('print');
     var onChange = function (e) { if (e.matches) mark(); };

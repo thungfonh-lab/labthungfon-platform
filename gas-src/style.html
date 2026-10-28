@@ -386,6 +386,8 @@ tbody tr:last-child td{border-bottom:none}
 .pay-form.pay-grid .rep-tbl.paygrid-tbl tr.pg-legend td{font-size:9.5px!important;white-space:normal!important}
 /* ── print: hide chrome, keep only report/sched content (fixes "ไม่ต้องพิมพ์เมนู") ── */
 .print-sign{display:none}
+/* พื้นขาวระหว่างสั่งพิมพ์ (ดู printWithPageSize) — อยู่นอก @media print โดยตั้งใจ เพราะ Safari บน iPad ใช้สีพื้นตอนอยู่บนจอ */
+html.printing,html.printing body,html.printing #app,html.printing #content,html.printing .frame{background:#fff!important}
 @media print{
   /* ตารางเวร = แนวนอน (กว้าง 31 วัน) · รายงาน (.doc) = แนวตั้ง (แถวเยอะ)
      หมายเหตุ: เคยใช้ named page (@page repPage + .doc{page:repPage}) แต่ Chrome จะแทรกหน้าเปล่าหน้าแรก
@@ -474,6 +476,7 @@ tbody tr:last-child td{border-bottom:none}
   /* Safari บน iPad พิมพ์สีพื้นหลังด้วยเสมอ (Chrome ไม่พิมพ์ถ้าไม่ติ๊ก Background graphics) — พื้นครีมของแอป
      กับขอบมนของ .doc เลยติดมาเป็นแถบ/เส้นด้านบนรายงาน บังคับพื้นขาวทุกชั้นตอนพิมพ์ */
   html,body,#app,#content,.frame{background:#fff!important}
+  #app{overflow:visible!important}
   .tbl-wrap{overflow:visible!important}
   /* รายงาน (.rep-tbl) ใช้ฟอนต์ TH Saraban (Sarabun) — ลด line-height ลงจาก 1.7 เพื่อให้พอดี A4
      ขยับจาก 10px → 11.5px ตามฟีดแบ็ก ("ตัวหนังสือขยายให้พอดีตาราง") — คอลัมน์ .rep-tbl ทั่วไป (ใบเบิกเงินรวม ฯลฯ)
