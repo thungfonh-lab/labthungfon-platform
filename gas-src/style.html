@@ -403,6 +403,10 @@ html.printing,html.printing body,html.printing #app,html.printing #content,html.
   /* iPad/iPhone: Safari พิมพ์บน Letter (เตี้ยกว่า A4 + มีหัว/ท้ายกระดาษของ Safari) ช่องลงชื่อเลยหลุดไปหน้า 2
      ย่อใบเบิกเงินรวมแบบตารางรายวันลงเล็กน้อยเฉพาะ iOS (class ios ตั้งใน script-schedule) */
   html.ios .pay-form.pay-grid{zoom:.9}
+  /* iPad: วางรายงานที่กว้าง 1077px (= ความกว้างพิมพ์ A4 แนวนอนขอบ 6mm ใน Chrome ซึ่งพอดี 1 หน้า) แล้วย่อด้วย
+     transform ให้เท่าความกว้างจอ (ดู fitIosPrint_) — ใช้ transform แทน zoom เพราะ Safari มีขนาดตัวอักษรต่ำสุด
+     ทำให้ zoom ย่อตัวอักษรต่อไม่ได้ ส่วน absolute ให้หลุดจาก flow ความสูงก่อนย่อจะได้ไม่ดันจนเกิดหน้า 2 ว่าง */
+  html.ios-fit .pay-form.pay-grid{position:absolute!important;top:0;left:0;width:1077px!important;zoom:1!important;transform:scale(var(--ios-fit,1));transform-origin:0 0}
   #sb,#topbar,#appFooter,.btn,.rtabs,#violationsPanel,#ovrLogCard,.modal-overlay,#toastWrap,.loading-overlay,#repPersonSel{display:none!important}
   /* แถบคำอธิบายสัญลักษณ์ — เดิมสั่งให้พิมพ์ออกมาด้วย แต่ตอนนี้ซ้ำซ้อนกับการ์ด "เวลาในการปฏิบัติงาน"
      (workHoursPrint) ที่เพิ่มมาทีหลังแล้ว จึงซ่อนตอนพิมพ์อีกครั้งตามฟีดแบ็กล่าสุด

@@ -414,6 +414,10 @@ html.printing,html.printing body,html.printing #app,html.printing #content,html.
   /* iPad/iPhone: Safari พิมพ์บน Letter (เตี้ยกว่า A4 + มีหัว/ท้ายกระดาษของ Safari) ช่องลงชื่อเลยหลุดไปหน้า 2
      ย่อใบเบิกเงินรวมแบบตารางรายวันลงเล็กน้อยเฉพาะ iOS (class ios ตั้งใน script-schedule) */
   html.ios .pay-form.pay-grid{zoom:.9}
+  /* iPad: วางรายงานที่กว้าง 1077px (= ความกว้างพิมพ์ A4 แนวนอนขอบ 6mm ใน Chrome ซึ่งพอดี 1 หน้า) แล้วย่อด้วย
+     transform ให้เท่าความกว้างจอ (ดู fitIosPrint_) — ใช้ transform แทน zoom เพราะ Safari มีขนาดตัวอักษรต่ำสุด
+     ทำให้ zoom ย่อตัวอักษรต่อไม่ได้ ส่วน absolute ให้หลุดจาก flow ความสูงก่อนย่อจะได้ไม่ดันจนเกิดหน้า 2 ว่าง */
+  html.ios-fit .pay-form.pay-grid{position:absolute!important;top:0;left:0;width:1077px!important;zoom:1!important;transform:scale(var(--ios-fit,1));transform-origin:0 0}
   #sb,#topbar,#appFooter,.btn,.rtabs,#violationsPanel,#ovrLogCard,.modal-overlay,#toastWrap,.loading-overlay,#repPersonSel{display:none!important}
   /* แถบคำอธิบายสัญลักษณ์ — เดิมสั่งให้พิมพ์ออกมาด้วย แต่ตอนนี้ซ้ำซ้อนกับการ์ด "เวลาในการปฏิบัติงาน"
      (workHoursPrint) ที่เพิ่มมาทีหลังแล้ว จึงซ่อนตอนพิมพ์อีกครั้งตามฟีดแบ็กล่าสุด
@@ -1514,36 +1518,32 @@ function printWithPageSize(size) {
   setTimeout(function () {
     if (printStarted_) return;
     document.documentElement.classList.remove('printing');
+    unfitIosPrint_();
     showModal('ยังไม่เปิดหน้าต่างพิมพ์',
       '<div style="font-size:13px;line-height:1.7">ถ้าหน้าต่างพิมพ์ไม่ขึ้น ให้กดปุ่ม <b>พิมพ์อีกครั้ง</b> ด้านล่าง<br>' +
       'หรือบน iPad/iPhone กดปุ่มแชร์ของ Safari <i class="ti ti-share-2"></i> แล้วเลือก <b>พิมพ์</b></div>',
-      'พิมพ์อีกครั้ง', function () { closeModal(); printStarted_ = false; document.documentElement.classList.add('printing'); window.print(); });
+      'พิมพ์อีกครั้ง', function () { closeModal(); printStarted_ = false; document.documentElement.classList.add('printing'); fitIosPrint_(); window.print(); });
   }, 2500);
 }
 var printStarted_ = false;
 /* iPad/iPhone: Safari จัดหน้าพิมพ์ด้วยความกว้างจอ แล้วย่อทั้งหน้าให้พอดีความกว้างกระดาษ — ความสูงหน้ากระดาษ
-   (หน่วย CSS px) จึงแปรตามความกว้างจอ/การหมุนเครื่อง ย่อแบบค่าคงที่ (zoom .9) เลยพอดีบ้างไม่พอดีบ้าง
-   คำนวณ zoom ตอนสั่งพิมพ์แทน: ความสูงที่พิมพ์ได้ ≈ ความกว้างจอ × 0.62 (A4 แนวนอนหักขอบ+หัว/ท้ายของ Safari)
-   หารด้วยความสูงจริงของรายงาน ให้ใบเบิกแบบตารางรายวันพร้อมช่องลงชื่ออยู่ในหน้าเดียว */
-var iosFitEl_ = null;
+   (หน่วย CSS px) จึงแปรตามความกว้างจอ/การหมุนเครื่อง ใบเบิกแบบตารางรายวันเลยล้นไปหน้า 2 ในบางขนาดจอ
+   ให้จัดรายงานที่กว้าง 1077px เท่าตอนพิมพ์จาก Chrome (พอดี 1 หน้าพร้อมช่องลงชื่อ) แล้วย่อด้วย transform
+   ให้เท่าความกว้างจอ ผลจึงเหมือนพิมพ์จากคอมทุกขนาดจอ (CSS: html.ios-fit ใน style) */
 function fitIosPrint_() {
-  if (!document.documentElement.classList.contains('ios')) return;
+  var root = document.documentElement;
+  if (!root.classList.contains('ios')) return;
   var els = document.querySelectorAll('.pay-form.pay-grid');
   for (var i = 0; i < els.length; i++) {
     if (!els[i].offsetHeight) continue;
-    /* วัดความสูงที่ความกว้างเท่าตอนพิมพ์ (= ความกว้างจอ) ไม่ใช่ความกว้างบนจอที่มีเมนูข้าง — ตารางห่อบรรทัดต่างกัน */
-    els[i].style.zoom = '1';
-    els[i].style.width = window.innerWidth + 'px';
-    var h = els[i].offsetHeight;
-    els[i].style.width = '';
-    var z = Math.min(1, (window.innerWidth * 0.53) / h);
-    els[i].style.zoom = String(Math.max(0.5, Math.floor(z * 100) / 100));
-    iosFitEl_ = els[i];
+    root.style.setProperty('--ios-fit', String(Math.min(1, window.innerWidth / 1077 * 0.97)));
+    root.classList.add('ios-fit');
     return;
   }
 }
 function unfitIosPrint_() {
-  if (iosFitEl_) { iosFitEl_.style.zoom = ''; iosFitEl_ = null; }
+  document.documentElement.classList.remove('ios-fit');
+  document.documentElement.style.removeProperty('--ios-fit');
 }
 /* ติด class ios ที่ <html> ให้ CSS ตอนพิมพ์ปรับเฉพาะ iPad/iPhone ได้ (iPadOS รายงานตัวเป็น Macintosh แต่มีจอสัมผัส) */
 if (/iPad|iPhone|iPod/.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1)) {
