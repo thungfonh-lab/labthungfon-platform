@@ -1491,8 +1491,29 @@ function printWithPageSize(size) {
     document.head.appendChild(el);
   }
   el.textContent = '@media print{@page{' + size + '}}';
+  printStarted_ = false;
   window.print();
+  /* iPad/iPhone Safari: print() ไม่บล็อกเหมือนเดสก์ท็อป และบางครั้งเงียบไปเฉยๆ ไม่เปิดหน้าต่างพิมพ์
+     (WebKit เลื่อนการพิมพ์ออกไปถ้าหน้ายังโหลดข้อมูลค้างอยู่ตอนกด) — ถ้าไม่มี beforeprint ภายในเวลาที่กำหนด
+     ให้เด้งกล่องให้กดพิมพ์อีกครั้ง (เป็น user gesture ใหม่) หรือพิมพ์ผ่านปุ่มแชร์ของ Safari แทน */
+  setTimeout(function () {
+    if (printStarted_) return;
+    showModal('ยังไม่เปิดหน้าต่างพิมพ์',
+      '<div style="font-size:13px;line-height:1.7">ถ้าหน้าต่างพิมพ์ไม่ขึ้น ให้กดปุ่ม <b>พิมพ์อีกครั้ง</b> ด้านล่าง<br>' +
+      'หรือบน iPad/iPhone กดปุ่มแชร์ของ Safari <i class="ti ti-share-2"></i> แล้วเลือก <b>พิมพ์</b></div>',
+      'พิมพ์อีกครั้ง', function () { closeModal(); printStarted_ = false; window.print(); });
+  }, 2500);
 }
+var printStarted_ = false;
+(function () {
+  function mark() { printStarted_ = true; }
+  window.addEventListener('beforeprint', mark);
+  if (window.matchMedia) {
+    var mq = window.matchMedia('print');
+    var onChange = function (e) { if (e.matches) mark(); };
+    if (mq.addEventListener) mq.addEventListener('change', onChange); else if (mq.addListener) mq.addListener(onChange);
+  }
+})();
 
 var Schedule = (function () {
   var current = { year: new Date().getFullYear() + 543, month: new Date().getMonth() };
