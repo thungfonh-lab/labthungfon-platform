@@ -416,7 +416,7 @@ var ReportService = (function () {
         (rp[sd[0]] || []).forEach(function (dy) {
           var v = BusinessService.rateFor_(rateOvr, rates, p, sd[0], dy);
           on[dy] = true; amt += v;
-          /* อัตราเวรดึก On call (325) ไม่แสดงในช่องอัตราจ่าย (ตามฟีดแบ็ก) — ยังคิดเงินรวมตามปกติ */
+          /* ช่องอัตราจ่ายแสดงอัตราหลักค่าเดียว (สูงสุด ไม่นับเวรดึก On call) ตามฟีดแบ็ก — อัตรา 325 ของ On call/บ1 ของ MT ไม่แสดง แต่ยังคิดเงินรวมตามปกติ */
           var list = sd[0] === 'd0' || sd[0] === 'd1' ? rlD : rl;
           if (list.indexOf(v) === -1) list.push(v);
         });
@@ -429,7 +429,7 @@ var ReportService = (function () {
       var cells = '';
       for (var d = 1; d <= N; d++) cells += '<td class="c' + (isOffDay(d) ? ' pg-off' : '') + '">' + (on[d] ? '&#10003;' : '') + '</td>';
       body += '<tr><td class="c">' + i + '</td><td class="l pg-name">' + p.name + '</td>' +
-        '<td class="c">' + (rl.length ? rl : rlD).sort(function (a, b) { return b - a; }).join('<br>') + '</td>' + cells +
+        '<td class="c">' + Math.max.apply(null, rl.length ? rl : rlD) + '</td>' + cells +
         '<td class="c">' + nNorm + '</td><td class="c">' + nOff + '</td><td class="r">' + money_(amt) + '</td><td></td><td></td><td></td></tr>';
     });
     body += '<tr class="tot"><td colspan="' + (3 + N) + '" class="l">รวมเงินจ่ายทั้งสิ้น (ตัวอักษร) &nbsp; <b>' + bahtText_(tot) + '</b>' +
