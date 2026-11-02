@@ -390,65 +390,51 @@ var ReportService = (function () {
     return h;
   }
 
-  /* ใบเบิกเงินรวม (แบบตารางรายวัน) — หัว/ท้ายรายงานเหมือน repPayForm_ ทุกอย่าง ต่างแค่ตาราง: คอลัมน์วันที่ 1..N
-     ใส่สัญลักษณ์เวรในวันที่ขึ้นเวร (แรเงาวันหยุด) ตามแบบที่หน่วยงานส่งมา — 1 คนมีหลายบรรทัดย่อย บรรทัดละประเภทเวร
-     (อัตราต่างกัน) จำนวนเงินแยกต่อบรรทัด ส่วนรวมเงิน/ลงชื่อรวมเป็นช่องเดียวต่อคน (rowspan)
-     ไม่มีคอลัมน์ลำดับ และชื่อไม่ใส่คำนำหน้า (ตามฟีดแบ็ก)
-     ประเภทเวร/บทบาทที่นับ ใช้ชุดเดียวกับ repPayForm_ ยอดเงินจึงตรงกันเสมอ */
-  var PAYGRID_CODE_ = { d0: 'ด1', d1: 'ด2', ch: 'ช', b: 'บ', b1: '<u>บ</u>' };
+  /* ใบเบิกเงินรวม (แบบตารางรายวัน) — หัวรายงานเหมือน repPayForm_ ตารางตามแบบฟอร์มที่หน่วยงานส่งมา:
+     1 แถวต่อคน ติ๊กถูก 1 อันในวันที่มาปฏิบัติงาน (มีเวรใดก็ได้ในวันนั้น) แรเงาวันหยุด แล้วนับวันปกติ/วันหยุดจากวันที่ติ๊ก
+     เวรดึกติ๊กเฉพาะวันที่มีบันทึก on-call จริง (ด* ในตารางเวร) — ด ที่ไม่ถูกตามไม่นับว่ามาทำงาน
+     ไม่ใส่คำนำหน้าชื่อ (ตามฟีดแบ็ก) ประเภทเวร/บทบาทและการคิดเงินใช้ชุดเดียวกับ repPayForm_ ยอดเงินจึงตรงกันเสมอ */
+  var PAYGRID_SHIFTS_ = [['d0', false], ['d1', false], ['ch', true], ['b', false], ['b1', true]]; /* [เวร, LA นับด้วย] */
   function repPayGrid_(r, people, rateOvr, rates, settings, year, month, holidays, N) {
     function isOffDay(d) { return BusinessService.isOff_(year, month, d, holidays || []); }
-    var shifts = [['d0', false], ['d1', false], ['ch', true], ['b', false], ['b1', true]]; /* [เวร, LA นับด้วย] */
     var dayHead = '', colDays = '';
     for (var d = 1; d <= N; d++) {
       dayHead += '<th class="pg-day' + (isOffDay(d) ? ' pg-off' : '') + '">' + d + '</th>';
       colDays += '<col class="pg-col-day">';
     }
-    var colgroup = '<colgroup><col class="pg-col-name"><col class="pg-col-rate">' + colDays +
-      '<col class="pg-col-cnt"><col class="pg-col-cnt"><col class="pg-col-cnt"><col class="pg-col-amt"><col class="pg-col-amt"><col class="pg-col-sig"></colgroup>';
-    var thead = '<thead><tr><th rowspan="2">ชื่อ - สกุล</th><th rowspan="2">อัตราเงิน<br>ค่าตอบแทน</th>' +
-      '<th colspan="' + N + '">วันที่ปฏิบัติงานนอกเวลาราชการ</th><th colspan="3">รวมเวลาปฏิบัติงาน</th>' +
-      '<th rowspan="2">จำนวนเงิน</th><th rowspan="2">รวมเงิน</th><th rowspan="2">ลงชื่อ</th></tr>' +
-      '<tr>' + dayHead + '<th>วันปกติ</th><th>วันหยุด</th><th>รวม</th></tr></thead>';
-    var tot = 0, totN = 0, totH = 0, body = '';
+    var colgroup = '<colgroup><col class="pg-col-no"><col class="pg-col-name"><col class="pg-col-rate">' + colDays +
+      '<col class="pg-col-cnt"><col class="pg-col-cnt"><col class="pg-col-amt"><col class="pg-col-date"><col class="pg-col-sig"><col class="pg-col-rem"></colgroup>';
+    var thead = '<thead><tr><th rowspan="2">ลำดับ<br>ที่</th><th rowspan="2">ชื่อ</th><th rowspan="2">อัตรา<br>จ่าย</th>' +
+      '<th colspan="' + N + '">วันที่ปฏิบัติงาน</th><th colspan="2">รวมเวลา</th>' +
+      '<th rowspan="2">จำนวนเงิน</th><th rowspan="2">วัน เดือน ปี<br>ที่รับเงิน</th><th rowspan="2">ลายมือชื่อ<br>ผู้รับเงิน</th><th rowspan="2">หมายเหตุ</th></tr>' +
+      '<tr>' + dayHead + '<th>วันปกติ</th><th>วันหยุด</th></tr></thead>';
+    var i = 0, tot = 0, totN = 0, totH = 0, body = '';
     people.forEach(function (p) {
-      var lines = [];
-      shifts.forEach(function (sd) {
+      var rp = r[p.id] || {}, on = {}, amt = 0, rl = [];
+      PAYGRID_SHIFTS_.forEach(function (sd) {
         if (p.role === 'LA' && !sd[1]) return;
-        var days = ((r[p.id] || {})[sd[0]] || []).slice().sort(function (x, y) { return x - y; });
-        if (days.length) lines.push({ key: sd[0], days: days });
+        (rp[sd[0]] || []).forEach(function (dy) {
+          var v = BusinessService.rateFor_(rateOvr, rates, p, sd[0], dy);
+          on[dy] = true; amt += v;
+          if (rl.indexOf(v) === -1) rl.push(v);
+        });
       });
-      if (!lines.length) return;
-      var personSum = 0;
-      lines.forEach(function (ln) {
-        ln.amt = ln.days.reduce(function (s, dy) { return s + BusinessService.rateFor_(rateOvr, rates, p, ln.key, dy); }, 0);
-        personSum += ln.amt;
-      });
-      tot += personSum;
-      lines.forEach(function (ln, k) {
-        var rl = ln.days.map(function (dy) { return BusinessService.rateFor_(rateOvr, rates, p, ln.key, dy); });
-        var rateTxt = rl.filter(function (v, x) { return rl.indexOf(v) === x; }).join('/');
-        var on = {};
-        ln.days.forEach(function (dy) { on[dy] = true; });
-        var cells = '';
-        for (var d = 1; d <= N; d++) cells += '<td class="c' + (isOffDay(d) ? ' pg-off' : '') + '">' + (on[d] ? PAYGRID_CODE_[ln.key] : '') + '</td>';
-        var nOff = ln.days.filter(isOffDay).length, nNorm = ln.days.length - nOff;
-        totN += nNorm; totH += nOff;
-        var span = lines.length > 1 ? ' rowspan="' + lines.length + '"' : '';
-        body += '<tr>' +
-          (k === 0 ? '<td class="l pg-name"' + span + '>' + p.name + '</td>' : '') +
-          '<td class="c">' + rateTxt + '</td>' + cells +
-          '<td class="c">' + nNorm + '</td><td class="c">' + nOff + '</td><td class="c">' + ln.days.length + '</td><td class="r">' + money_(ln.amt) + '</td>' +
-          (k === 0 ? '<td class="r"' + span + '>' + money_(personSum) + '</td><td' + span + '></td>' : '') + '</tr>';
-      });
+      var days = Object.keys(on).map(Number);
+      if (!days.length) return;
+      i++;
+      var nOff = days.filter(isOffDay).length, nNorm = days.length - nOff;
+      tot += amt; totN += nNorm; totH += nOff;
+      var cells = '';
+      for (var d = 1; d <= N; d++) cells += '<td class="c' + (isOffDay(d) ? ' pg-off' : '') + '">' + (on[d] ? '&#10003;' : '') + '</td>';
+      body += '<tr><td class="c">' + i + '</td><td class="l pg-name">' + p.name + '</td>' +
+        '<td class="c">' + rl.sort(function (a, b) { return b - a; }).join('<br>') + '</td>' + cells +
+        '<td class="c">' + nNorm + '</td><td class="c">' + nOff + '</td><td class="r">' + money_(amt) + '</td><td></td><td></td><td></td></tr>';
     });
-    body += '<tr class="tot"><td colspan="' + (2 + N) + '" class="r">รวมทั้งสิ้น</td><td class="c">' + totN + '</td><td class="c">' + totH + '</td><td class="c">' + (totN + totH) + '</td>' +
-      '<td class="r">' + money_(tot) + '</td><td class="r">' + money_(tot) + '</td><td></td></tr>';
-    var legend = shifts.map(function (sd) { return PAYGRID_CODE_[sd[0]] + ' = ' + paySectionLabel_(settings, sd[0]); }).join(' &nbsp;·&nbsp; ');
-    body += '<tr class="pg-legend"><td colspan="' + (8 + N) + '" class="l">สัญลักษณ์: ' + legend + ' &nbsp;·&nbsp; ช่องแรเงา = วันหยุด</td></tr>';
+    body += '<tr class="tot"><td colspan="' + (3 + N) + '" class="l">รวมเงินจ่ายทั้งสิ้น (ตัวอักษร) &nbsp; <b>' + bahtText_(tot) + '</b>' +
+      '<span style="float:right;padding-right:6px">รวม</span></td><td class="c">' + totN + '</td><td class="c">' + totH + '</td>' +
+      '<td class="r">' + money_(tot) + '</td><td></td><td></td><td></td></tr>';
     var h = payFormHeader_(titleFor_(settings, 'payGrid'), settings, year, month) + '<div class="rep-tbl-wrap"><table class="rep-tbl paygrid-tbl">' + colgroup + thead + '<tbody>' + body + '</tbody></table></div>';
-    h += '<div style="margin-top:8px;font-size:13.5px">รวมเงินจ่ายทั้งสิ้น (ตัวอักษร) <b>' + bahtText_(tot) + '</b></div>';
-    h += '<div style="font-size:13.5px;margin-top:4px">ขอรับรองว่า ผู้มีรายชื่อข้างต้นปฏิบัติงานนอกเวลาจริง</div>' +
+    h += '<div style="font-size:13.5px;margin-top:6px">ขอรับรองว่า ผู้มีรายชื่อข้างต้นปฏิบัติงานนอกเวลาจริง</div>' +
     sigRow_(settings);
     return h;
   }
