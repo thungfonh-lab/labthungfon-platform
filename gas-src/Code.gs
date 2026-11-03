@@ -395,6 +395,7 @@ function api_crud(token, entity, op, payload) {
   AuthService.requirePermission(session.user, 'manageSettings', false);
   var before = op === 'update' || op === 'delete' ? DataService.getMasterRecord(entity, payload.id) : null;
   var result = DataService.crudMasterData(entity, op, payload);
+  bumpSettingsVersion_(); // ชื่อ/คำนำหน้า/อัตรา ฯลฯ ของ master data ใช้ใน renderReport() — ล้าง cache รายงานให้เห็นผลทันที
   AuditService.logAction(session.user.userId, op.toUpperCase(), entity, payload.id || result.id, before, payload);
   return result;
 }

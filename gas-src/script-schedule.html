@@ -1713,6 +1713,9 @@ var Schedule = (function () {
       ['pfx', 'name', 'short', 'title', 'phone', 'email', 'priority'].map(function (f) {
         return '<label>' + f + '<input data-f="' + f + '" value="' + (record && record[f] !== undefined ? record[f] : '') + '"></label>';
       }).join('') +
+      /* คำนำหน้าชื่อแบบทางราชการ (นาย/นาง/นางสาว) ใช้ในใบเบิกเงินรวม (แบบตารางรายวัน) — pfx มักเป็นคำนำหน้าวิชาชีพ (ทนพ./ทนพญ.)
+         ซึ่งบอกไม่ได้ว่า นาง หรือ นางสาว ว่างไว้ = เดาจาก pfx */
+      '<label>คำนำหน้า (ใบเบิกเงิน)<select data-f="civ"><option value="">อัตโนมัติจาก pfx</option><option>นาย</option><option>นาง</option><option>นางสาว</option></select></label>' +
       '<label>บทบาท<select data-f="role"><option value="HT">HT — หัวหน้า</option><option value="MT">MT — นักเทคนิค</option><option value="LA">LA — ผู้ช่วย</option></select></label>' +
       '<label style="display:flex;flex-direction:row;align-items:center;gap:6px;">Active<input type="checkbox" data-f="active" ' + (!record || record.active !== false ? 'checked' : '') + '></label>' +
       '</div>' +
@@ -1729,6 +1732,7 @@ var Schedule = (function () {
           '<select data-perm="' + a + '">' + permOptionsHtml_(record ? record.role : 'MT', a, cur) + '</select></label>';
       }).join('') + '</div>';
     if (record) body.querySelector('[data-f="role"]').value = record.role;
+    if (record) body.querySelector('[data-f="civ"]').value = record.civ || '';
     body.querySelector('[data-f="role"]').onchange = function () {
       var role = this.value;
       PERM_ACTIONS.forEach(function (a) {
@@ -1741,6 +1745,7 @@ var Schedule = (function () {
       var payload = record ? Object.assign({}, record) : {};
       ['pfx', 'name', 'short', 'title', 'phone', 'email', 'priority', 'role'].forEach(function (f) { payload[f] = body.querySelector('[data-f="' + f + '"]').value; });
       payload.active = body.querySelector('[data-f="active"]').checked;
+      payload.civ = body.querySelector('[data-f="civ"]').value;
       /* วันที่ขึ้นเวร ช/บ/ด รายบุคคล — เก็บใน blob person (BusinessService อ่านผ่าน dayTypeAllowsPerson_) */
       payload.dayTypes = {
         weekday: body.querySelector('[data-daytype="weekday"]').checked,

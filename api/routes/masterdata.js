@@ -29,6 +29,7 @@ router.post('/crud', wrap(async (req, res) => {
   const { entity, op, payload } = req.body;
   const before = (op === 'update' || op === 'delete') ? await dataService.getMasterRecord(entity, payload.id) : null;
   const result = await dataService.crudMasterData(entity, op, payload);
+  cacheService.removePrefix('report_'); // ชื่อ/คำนำหน้า/อัตรา ฯลฯ ของ master data ใช้ใน renderReport() — ล้าง cache รายงานให้เห็นผลทันที
   await auditService.logAction(session.user.userId, op.toUpperCase(), entity, payload.id || result.id, before, payload);
   ok(res, result);
 }));

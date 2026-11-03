@@ -394,6 +394,18 @@ var ReportService = (function () {
      1 แถวต่อคน ติ๊กถูก 1 อันในวันที่มาปฏิบัติงาน (มีเวรใดก็ได้ในวันนั้น) แรเงาวันหยุด แล้วนับวันปกติ/วันหยุดจากวันที่ติ๊ก
      เวรดึกติ๊กเฉพาะวันที่มีบันทึก on-call จริง (ด* ในตารางเวร) — ด ที่ไม่ถูกตามไม่นับว่ามาทำงาน
      ไม่ใส่คำนำหน้าชื่อ (ตามฟีดแบ็ก) ประเภทเวร/บทบาทและการคิดเงินใช้ชุดเดียวกับ repPayForm_ ยอดเงินจึงตรงกันเสมอ */
+  /* คำนำหน้าแบบทางราชการสำหรับใบเบิกแบบตารางรายวัน — ใช้ค่า civ ที่ตั้งในหน้าบุคลากรก่อน ไม่มีจึงเดาจาก pfx
+     (ทนพ. = ชาย → นาย, ทนพญ. = หญิง → นางสาว — แก้เป็น "นาง" รายคนได้ที่ ตั้งค่า > บุคลากร) */
+  function civPfx_(p) {
+    if (p.civ) return p.civ;
+    var x = String(p.pfx || '');
+    if (/นางสาว|น\.ส\./.test(x)) return 'นางสาว';
+    if (/^นาง/.test(x)) return 'นาง';
+    if (/^นาย/.test(x)) return 'นาย';
+    if (/ญ/.test(x)) return 'นางสาว';
+    if (x) return 'นาย';
+    return '';
+  }
   var PAYGRID_SHIFTS_ = [['d0', false], ['d1', false], ['ch', true], ['b', false], ['b1', true]]; /* [เวร, LA นับด้วย] */
   function repPayGrid_(r, people, rateOvr, rates, settings, year, month, holidays, N) {
     function isOffDay(d) { return BusinessService.isOff_(year, month, d, holidays || []); }
@@ -428,7 +440,7 @@ var ReportService = (function () {
       tot += amt; totN += nNorm; totH += nOff;
       var cells = '';
       for (var d = 1; d <= N; d++) cells += '<td class="c' + (isOffDay(d) ? ' pg-off' : '') + '">' + (on[d] ? '&#10003;' : '') + '</td>';
-      body += '<tr><td class="c">' + i + '</td><td class="l pg-name">' + p.name + '</td>' +
+      body += '<tr><td class="c">' + i + '</td><td class="l pg-name">' + civPfx_(p) + p.name + '</td>' +
         '<td class="c">' + Math.max.apply(null, rl.length ? rl : rlD) + '</td>' + cells +
         '<td class="c">' + nNorm + '</td><td class="c">' + nOff + '</td><td class="r">' + money_(amt) + '</td><td></td><td></td><td></td></tr>';
     });
