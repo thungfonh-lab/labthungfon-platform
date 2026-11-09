@@ -471,9 +471,34 @@ var ReportService = (function () {
     var rMT = (rates || {}).MT || {};
     var notes = kind === 'payGridOncall' ? [['ด', 'เวรดึก on call (' + (rMT.d0 || 325) + ' บาท)', 'ตั้งแต่เวลา 00.00 น.-04.00 น.'],
       ['ด', 'เวรดึก on call (' + (rMT.d1 || 325) + ' บาท)', 'ตั้งแต่เวลา 04.01 น.-08.00 น.']] :
-      [['ช', 'เวรเช้า', tm('ch')], ['<u>บ</u>', 'เวรบ่าย', tm('b1')], ['บ', 'เวรบ่าย', tm('b')]];
-    h += '<div class="pg-notes"><div><u>หมายเหตุ</u> ส่วนราชการสามารถเพิ่มเติมรายละเอียดอื่น ๆ ได้ตามความจำเป็นและเหมาะสม</div>' +
-      notes.map(function (n) { return '<div class="pg-note-row"><span>' + n[0] + ' ' + n[1] + '</span><span>' + n[2] + '</span></div>'; }).join('') + '</div>';
+      null;
+    h += '<div class="pg-notes"><div><u>หมายเหตุ</u> ส่วนราชการสามารถเพิ่มเติมรายละเอียดอื่น ๆ ได้ตามความจำเป็นและเหมาะสม</div>';
+    if (notes) {
+      h += notes.map(function (n) { return '<div class="pg-note-row"><span>' + n[0] + ' ' + n[1] + '</span><span>' + n[2] + '</span></div>'; }).join('');
+    } else {
+      /* เวรปกติ: อธิบายแต่ละเวร ช่วงเวลา และอัตราจ่าย (ต่อเวร/ต่อชั่วโมง) ตามบทบาท (ตามฟีดแบ็ก) — อัตราจาก ตั้งค่า > อัตราค่าตอบแทน
+         (รวม Override รายบทบาท) ชั่วโมงจาก ตั้งค่า > เวลาปฏิบัติงานแต่ละเวร ข้ามบรรทัดที่อัตราเป็น 0 */
+      var ROLE_ = [['MT', 'นักเทคนิคการแพทย์'], ['LA', 'ผู้ช่วยห้องปฏิบัติการ']];
+      function rateLines(key, roles, extra) {
+        var hr = shiftHours_(settings, key);
+        return ROLE_.filter(function (rr) { return roles.indexOf(rr[0]) > -1; }).map(function (rr) {
+          var v = BusinessService.rateFor_(rateOvr, rates, { id: '', role: rr[0] }, key);
+          return v ? [rr[1] + (extra || '') + ' เวรละ ' + v + ' บาท (อัตราจ่ายชั่วโมงละ ' + (v / hr).toFixed(2) + ' บาท)'] : [];
+        }).reduce(function (a, x) { return a.concat(x); }, []);
+      }
+      var tCh = shiftTime_(settings, 'ch'), tB = shiftTime_(settings, 'b');
+      var items = [
+        ['เวรบ่าย (บ) นอกเวลาราชการ ' + tm('b').replace('ตั้งแต่เวลา ', '') + ' (' + shiftHours_(settings, 'b') + ' ชั่วโมง)', rateLines('b', ['MT'])],
+        ['เวรเช้า (ช) และเวรบ่าย (บ) วันหยุดราชการ ' + tCh.s + ' น.-' + tB.e + ' น. (' + (shiftHours_(settings, 'ch') + shiftHours_(settings, 'b')) + ' ชั่วโมง)',
+          rateLines('ch', ['MT']).concat(rateLines('ch', ['LA'], ' (เฉพาะเวรเช้า ' + tCh.s + ' น.-' + tCh.e + ' น.)'))],
+        ['เวรบ่ายเสริม (<u>บ</u>) นอกเวลาราชการ ' + tm('b1').replace('ตั้งแต่เวลา ', '') + ' (' + shiftHours_(settings, 'b1') + ' ชั่วโมง)', rateLines('b1', ['MT', 'LA'])]
+      ];
+      items.forEach(function (it, k) {
+        h += '<div class="pg-note-h">' + (k + 1) + '. ' + it[0] + '</div>' +
+          it[1].map(function (line, j) { return '<div class="pg-note-sub">' + (k + 1) + '.' + (j + 1) + ' ' + line + '</div>'; }).join('');
+      });
+    }
+    h += '</div>';
     return h;
   }
 
