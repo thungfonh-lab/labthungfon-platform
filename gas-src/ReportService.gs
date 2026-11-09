@@ -427,12 +427,15 @@ var ReportService = (function () {
       '<tr>' + dayHead + (oneCnt ? '' : '<th>วันปกติ</th><th>วันหยุด</th>') + '</tr></thead>';
     var i = 0, tot = 0, totN = 0, totH = 0, totCnt = 0, body = '', nameMax = 0;
     people.forEach(function (p) {
-      var rp = r[p.id] || {}, on = {}, amt = 0, rl = [], cnt = 0; /* cnt = จำนวนครั้ง (เวร-วัน) — On call นับรายช่วงที่ถูกตาม ให้ อัตรา × รวมเวลา = จำนวนเงิน (ตามฟีดแบ็ก) */
+      var rp = r[p.id] || {}, on = {}, amt = 0, rl = [], cnt = 0, nOff = 0;
+      /* รวมเวลานับเป็นจำนวนเวร (เวร-วัน) ไม่ใช่จำนวนวัน — วันหยุดที่ขึ้นทั้ง ช+บ นับ 2 / On call นับรายช่วงที่ถูกตาม
+         ให้ อัตรา × รวมเวลา = จำนวนเงิน ตามแบบฟอร์มราชการ (ตามฟีดแบ็ก) ส่วนช่องติ๊กยังติ๊กวันละ 1 ช่อง */
       shifts.forEach(function (sd) {
         if (p.role === 'LA' && !sd[1]) return;
         (rp[sd[0]] || []).forEach(function (dy) {
           var v = BusinessService.rateFor_(rateOvr, rates, p, sd[0], dy);
           on[dy] = true; amt += v; cnt++;
+          if (isOffDay(dy)) nOff++;
           /* ช่องอัตราจ่ายแสดงอัตราหลักค่าเดียว (สูงสุด) ตามฟีดแบ็ก — เช่น บ1 ของ MT (325) ไม่แสดง แต่ยังคิดเงินรวมตามปกติ */
           if (rl.indexOf(v) === -1) rl.push(v);
         });
@@ -440,7 +443,7 @@ var ReportService = (function () {
       var days = Object.keys(on).map(Number);
       if (!days.length) return;
       i++;
-      var nOff = days.filter(isOffDay).length, nNorm = days.length - nOff;
+      var nNorm = cnt - nOff;
       tot += amt; totN += nNorm; totH += nOff; totCnt += cnt;
       var cells = '';
       for (var d = 1; d <= N; d++) cells += '<td class="c' + (isOffDay(d) ? ' pg-off' : '') + '">' + (on[d] ? '&#10003;' : '') + '</td>';
