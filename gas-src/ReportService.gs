@@ -453,7 +453,7 @@ var ReportService = (function () {
         body += '<tr>' + (k === 0 ? '<td class="c"' + span + '>' + i + '</td><td class="l pg-name"' + span + '>' + civPfx_(p) + p.name + '</td>' : '') +
           '<td class="c">' + v + '</td>' + cells +
           (oneCnt ? '<td class="c">' + g.cnt + '</td>' : '<td class="c">' + nNorm + '</td><td class="c">' + g.nOff + '</td>') + '<td class="r">' + money_(g.amt) + '</td>' +
-          (k === 0 ? '<td' + span + '></td><td' + span + '></td><td' + span + '></td>' : '') + '</tr>';
+          '<td></td><td></td><td></td></tr>'; /* วันที่รับเงิน/ลายมือชื่อ/หมายเหตุ แยกช่องทุกแถว (ตามฟีดแบ็ก) */
       });
     });
     body += '<tr class="tot"><td colspan="' + (3 + N) + '" class="l">รวมเงินจ่ายทั้งสิ้น (ตัวอักษร) &nbsp; <b>' + bahtText_(tot) + '</b>' +
