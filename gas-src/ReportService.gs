@@ -427,30 +427,34 @@ var ReportService = (function () {
       '<tr>' + dayHead + (oneCnt ? '' : '<th>วันปกติ</th><th>วันหยุด</th>') + '</tr></thead>';
     var i = 0, tot = 0, totN = 0, totH = 0, totCnt = 0, body = '', nameMax = 0;
     people.forEach(function (p) {
-      var rp = r[p.id] || {}, on = {}, amt = 0, rl = [], cnt = 0, nOff = 0;
-      /* รวมเวลานับเป็นจำนวนเวร (เวร-วัน) ไม่ใช่จำนวนวัน — วันหยุดที่ขึ้นทั้ง ช+บ นับ 2 / On call นับรายช่วงที่ถูกตาม
-         ให้ อัตรา × รวมเวลา = จำนวนเงิน ตามแบบฟอร์มราชการ (ตามฟีดแบ็ก) ส่วนช่องติ๊กยังติ๊กวันละ 1 ช่อง */
+      var rp = r[p.id] || {}, byRate = {};
+      /* แยกแถวตามอัตรา (ตามฟีดแบ็ก/แบบฟอร์มราชการ) — เช่น MT ที่ขึ้น บ1 (325) ได้แถว 650 กับแถว 325 แยกกัน
+         รวมเวลานับเป็นจำนวนเวร (เวร-วัน) ไม่ใช่จำนวนวัน — วันหยุดที่ขึ้นทั้ง ช+บ นับ 2 / On call นับรายช่วงที่ถูกตาม
+         ให้ อัตรา × รวมเวลา = จำนวนเงิน ทุกแถว ส่วนช่องติ๊กยังติ๊กวันละ 1 ช่องต่อแถว */
       shifts.forEach(function (sd) {
         if (p.role === 'LA' && !sd[1]) return;
         (rp[sd[0]] || []).forEach(function (dy) {
           var v = BusinessService.rateFor_(rateOvr, rates, p, sd[0], dy);
-          on[dy] = true; amt += v; cnt++;
-          if (isOffDay(dy)) nOff++;
-          /* ช่องอัตราจ่ายแสดงอัตราหลักค่าเดียว (สูงสุด) ตามฟีดแบ็ก — เช่น บ1 ของ MT (325) ไม่แสดง แต่ยังคิดเงินรวมตามปกติ */
-          if (rl.indexOf(v) === -1) rl.push(v);
+          var g = byRate[v] || (byRate[v] = { on: {}, amt: 0, cnt: 0, nOff: 0 });
+          g.on[dy] = true; g.amt += v; g.cnt++;
+          if (isOffDay(dy)) g.nOff++;
         });
       });
-      var days = Object.keys(on).map(Number);
-      if (!days.length) return;
+      var lines = Object.keys(byRate).map(Number).sort(function (a, b) { return b - a; });
+      if (!lines.length) return;
       i++;
-      var nNorm = cnt - nOff;
-      tot += amt; totN += nNorm; totH += nOff; totCnt += cnt;
-      var cells = '';
-      for (var d = 1; d <= N; d++) cells += '<td class="c' + (isOffDay(d) ? ' pg-off' : '') + '">' + (on[d] ? '&#10003;' : '') + '</td>';
-      nameMax = Math.max(nameMax, (civPfx_(p) + p.name).replace(/[\u0E31\u0E34-\u0E3A\u0E47-\u0E4E]/g, '').length);
-      body += '<tr><td class="c">' + i + '</td><td class="l pg-name">' + civPfx_(p) + p.name + '</td>' +
-        '<td class="c">' + Math.max.apply(null, rl) + '</td>' + cells +
-        (oneCnt ? '<td class="c">' + cnt + '</td>' : '<td class="c">' + nNorm + '</td><td class="c">' + nOff + '</td>') + '<td class="r">' + money_(amt) + '</td><td></td><td></td><td></td></tr>';
+      nameMax = Math.max(nameMax, (civPfx_(p) + p.name).replace(/[ัิ-ฺ็-๎]/g, '').length);
+      var span = lines.length > 1 ? ' rowspan="' + lines.length + '"' : '';
+      lines.forEach(function (v, k) {
+        var g = byRate[v], nNorm = g.cnt - g.nOff;
+        tot += g.amt; totN += nNorm; totH += g.nOff; totCnt += g.cnt;
+        var cells = '';
+        for (var d = 1; d <= N; d++) cells += '<td class="c' + (isOffDay(d) ? ' pg-off' : '') + '">' + (g.on[d] ? '&#10003;' : '') + '</td>';
+        body += '<tr>' + (k === 0 ? '<td class="c"' + span + '>' + i + '</td><td class="l pg-name"' + span + '>' + civPfx_(p) + p.name + '</td>' : '') +
+          '<td class="c">' + v + '</td>' + cells +
+          (oneCnt ? '<td class="c">' + g.cnt + '</td>' : '<td class="c">' + nNorm + '</td><td class="c">' + g.nOff + '</td>') + '<td class="r">' + money_(g.amt) + '</td>' +
+          (k === 0 ? '<td' + span + '></td><td' + span + '></td><td' + span + '></td>' : '') + '</tr>';
+      });
     });
     body += '<tr class="tot"><td colspan="' + (3 + N) + '" class="l">รวมเงินจ่ายทั้งสิ้น (ตัวอักษร) &nbsp; <b>' + bahtText_(tot) + '</b>' +
       '<span style="float:right;padding-right:6px">รวม</span></td>' + (oneCnt ? '<td class="c">' + totCnt + '</td>' : '<td class="c">' + totN + '</td><td class="c">' + totH + '</td>') +
@@ -463,7 +467,10 @@ var ReportService = (function () {
     sigRow_(settings);
     /* หมายเหตุท้ายแบบฟอร์ม (ตามแบบฟอร์มราชการ) — ช่วงเวลาแต่ละเวรดึงจาก ตั้งค่า > เวลาปฏิบัติงานแต่ละเวร */
     function tm(key) { var t = shiftTime_(settings, key); return 'ตั้งแต่เวลา ' + t.s + ' น.-' + t.e + ' น.'; }
-    var notes = kind === 'payGridOncall' ? [['ด', 'เวรดึก on call', 'ตั้งแต่เวลา 00.00 น.-08.00 น.']] :
+    /* On call แยกบรรทัดตามช่วงเวลา พร้อมอัตรา (ตามฟีดแบ็ก) — อัตราจาก ตั้งค่า > อัตราค่าตอบแทน (MT) */
+    var rMT = (rates || {}).MT || {};
+    var notes = kind === 'payGridOncall' ? [['ด', 'เวรดึก on call (' + (rMT.d0 || 325) + ' บาท)', 'ตั้งแต่เวลา 00.00 น.-04.00 น.'],
+      ['ด', 'เวรดึก on call (' + (rMT.d1 || 325) + ' บาท)', 'ตั้งแต่เวลา 04.01 น.-08.00 น.']] :
       [['ช', 'เวรเช้า', tm('ch')], ['<u>บ</u>', 'เวรบ่าย', tm('b1')], ['บ', 'เวรบ่าย', tm('b')]];
     h += '<div class="pg-notes"><div><u>หมายเหตุ</u> ส่วนราชการสามารถเพิ่มเติมรายละเอียดอื่น ๆ ได้ตามความจำเป็นและเหมาะสม</div>' +
       notes.map(function (n) { return '<div class="pg-note-row"><span>' + n[0] + ' ' + n[1] + '</span><span>' + n[2] + '</span></div>'; }).join('') + '</div>';
