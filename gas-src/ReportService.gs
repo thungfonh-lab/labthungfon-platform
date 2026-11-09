@@ -411,7 +411,7 @@ var ReportService = (function () {
   var PAYGRID_SHIFTS_ = { payGrid: [['ch', true], ['b', false], ['b1', true]], payGridOncall: [['d0', false], ['d1', false]] }; /* [เวร, LA นับด้วย] */
   function repPayGrid_(r, people, rateOvr, rates, settings, year, month, holidays, N, kind) {
     var shifts = PAYGRID_SHIFTS_[kind];
-    /* On call: ช่องรวมเวลาเป็นช่องเดียว ไม่แยกวันปกติ/วันหยุด (ตามฟีดแบ็ก) */
+    /* On call: ช่องรวมเวลาเป็นช่องเดียว นับจำนวนครั้งที่ถูกตาม (รายช่วง 00-04/04-08) ไม่แยกวันปกติ/วันหยุด — ช่องติ๊กยังติ๊กวันละ 1 ช่อง (ตามฟีดแบ็ก) */
     var oneCnt = kind === 'payGridOncall';
     function isOffDay(d) { return BusinessService.isOff_(year, month, d, holidays || []); }
     var dayHead = '', colDays = '';
@@ -425,14 +425,14 @@ var ReportService = (function () {
       '<th colspan="' + N + '">วันที่ปฏิบัติงาน</th>' + (oneCnt ? '<th rowspan="2">รวมเวลา</th>' : '<th colspan="2">รวมเวลา</th>') +
       '<th rowspan="2">จำนวนเงิน</th><th rowspan="2">วัน&nbsp;เดือน&nbsp;ปี<br>ที่รับเงิน</th><th rowspan="2">ลายมือชื่อ<br>ผู้รับเงิน</th><th rowspan="2">หมายเหตุ</th></tr>' +
       '<tr>' + dayHead + (oneCnt ? '' : '<th>วันปกติ</th><th>วันหยุด</th>') + '</tr></thead>';
-    var i = 0, tot = 0, totN = 0, totH = 0, body = '', nameMax = 0;
+    var i = 0, tot = 0, totN = 0, totH = 0, totCnt = 0, body = '', nameMax = 0;
     people.forEach(function (p) {
-      var rp = r[p.id] || {}, on = {}, amt = 0, rl = [];
+      var rp = r[p.id] || {}, on = {}, amt = 0, rl = [], cnt = 0; /* cnt = จำนวนครั้ง (เวร-วัน) — On call นับรายช่วงที่ถูกตาม ให้ อัตรา × รวมเวลา = จำนวนเงิน (ตามฟีดแบ็ก) */
       shifts.forEach(function (sd) {
         if (p.role === 'LA' && !sd[1]) return;
         (rp[sd[0]] || []).forEach(function (dy) {
           var v = BusinessService.rateFor_(rateOvr, rates, p, sd[0], dy);
-          on[dy] = true; amt += v;
+          on[dy] = true; amt += v; cnt++;
           /* ช่องอัตราจ่ายแสดงอัตราหลักค่าเดียว (สูงสุด) ตามฟีดแบ็ก — เช่น บ1 ของ MT (325) ไม่แสดง แต่ยังคิดเงินรวมตามปกติ */
           if (rl.indexOf(v) === -1) rl.push(v);
         });
@@ -441,16 +441,16 @@ var ReportService = (function () {
       if (!days.length) return;
       i++;
       var nOff = days.filter(isOffDay).length, nNorm = days.length - nOff;
-      tot += amt; totN += nNorm; totH += nOff;
+      tot += amt; totN += nNorm; totH += nOff; totCnt += cnt;
       var cells = '';
       for (var d = 1; d <= N; d++) cells += '<td class="c' + (isOffDay(d) ? ' pg-off' : '') + '">' + (on[d] ? '&#10003;' : '') + '</td>';
       nameMax = Math.max(nameMax, (civPfx_(p) + p.name).replace(/[\u0E31\u0E34-\u0E3A\u0E47-\u0E4E]/g, '').length);
       body += '<tr><td class="c">' + i + '</td><td class="l pg-name">' + civPfx_(p) + p.name + '</td>' +
         '<td class="c">' + Math.max.apply(null, rl) + '</td>' + cells +
-        (oneCnt ? '<td class="c">' + days.length + '</td>' : '<td class="c">' + nNorm + '</td><td class="c">' + nOff + '</td>') + '<td class="r">' + money_(amt) + '</td><td></td><td></td><td></td></tr>';
+        (oneCnt ? '<td class="c">' + cnt + '</td>' : '<td class="c">' + nNorm + '</td><td class="c">' + nOff + '</td>') + '<td class="r">' + money_(amt) + '</td><td></td><td></td><td></td></tr>';
     });
     body += '<tr class="tot"><td colspan="' + (3 + N) + '" class="l">รวมเงินจ่ายทั้งสิ้น (ตัวอักษร) &nbsp; <b>' + bahtText_(tot) + '</b>' +
-      '<span style="float:right;padding-right:6px">รวม</span></td>' + (oneCnt ? '<td class="c">' + (totN + totH) + '</td>' : '<td class="c">' + totN + '</td><td class="c">' + totH + '</td>') +
+      '<span style="float:right;padding-right:6px">รวม</span></td>' + (oneCnt ? '<td class="c">' + totCnt + '</td>' : '<td class="c">' + totN + '</td><td class="c">' + totH + '</td>') +
       '<td class="r">' + money_(tot) + '</td><td></td><td></td><td></td></tr>';
     /* คอลัมน์ชื่อกว้างพอดีชื่อยาวสุด (ประมาณจากจำนวนตัวอักษรที่กินที่ ไม่นับสระบน/ล่าง/วรรณยุกต์ ~5.6px ที่ฟอนต์ 10.5px
        บนหน้า 1077px) ที่เหลือยกให้ช่องลายมือชื่อ (width:auto) ตามฟีดแบ็ก */
