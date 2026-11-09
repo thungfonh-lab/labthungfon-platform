@@ -406,8 +406,11 @@ var ReportService = (function () {
     if (x) return 'นาย';
     return '';
   }
-  var PAYGRID_SHIFTS_ = [['d0', false], ['d1', false], ['ch', true], ['b', false], ['b1', true]]; /* [เวร, LA นับด้วย] */
-  function repPayGrid_(r, people, rateOvr, rates, settings, year, month, holidays, N) {
+  /* แยกเป็น 2 รายงาน (ตามฟีดแบ็ก): payGrid = เวรปกติ (ช/บ/บ1), payGridOncall = เวรดึก On call (00.00-04.00 + 04.01-08.00)
+     รูปแบบตารางเดียวกัน แยกแท็บแทนการต่อเป็น 2 หน้าในรายงานเดียว เพราะการพิมพ์บน iPad (html.ios-fit) ย่อรายงานให้พอดี 1 หน้า */
+  var PAYGRID_SHIFTS_ = { payGrid: [['ch', true], ['b', false], ['b1', true]], payGridOncall: [['d0', false], ['d1', false]] }; /* [เวร, LA นับด้วย] */
+  function repPayGrid_(r, people, rateOvr, rates, settings, year, month, holidays, N, kind) {
+    var shifts = PAYGRID_SHIFTS_[kind];
     function isOffDay(d) { return BusinessService.isOff_(year, month, d, holidays || []); }
     var dayHead = '', colDays = '';
     for (var d = 1; d <= N; d++) {
@@ -422,15 +425,14 @@ var ReportService = (function () {
       '<tr>' + dayHead + '<th>วันปกติ</th><th>วันหยุด</th></tr></thead>';
     var i = 0, tot = 0, totN = 0, totH = 0, body = '', nameMax = 0;
     people.forEach(function (p) {
-      var rp = r[p.id] || {}, on = {}, amt = 0, rl = [], rlD = [];
-      PAYGRID_SHIFTS_.forEach(function (sd) {
+      var rp = r[p.id] || {}, on = {}, amt = 0, rl = [];
+      shifts.forEach(function (sd) {
         if (p.role === 'LA' && !sd[1]) return;
         (rp[sd[0]] || []).forEach(function (dy) {
           var v = BusinessService.rateFor_(rateOvr, rates, p, sd[0], dy);
           on[dy] = true; amt += v;
-          /* ช่องอัตราจ่ายแสดงอัตราหลักค่าเดียว (สูงสุด ไม่นับเวรดึก On call) ตามฟีดแบ็ก — อัตรา 325 ของ On call/บ1 ของ MT ไม่แสดง แต่ยังคิดเงินรวมตามปกติ */
-          var list = sd[0] === 'd0' || sd[0] === 'd1' ? rlD : rl;
-          if (list.indexOf(v) === -1) list.push(v);
+          /* ช่องอัตราจ่ายแสดงอัตราหลักค่าเดียว (สูงสุด) ตามฟีดแบ็ก — เช่น บ1 ของ MT (325) ไม่แสดง แต่ยังคิดเงินรวมตามปกติ */
+          if (rl.indexOf(v) === -1) rl.push(v);
         });
       });
       var days = Object.keys(on).map(Number);
@@ -442,7 +444,7 @@ var ReportService = (function () {
       for (var d = 1; d <= N; d++) cells += '<td class="c' + (isOffDay(d) ? ' pg-off' : '') + '">' + (on[d] ? '&#10003;' : '') + '</td>';
       nameMax = Math.max(nameMax, (civPfx_(p) + p.name).replace(/[\u0E31\u0E34-\u0E3A\u0E47-\u0E4E]/g, '').length);
       body += '<tr><td class="c">' + i + '</td><td class="l pg-name">' + civPfx_(p) + p.name + '</td>' +
-        '<td class="c">' + Math.max.apply(null, rl.length ? rl : rlD) + '</td>' + cells +
+        '<td class="c">' + Math.max.apply(null, rl) + '</td>' + cells +
         '<td class="c">' + nNorm + '</td><td class="c">' + nOff + '</td><td class="r">' + money_(amt) + '</td><td></td><td></td><td></td></tr>';
     });
     body += '<tr class="tot"><td colspan="' + (3 + N) + '" class="l">รวมเงินจ่ายทั้งสิ้น (ตัวอักษร) &nbsp; <b>' + bahtText_(tot) + '</b>' +
@@ -451,12 +453,13 @@ var ReportService = (function () {
     /* คอลัมน์ชื่อกว้างพอดีชื่อยาวสุด (ประมาณจากจำนวนตัวอักษรที่กินที่ ไม่นับสระบน/ล่าง/วรรณยุกต์ ~5.6px ที่ฟอนต์ 10.5px
        บนหน้า 1077px) ที่เหลือยกให้ช่องลายมือชื่อ (width:auto) ตามฟีดแบ็ก */
     colgroup = colgroup.replace('__NAMEW__', Math.max(8, (nameMax * 5.6 + 12) / 1077 * 100).toFixed(2));
-    var h = payFormHeader_(titleFor_(settings, 'payGrid'), settings, year, month) + '<div class="rep-tbl-wrap"><table class="rep-tbl paygrid-tbl">' + colgroup + thead + '<tbody>' + body + '</tbody></table></div>';
+    var h = payFormHeader_(titleFor_(settings, kind), settings, year, month) + '<div class="rep-tbl-wrap"><table class="rep-tbl paygrid-tbl">' + colgroup + thead + '<tbody>' + body + '</tbody></table></div>';
     h += '<div style="font-size:13.5px;margin-top:6px">ขอรับรองว่า ผู้มีรายชื่อข้างต้นปฏิบัติงานนอกเวลาจริง</div>' +
     sigRow_(settings);
     /* หมายเหตุท้ายแบบฟอร์ม (ตามแบบฟอร์มราชการ) — ช่วงเวลาแต่ละเวรดึงจาก ตั้งค่า > เวลาปฏิบัติงานแต่ละเวร */
     function tm(key) { var t = shiftTime_(settings, key); return 'ตั้งแต่เวลา ' + t.s + ' น.-' + t.e + ' น.'; }
-    var notes = [['ช', 'เวรเช้า', tm('ch')], ['<u>บ</u>', 'เวรบ่าย', tm('b1')], ['บ', 'เวรบ่าย', tm('b')], ['ด', 'เวรดึก on call', 'ตั้งแต่เวลา 00.00 น.-08.00 น.']];
+    var notes = kind === 'payGridOncall' ? [['ด', 'เวรดึก on call', 'ตั้งแต่เวลา 00.00 น.-08.00 น.']] :
+      [['ช', 'เวรเช้า', tm('ch')], ['<u>บ</u>', 'เวรบ่าย', tm('b1')], ['บ', 'เวรบ่าย', tm('b')]];
     h += '<div class="pg-notes"><div><u>หมายเหตุ</u> ส่วนราชการสามารถเพิ่มเติมรายละเอียดอื่น ๆ ได้ตามความจำเป็นและเหมาะสม</div>' +
       notes.map(function (n) { return '<div class="pg-note-row"><span>' + n[0] + ' ' + n[1] + '</span><span>' + n[2] + '</span></div>'; }).join('') + '</div>';
     return h;
@@ -772,6 +775,7 @@ var ReportService = (function () {
     payForm: 'หลักฐานการเบิกจ่ายเงินตอบแทนการปฏิบัติงานนอกเวลาราชการ',
     payFormPortrait: 'หลักฐานการเบิกจ่ายเงินตอบแทนการปฏิบัติงานนอกเวลาราชการ',
     payGrid: 'หลักฐานการเบิกจ่ายเงินตอบแทนการปฏิบัติงานนอกเวลาราชการ',
+    payGridOncall: 'หลักฐานการเบิกจ่ายเงินตอบแทนการปฏิบัติงานนอกเวลาราชการ (เวรดึก On call)',
     payperson: 'หลักฐานการจ่ายเงิน (รายบุคคล)',
     shiftsummary: 'สรุปเวรรายบุคคล',
     teamoverview: 'ภาพรวมการขึ้นเวรทั้งทีม',
@@ -817,7 +821,7 @@ var ReportService = (function () {
     if (kind === 'payLandscape') return { title: titleFor_(settings, 'payLandscape'), html: '<div class="pay-landscape">' + repPay_(r, people, rateOvr, rates, settings, year, month) + '</div>' };
     if (kind === 'payForm') return { title: titleFor_(settings, 'payForm'), html: '<div class="pay-form">' + repPayForm_(r, people, rateOvr, rates, settings, year, month, calendar.holidays) + '</div>' };
     if (kind === 'payFormPortrait') return { title: titleFor_(settings, 'payFormPortrait'), html: '<div class="pay-form pay-form-portrait">' + repPayForm_(r, people, rateOvr, rates, settings, year, month, calendar.holidays, 'payFormPortrait') + '</div>' };
-    if (kind === 'payGrid') return { title: titleFor_(settings, 'payGrid'), html: '<div class="pay-form pay-grid">' + repPayGrid_(r, people, rateOvr, rates, settings, year, month, calendar.holidays, calendar.N) + '</div>' };
+    if (kind === 'payGrid' || kind === 'payGridOncall') return { title: titleFor_(settings, kind), html: '<div class="pay-form pay-grid">' + repPayGrid_(r, people, rateOvr, rates, settings, year, month, calendar.holidays, calendar.N, kind) + '</div>' };
     if (kind === 'payperson') return { title: titleFor_(settings, kind), html: header + repPayPerson_(r, pid, people, rateOvr, rates, settings) };
     if (kind === 'shiftsummary') return { title: titleFor_(settings, kind), html: header + repShiftSummary_(r, pid, people, rateOvr, rates, settings, stations, year, month) };
     if (kind === 'teamoverview') return { title: titleFor_(settings, kind), html: header + repTeamOverview_(r, people, rateOvr, rates, year, month) };
