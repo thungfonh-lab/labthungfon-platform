@@ -491,7 +491,7 @@ var ReportService = (function () {
         ['เวรบ่าย (บ) นอกเวลาราชการ ' + tm('b').replace('ตั้งแต่เวลา ', '') + ' (' + shiftHours_(settings, 'b') + ' ชั่วโมง)', rateLines('b', ['MT'])],
         ['เวรเช้า (ช) และเวรบ่าย (บ) วันหยุดราชการ ' + tCh.s + ' น.-' + tB.e + ' น. (' + (shiftHours_(settings, 'ch') + shiftHours_(settings, 'b')) + ' ชั่วโมง)',
           rateLines('ch', ['MT']).concat(rateLines('ch', ['LA'], ' (เฉพาะเวรเช้า ' + tCh.s + ' น.-' + tCh.e + ' น.)'))],
-        ['เวรบ่ายเสริม (<u>บ</u>) นอกเวลาราชการ ' + tm('b1').replace('ตั้งแต่เวลา ', '') + ' (' + shiftHours_(settings, 'b1') + ' ชั่วโมง)', rateLines('b1', ['MT', 'LA'])]
+        ['เวรบ่าย (<u>บ</u>) นอกเวลาราชการ ' + tm('b1').replace('ตั้งแต่เวลา ', '') + ' (' + shiftHours_(settings, 'b1') + ' ชั่วโมง)', rateLines('b1', ['MT', 'LA'])]
       ];
       items.forEach(function (it, k) {
         h += '<div class="pg-note-h">' + (k + 1) + '. ' + it[0] + '</div>' +
