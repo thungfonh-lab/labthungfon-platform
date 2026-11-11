@@ -3788,32 +3788,48 @@ var Schedule = (function () {
     };
   }
 
-  function tagEditor(id, items) {
-    return '<div id="' + id + '" data-items=\'' + JSON.stringify(items || []) + '\'>' +
-      (items || []).map(function (t, i) { return '<span class="mo-chip on" data-i="' + i + '">' + t + ' <i class="ti ti-x" style="font-size:10px;"></i></span>'; }).join('') +
-      '<input style="border:none;background:none;font-size:12px;width:90px;outline:none;" placeholder="+ เพิ่ม แล้ว Enter">' + '</div>';
+  /* แท็ก (LAB/หน่วยงาน) — เก็บรายการไว้ใน wrap._items แล้ววาดใหม่ทุกครั้ง · กด × เพื่อลบ · พิมพ์แล้ว Enter เพื่อเพิ่ม
+     (เดิมไม่มี handler ของปุ่ม × จึงลบไม่ได้ และเก็บใน data-items ที่พังถ้าชื่อมีเครื่องหมาย ') */
+  function tagEditor(id) {
+    return '<div id="' + id + '" style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;"><span data-chips style="display:contents"></span>' +
+      '<input style="border:none;background:none;font-size:12px;width:120px;outline:none;" placeholder="+ เพิ่ม แล้ว Enter"></div>';
+  }
+  function bindTagEditor_(id, items) {
+    var wrap = document.getElementById(id), chips = wrap.querySelector('[data-chips]'), input = wrap.querySelector('input');
+    var esc = function (t) { return String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;'); };
+    wrap._items = (Array.isArray(items) ? items : []).slice();
+    function paint() {
+      chips.innerHTML = wrap._items.map(function (t, i) {
+        return '<span class="mo-chip on" style="cursor:default;">' + esc(t) +
+          ' <i class="ti ti-x" data-del-i="' + i + '" title="ลบ" style="font-size:11px;cursor:pointer;padding:2px;"></i></span>';
+      }).join('');
+      chips.querySelectorAll('[data-del-i]').forEach(function (x) {
+        x.onclick = function (e) { e.stopPropagation(); wrap._items.splice(+x.dataset.delI, 1); paint(); };
+      });
+    }
+    input.addEventListener('keydown', function (e) {
+      if (e.key !== 'Enter' || e.isComposing) return;
+      e.preventDefault();
+      var v = input.value.trim();
+      if (!v) return;
+      if (wrap._items.indexOf(v) === -1) wrap._items.push(v);
+      input.value = ''; paint();
+    });
+    paint();
   }
 
   function renderMasterSection(s) {
     var body = document.getElementById('accMaster');
-    body.innerHTML = '<div class="card-title" style="margin-top:0;">LAB ที่ตรวจได้</div>' + tagEditor('labsTags', s.labs || []) +
-      '<div class="card-title" style="margin-top:16px;">หน่วยงานที่ขอ On-call</div>' + tagEditor('unitsTags', s.units || []) +
+    body.innerHTML = '<div class="card-title" style="margin-top:0;">LAB ที่ตรวจได้</div>' + tagEditor('labsTags') +
+      '<div class="card-title" style="margin-top:16px;">หน่วยงานที่ขอ On-call</div>' + tagEditor('unitsTags') +
       '<button class="btn btn-primary btn-sm" id="masterSaveBtn" style="margin-top:12px;">บันทึก</button>';
-    [['labsTags'], ['unitsTags']].forEach(function (a) {
-      var wrap = document.getElementById(a[0]);
-      var input = wrap.querySelector('input');
-      input.addEventListener('keydown', function (e) {
-        if (e.key !== 'Enter' || !input.value.trim()) return;
-        var items = JSON.parse(wrap.dataset.items); items.push(input.value.trim()); wrap.dataset.items = JSON.stringify(items);
-        var chip = document.createElement('span'); chip.className = 'mo-chip on'; chip.textContent = input.value.trim();
-        wrap.insertBefore(chip, input); input.value = '';
-      });
-    });
+    bindTagEditor_('labsTags', asArray_(s.labs));
+    bindTagEditor_('unitsTags', asArray_(s.units));
     document.getElementById('masterSaveBtn').onclick = function (e) {
       saveField(e.target, function () {
         return gsRun('api_saveSettings', Session.token, {
-          labs: JSON.parse(document.getElementById('labsTags').dataset.items),
-          units: JSON.parse(document.getElementById('unitsTags').dataset.items)
+          labs: document.getElementById('labsTags')._items,
+          units: document.getElementById('unitsTags')._items
         });
       });
     };
