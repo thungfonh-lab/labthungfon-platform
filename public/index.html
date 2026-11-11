@@ -830,6 +830,8 @@ var MODULE_REGISTRY = BUILTIN_MODULES.slice();
    การเปิด/ปิดโมดูลและโมดูล URL ไม่ถูกโหลด) */
 /* ฟีเจอร์ที่หน่วยงานนี้ซ่อน (ตั้งค่า > เมนู/รายงานที่ใช้งาน) — settings.hiddenFeatures เช่น
    'sub:balance' (เมนูย่อย), 'setup:notif' (หัวข้อในหน้าตั้งค่า), 'rep:pay' (แท็บรายงาน) — ไม่มี = แสดงทั้งหมด */
+/* ชื่อเรียกบทบาทของหน่วยงาน (ตั้งค่า > หน่วยงาน & ทีม) เช่น X-ray เรียก MT ว่า RT — รหัสในข้อมูลยังเป็น HT/MT/LA เหมือนเดิม */
+function roleLbl_(r) { var m = asObj_((Session.settings || {}).roleLabels); return (m[r] || '').trim() || r; }
 function featureOn_(key) { return asArray_((Session.settings || {}).hiddenFeatures).indexOf(key) === -1; }
 function asArray_(v) {
   if (Array.isArray(v)) return v;
@@ -1242,7 +1244,7 @@ function enterApp(prefetchedBoot) {
     document.getElementById('loginScr').style.display = 'none';
     document.getElementById('app').style.display = 'flex';
     document.getElementById('avatarInitial').textContent = (boot.user.name || 'A').charAt(0).toUpperCase();
-    document.getElementById('avatarName').textContent = boot.user.name + ' (' + boot.user.role + ')';
+    document.getElementById('avatarName').textContent = boot.user.name + ' (' + roleLbl_(boot.user.role) + ')';
     if (localStorage.getItem('lo_theme') === 'dark') document.documentElement.dataset.theme = 'dark';
     if (localStorage.getItem('lo_sb_open') !== '0') document.getElementById('sb').classList.add('open');
     applyBranding(boot.settings);
@@ -1886,8 +1888,6 @@ var Schedule = (function () {
   }
   /* เวรที่เปิดใช้งาน — settings.shiftOff = เวรที่ปิดถาวร (ตั้งค่า > ประเภทเวร > เปิดใช้งาน)
      ปิดแล้วไม่โชว์ใน legend/คอลัมน์สรุปของตารางเวร/การ์ดเวลาตอนพิมพ์ และระบบไม่จัดเวรนั้นให้ */
-  /* ชื่อเรียกบทบาทของหน่วยงาน (ตั้งค่า > ข้อมูลหน่วยงาน) เช่น X-ray เรียก MT ว่า RT — รหัสในข้อมูลยังเป็น HT/MT/LA เหมือนเดิม */
-  function roleLbl_(r) { var m = (Session.settings || {}).roleLabels || {}; return (m[r] || '').trim() || r; }
   function shiftOn_(k) {
     var off = (Session.settings || {}).shiftOff;
     return !Array.isArray(off) || off.indexOf(k) === -1;
@@ -3256,7 +3256,7 @@ var Schedule = (function () {
   function paintPeople(people) {
     document.getElementById('peopleTbl').innerHTML = '<tr><th>ชื่อ</th><th>บทบาท</th><th>Priority</th><th>Active</th><th></th></tr>' +
       people.map(function (p) {
-        return '<tr><td class="l">' + fullN(p) + '<div style="font-size:10.5px;color:var(--mut);">' + (p.title || '') + '</div></td><td>' + p.role + '</td><td>' + (p.priority || '') + '</td>' +
+        return '<tr><td class="l">' + fullN(p) + '<div style="font-size:10.5px;color:var(--mut);">' + (p.title || '') + '</div></td><td>' + roleLbl_(p.role) + '</td><td>' + (p.priority || '') + '</td>' +
           '<td>' + (p.active !== false ? '<span class="badge ok">Active</span>' : '<span class="badge none">ปิด</span>') + '</td>' +
           '<td><button class="btn btn-sm" data-edit="' + p.id + '"><i class="ti ti-edit"></i></button></td></tr>';
       }).join('') + '<tr data-row-end style="display:none;"></tr>';
@@ -3870,7 +3870,7 @@ var Schedule = (function () {
     perms.forEach(function (p) { byRoleAction[p.roleId + '.' + p.action] = (p.allowed === true || p.allowed === 'true' || p.allowed === 'TRUE'); });
     var roles = ['HT', 'MT', 'LA'];
     var body = document.getElementById('accPerms');
-    body.innerHTML = '<table class="tbl perm-ind"><tr><th>สิทธิ์</th>' + roles.map(function (r) { return '<th>' + r + '</th>'; }).join('') + '</tr>' +
+    body.innerHTML = '<table class="tbl perm-ind"><tr><th>สิทธิ์</th>' + roles.map(function (r) { return '<th>' + roleLbl_(r) + '</th>'; }).join('') + '</tr>' +
       PERM_ACTIONS.map(function (a) {
         return '<tr><td class="l">' + PERM_LABEL[a] + '</td>' + roles.map(function (r) {
           var on = !!byRoleAction[r + '.' + a];
@@ -3932,7 +3932,8 @@ var Admin = (function () {
 
   /* ---------------- User accounts (เพิ่ม/ปิดใช้งาน/รีเซ็ตรหัสผ่าน login) ---------------- */
 
-  var USER_ROLES = [['admin', 'admin'], ['HT', 'HT (หัวหน้าหน่วย)'], ['MT', 'MT'], ['LA', 'LA']];
+  /* ชื่อที่แสดงตามชื่อเรียกบทบาทของหน่วยงาน (ค่าที่บันทึกยังเป็น HT/MT/LA) — getter เพราะ settings โหลดทีหลัง */
+  var USER_ROLES_ = function () { return [['admin', 'admin'], ['HT', roleLbl_('HT') + ' (หัวหน้าหน่วย)'], ['MT', roleLbl_('MT')], ['LA', roleLbl_('LA')]]; };
   var usersPeople = [];
   var usersList = []; /* cache ของ listUsers() ล่าสุด — ใช้เติมค่าฟอร์มแก้ไขโดยไม่ต้องยิง request ซ้ำ */
 
@@ -3954,7 +3955,7 @@ var Admin = (function () {
       '<div class="frm-grid">' +
       '<label>ชื่อ-สกุล<input id="uNewName"></label>' +
       '<label>อีเมล<input id="uNewEmail" type="email"></label>' +
-      '<label>บทบาท<select id="uNewRole">' + USER_ROLES.map(function (r) { return '<option value="' + r[0] + '">' + r[1] + '</option>'; }).join('') + '</select></label>' +
+      '<label>บทบาท<select id="uNewRole">' + USER_ROLES_().map(function (r) { return '<option value="' + r[0] + '">' + r[1] + '</option>'; }).join('') + '</select></label>' +
       '<label>รหัสผ่านชั่วคราว<input id="uNewPw" value="ChangeMe123!"></label>' +
       '</div><button class="btn btn-primary btn-sm" id="addUserBtn" style="margin-top:10px;"><i class="ti ti-plus"></i> สร้างบัญชี</button>' +
       '<p style="font-size:11.5px;color:var(--mut);margin-top:8px;">แจ้งอีเมล+รหัสผ่านชั่วคราวนี้ให้เจ้าหน้าที่ไปเข้าสู่ระบบเอง ยังไม่มีหน้าเปลี่ยนรหัสผ่านด้วยตนเอง หากต้องการเปลี่ยน ให้ผู้ดูแลระบบกดปุ่ม "รีเซ็ตรหัสผ่าน" ในตารางด้านบนแทน</p></div>';
@@ -3982,7 +3983,7 @@ var Admin = (function () {
       usersList = users;
       document.getElementById('userTbl').innerHTML = '<tr><th>ชื่อ</th><th>อีเมล</th><th>บทบาท</th><th>เจ้าหน้าที่ (เชื่อมโยง)</th><th>สถานะ</th><th></th></tr>' +
         users.map(function (u) {
-          return '<tr><td class="l">' + u.name + '</td><td class="l">' + u.email + '</td><td>' + u.role + '</td>' +
+          return '<tr><td class="l">' + u.name + '</td><td class="l">' + u.email + '</td><td>' + roleLbl_(u.role) + '</td>' +
             '<td><select data-person="' + u.userId + '" style="padding:4px 6px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--ink);font-size:12px;">' + personOptions(u.personId) + '</select></td>' +
             '<td>' + (u.active ? '<span class="badge ok">ใช้งานได้</span>' : '<span class="badge none">ปิดใช้งาน</span>') + '</td>' +
             '<td style="display:flex;gap:4px;">' +
@@ -4023,7 +4024,7 @@ var Admin = (function () {
       '<div class="frm-grid">' +
       '<label>ชื่อ-สกุล<input id="uEditName" value="' + u.name.replace(/"/g, '&quot;') + '"></label>' +
       '<label>อีเมล<input id="uEditEmail" type="email" value="' + u.email.replace(/"/g, '&quot;') + '"></label>' +
-      '<label>บทบาท<select id="uEditRole">' + USER_ROLES.map(function (r) {
+      '<label>บทบาท<select id="uEditRole">' + USER_ROLES_().map(function (r) {
         return '<option value="' + r[0] + '"' + (r[0] === u.role ? ' selected' : '') + '>' + r[1] + '</option>';
       }).join('') + '</select></label>' +
       '</div>';
@@ -4088,7 +4089,7 @@ var Admin = (function () {
     return MOD_PERM_ROLES.map(function (r) {
       var checked = roles === undefined || roles.indexOf(r) !== -1;
       return '<label style="display:inline-flex;align-items:center;gap:4px;font-size:11.5px;cursor:pointer;">' +
-        '<input type="checkbox" data-perm-mod="' + key + '" data-perm-role="' + r + '"' + (checked ? ' checked' : '') + '> ' + r + '</label>';
+        '<input type="checkbox" data-perm-mod="' + key + '" data-perm-role="' + r + '"' + (checked ? ' checked' : '') + '> ' + roleLbl_(r) + '</label>';
     }).join('');
   }
 
