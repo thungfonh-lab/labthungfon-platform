@@ -3277,14 +3277,17 @@ var Schedule = (function () {
   function openPersonForm(record) {
     var body = document.createElement('div');
     body.innerHTML = '<div class="frm-grid">' +
-      ['pfx', 'name', 'short', 'title', 'phone', 'email', 'priority'].map(function (f) {
-        return '<label>' + f + '<input data-f="' + f + '" value="' + (record && record[f] !== undefined ? record[f] : '') + '"></label>';
+      [['pfx', 'คำนำหน้าวิชาชีพ', 'เช่น ทนพ. / ทนพญ.'], ['name', 'ชื่อ-สกุล', ''], ['short', 'ชื่อย่อ', ''],
+        ['title', 'ตำแหน่ง (แสดงในรายงาน)', 'เช่น นักรังสีการแพทย์ปฏิบัติการ'], ['phone', 'เบอร์โทร', ''], ['email', 'อีเมล', ''],
+        ['priority', 'ลำดับความสำคัญ (Priority)', 'เลขน้อย = จัดก่อน/แสดงก่อน']].map(function (f) {
+        var v = record && record[f[0]] !== undefined ? String(record[f[0]]).replace(/"/g, '&quot;') : '';
+        return '<label>' + f[1] + '<input data-f="' + f[0] + '" value="' + v + '" placeholder="' + f[2] + '"></label>';
       }).join('') +
       /* คำนำหน้าชื่อแบบทางราชการ (นาย/นาง/นางสาว) ใช้ในใบเบิกเงินรวม (แบบตารางรายวัน) — pfx มักเป็นคำนำหน้าวิชาชีพ (ทนพ./ทนพญ.)
          ซึ่งบอกไม่ได้ว่า นาง หรือ นางสาว ว่างไว้ = เดาจาก pfx */
       '<label>คำนำหน้า (ใบเบิกเงิน)<select data-f="civ"><option value="">อัตโนมัติจาก pfx</option><option>นาย</option><option>นาง</option><option>นางสาว</option></select></label>' +
       '<label>บทบาท<select data-f="role"><option value="HT">' + roleLbl_('HT') + ' — หัวหน้า</option><option value="MT">' + roleLbl_('MT') + ' — ผู้ปฏิบัติงาน</option><option value="LA">' + roleLbl_('LA') + ' — ผู้ช่วย</option></select></label>' +
-      '<label style="display:flex;flex-direction:row;align-items:center;gap:6px;">Active<input type="checkbox" data-f="active" ' + (!record || record.active !== false ? 'checked' : '') + '></label>' +
+      '<label style="display:flex;flex-direction:row;align-items:center;gap:6px;">ใช้งานอยู่ (Active)<input type="checkbox" data-f="active" ' + (!record || record.active !== false ? 'checked' : '') + '></label>' +
       '</div>' +
       '<div class="card-title" style="margin-top:14px;">วันที่ขึ้นเวร ช/บ/ด (ติ๊กทั้งคู่ = ทุกวันตามปกติ)</div>' +
       '<div style="display:flex;gap:18px;flex-wrap:wrap;">' +
