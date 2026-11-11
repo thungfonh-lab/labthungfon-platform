@@ -33,6 +33,16 @@ app.use((req, res, next) => { gs.resetCaches(); next(); });
 
 app.get('/api/health', (req, res) => res.json({ success: true, data: { ok: true }, message: null }));
 
+// ชื่อระบบ/หน่วยงาน สำหรับแท็บเบราว์เซอร์และหน้า login (ก่อน login) — เปิดเฉพาะค่าที่ไม่เป็นความลับ
+app.get('/api/branding', async (req, res) => {
+  try {
+    const s = await require('../lib/dataService').getSettings();
+    res.json({ success: true, data: { appName: s.appName || '', org: s.org || '', hosp: s.hosp || '', logo: s.logo || '', themeColor: s.themeColor || '', themeAcc: s.themeAcc || '' }, message: null });
+  } catch (e) {
+    res.json({ success: true, data: {}, message: null });
+  }
+});
+
 app.use('/api/auth', authRoutes);
 app.use('/api', scheduleRoutes); // /api/bootstrap, /api/schedule/*, /api/stations
 app.use('/api', masterdataRoutes); // /api/master/:category, /api/crud, /api/settings, /api/shifts, /api/setup-bundle, /api/holidays

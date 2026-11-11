@@ -696,8 +696,8 @@ html.printing,html.printing body,html.printing #app,html.printing #content,html.
     <div style="display:flex;align-items:center;gap:12px;margin-bottom:6px;">
       <div style="width:48px;height:48px;border-radius:12px;background:linear-gradient(135deg,var(--tl),var(--tl-d));color:#fff;display:grid;place-items:center;font-weight:700;font-size:15px;font-family:'IBM Plex Sans Thai';">L</div>
       <div>
-        <div style="font-size:18px;font-weight:700;font-family:'IBM Plex Sans Thai';">labthungfon</div>
-        <div style="font-size:11px;color:var(--mut);">Platform · กลุ่มงานเทคนิคการแพทย์</div>
+        <div id="loginBrandName" style="font-size:18px;font-weight:700;font-family:'IBM Plex Sans Thai';">labthungfon</div>
+        <div id="loginBrandSub" style="font-size:11px;color:var(--mut);">Platform · กลุ่มงานเทคนิคการแพทย์</div>
       </div>
     </div>
     <p style="font-size:12px;color:var(--mut);margin-bottom:20px;padding-top:10px;border-top:1px solid var(--border);">เข้าสู่ระบบด้วยบัญชีหน่วยงาน</p>
@@ -707,7 +707,7 @@ html.printing,html.printing body,html.printing #app,html.printing #content,html.
       <button class="btn btn-primary" id="loginBtn" style="width:100%;justify-content:center;padding:11px;">เข้าสู่ระบบ</button>
       <div id="loginError" style="color:var(--coral);font-size:12px;display:none;"></div>
     </div>
-    <p style="font-size:10.5px;color:var(--mut);text-align:center;margin-top:14px;">labthungfon Platform · Google Workspace</p>
+    <p id="loginBrandFoot" style="font-size:10.5px;color:var(--mut);text-align:center;margin-top:14px;">labthungfon Platform · Google Workspace</p>
   </div>
 </div>
 
@@ -762,7 +762,7 @@ html.printing,html.printing body,html.printing #app,html.printing #content,html.
       <div class="frame" id="frame-guide"></div>
     </div>
     <div id="appFooter" style="text-align:center;padding:10px 16px 14px;font-size:11px;color:var(--mut);border-top:1px solid var(--border);background:var(--surface);">
-      labthungfon-platform โรงพยาบาลทุ่งฝน · พัฒนาโดย ทนพญ.เบญญาภา ธรา กลุ่มงานเทคนิคการแพทย์
+      <span id="footBrand">labthungfon-platform โรงพยาบาลทุ่งฝน</span> · พัฒนาโดย ทนพญ.เบญญาภา ธรา กลุ่มงานเทคนิคการแพทย์
     </div>
   </div>
 </div>
@@ -1161,9 +1161,33 @@ function brandSub() {
   return s.org || s.hosp ? [s.org, s.hosp].filter(Boolean).join(' · ') : 'Platform · เทคนิคการแพทย์';
 }
 
+/* ชื่อระบบ (ตั้งค่า > ข้อมูลหน่วยงาน > ชื่อระบบ) — แท็บเบราว์เซอร์ หน้า login และ footer
+   ว่างไว้ = ใช้ชื่อเดิม labthungfon Platform */
+function applyAppName_(s) {
+  s = s || {};
+  var custom = (s.appName || '').trim() || (s.org || '').trim();
+  var name = custom || 'labthungfon Platform';
+  document.title = name;
+  var set = function (id, t) { var el = document.getElementById(id); if (el) el.textContent = t; };
+  if (custom) {
+    set('loginBrandName', name);
+    set('loginBrandSub', [name === s.org ? '' : s.org, s.hosp].filter(Boolean).join(' · ') || 'Platform');
+    set('loginBrandFoot', name);
+  }
+  set('footBrand', (custom || 'labthungfon-platform') + (s.hosp ? ' ' + s.hosp : ''));
+  var tb = document.getElementById('tbSub'); if (tb && !_activeMod) tb.textContent = name;
+}
+/* โหลดชื่อระบบก่อน login (endpoint สาธารณะ เปิดเฉพาะชื่อ/สี) */
+try {
+  fetch('/api/branding').then(function (r) { return r.json(); }).then(function (j) {
+    if (j && j.data && !(Session && Session.token)) applyAppName_(j.data);
+  }).catch(function () {});
+} catch (e) {}
+
 function applyBranding(settings) {
   if (settings) Session.settings = settings;
   var s = Session.settings || {};
+  applyAppName_(s);
   document.getElementById('sbMark').textContent = (s.logo || (s.org || 'L').charAt(0)).toUpperCase();
   document.getElementById('sbBrandName').textContent = s.org || 'labthungfon';
   document.getElementById('sbBrandSub').textContent = brandSub();
@@ -1854,10 +1878,18 @@ var Schedule = (function () {
     var cfg = shiftTimesCfg[key] || {};
     return { s: cfg.s || def.s, e: cfg.e || def.e };
   }
+  /* เวรที่เปิดใช้งาน — settings.shiftOff = เวรที่ปิดถาวร (ตั้งค่า > ประเภทเวร > เปิดใช้งาน)
+     ปิดแล้วไม่โชว์ใน legend/คอลัมน์สรุปของตารางเวร/การ์ดเวลาตอนพิมพ์ และระบบไม่จัดเวรนั้นให้ */
+  /* ชื่อเรียกบทบาทของหน่วยงาน (ตั้งค่า > ข้อมูลหน่วยงาน) เช่น X-ray เรียก MT ว่า RT — รหัสในข้อมูลยังเป็น HT/MT/LA เหมือนเดิม */
+  function roleLbl_(r) { var m = (Session.settings || {}).roleLabels || {}; return (m[r] || '').trim() || r; }
+  function shiftOn_(k) {
+    var off = (Session.settings || {}).shiftOff;
+    return !Array.isArray(off) || off.indexOf(k) === -1;
+  }
   function renderLegend() {
     var el = document.getElementById('legend');
     if (!el) return;
-    el.innerHTML = Object.keys(SHIFT_DEFS).map(function (k) {
+    el.innerHTML = Object.keys(SHIFT_DEFS).filter(shiftOn_).map(function (k) {
       /* x มี 2 สี — ต่อป้าย (MT)/(ผู้ช่วย) กำกับ จะได้รู้ว่าสีไหนของใคร */
       if (k === 'n') return '<span>' + tokEl(k) + ' ' + shiftNameT_(k) + ' (MT)</span>' +
         '<span>' + tokEl('n', '', N_LA_DEF_) + ' ' + shiftNameT_(k) + ' (ผู้ช่วย)</span>';
@@ -1880,7 +1912,7 @@ var Schedule = (function () {
   function renderWorkHoursPrint() {
     var el = document.getElementById('workHoursPrint');
     if (!el) return;
-    var order = ['ch', 'b1', 'b', 'd', 'n1', 'n'];
+    var order = ['ch', 'b1', 'b', 'd', 'n1', 'n'].filter(shiftOn_);
     var rows = [];
     order.forEach(function (k) {
       if (k === 'd') {
@@ -1923,6 +1955,7 @@ var Schedule = (function () {
     if ((cal.clinicMt[d] || []).indexOf(p.id) > -1 || (cal.clinicLa[d] || []).indexOf(p.id) > -1) t.push('n');
     if ((cal.n1[d] || []).indexOf(p.id) > -1) t.push('n1');
     if ((cal.laB[d] || []).indexOf(p.id) > -1) t.push('b1');
+    t = t.filter(shiftOn_); /* เวรที่ปิดใช้งานไม่แสดงในช่อง (ข้อมูลเดิมยังอยู่ เปิดกลับมาก็เห็นเหมือนเดิม) */
     t.sort(function (x, y) { return TOK_TIME_ORDER[x] - TOK_TIME_ORDER[y]; });
     return t;
   }
@@ -1960,7 +1993,9 @@ var Schedule = (function () {
       r1 += '<th class="dnum ' + c + '">' + d + '</th>';
       r2 += '<th class="dow ' + c + '">' + dl[new Date(cal.year - 543, cal.month, d).getDay()] + '</th>';
     }
-    r1 += '<th class="sumcol" rowspan="2"><u>x</u></th><th class="sumcol" rowspan="2">x</th><th class="sumcol" rowspan="2">ช</th><th class="sumcol" rowspan="2"><u>บ</u></th><th class="sumcol" rowspan="2">บ</th><th class="sumcol" rowspan="2">ด</th><th class="sumcol" rowspan="2">รวม</th>';
+    /* คอลัมน์สรุปแสดงเฉพาะเวรที่เปิดใช้งาน */
+    var SUM_COLS = [['n1', '<u>x</u>'], ['n', 'x'], ['ch', 'ช'], ['b1', '<u>บ</u>'], ['b', 'บ'], ['d', 'ด']].filter(function (c) { return shiftOn_(c[0]); });
+    r1 += SUM_COLS.map(function (c) { return '<th class="sumcol" rowspan="2">' + c[1] + '</th>'; }).join('') + '<th class="sumcol" rowspan="2">รวม</th>';
     var h = '<thead><tr>' + r1 + '</tr><tr>' + r2 + '</tr></thead><tbody>';
 
     var totals = { ch: 0, b: 0, b1: 0, n: 0, n1: 0, d: 0 };
@@ -1992,7 +2027,7 @@ var Schedule = (function () {
       /* รวมนับ ช+บ+บ1 เสมอ ไม่แยกตามบทบาท — ปกติ MT จะไม่มี บ1 (LA เท่านั้น) และ LA จะไม่มี บ (MT เท่านั้น)
          อยู่แล้ว แต่ถ้ามีการ Override ข้ามบทบาท (เช่น MT ได้ บ1 เพิ่ม) ต้องนับรวมด้วย ไม่ตกหล่น */
       var rmt = sums.ch + sums.b + sums.b1;
-      row += '<td class="sumcol">' + sums.n1 + '</td><td class="sumcol">' + sums.n + '</td><td class="sumcol">' + sums.ch + '</td><td class="sumcol">' + sums.b1 + '</td><td class="sumcol">' + sums.b + '</td><td class="sumcol">' + sums.d + '</td><td class="sumcol" style="font-size:12px">' + rmt + '</td></tr>';
+      row += SUM_COLS.map(function (c) { return '<td class="sumcol">' + (sums[c[0]] || 0) + '</td>'; }).join('') + '<td class="sumcol" style="font-size:12px">' + rmt + '</td></tr>';
       /* คนที่ปิดใช้งาน (ลาออก) ให้ซ่อนแถวออกจากตารางเวร แต่ยังคงข้อมูลเวรเดือนเก่าไว้ครบ —
          ซ่อนเฉพาะเดือนที่ไม่มีข้อมูลเวร/วันลาของคนนั้นเลย เดือนที่เคยมีเวรอยู่แล้วยังแสดงตามปกติ */
       var hasData = sums.ch + sums.b + sums.b1 + sums.n + sums.n1 + sums.d > 0 ||
@@ -2003,7 +2038,7 @@ var Schedule = (function () {
     });
     h += '<tr class="sum-row"><td class="nm" style="text-align:right;font-size:11px;color:var(--mut)">รวมทั้งหมด</td>';
     for (var d3 = 1; d3 <= cal.N; d3++) h += '<td></td>';
-    h += '<td class="sumcol">' + totals.n1 + '</td><td class="sumcol">' + totals.n + '</td><td class="sumcol">' + totals.ch + '</td><td class="sumcol">' + totals.b1 + '</td><td class="sumcol">' + totals.b + '</td><td class="sumcol">' + totals.d + '</td><td class="sumcol">—</td></tr></tbody>';
+    h += SUM_COLS.map(function (c) { return '<td class="sumcol">' + totals[c[0]] + '</td>'; }).join('') + '<td class="sumcol">—</td></tr></tbody>';
 
     var table = document.getElementById('schedTbl');
     table.innerHTML = h;
@@ -2712,9 +2747,9 @@ var Schedule = (function () {
   var _bpTol = 650;
 
   function bpRoleBadge(role) {
-    if (role === 'HT') return '<span style="font-size:11px;padding:2px 7px;border-radius:6px;font-weight:600;background:var(--gold-l);color:var(--gold)">HT</span>';
-    if (role === 'LA') return '<span style="font-size:11px;padding:2px 7px;border-radius:6px;font-weight:600;background:var(--pur-l);color:var(--pur)">LA</span>';
-    return '<span style="font-size:11px;padding:2px 7px;border-radius:6px;font-weight:600;background:var(--tl-l);color:var(--tl-d)">MT</span>';
+    if (role === 'HT') return '<span style="font-size:11px;padding:2px 7px;border-radius:6px;font-weight:600;background:var(--gold-l);color:var(--gold)">' + roleLbl_('HT') + '</span>';
+    if (role === 'LA') return '<span style="font-size:11px;padding:2px 7px;border-radius:6px;font-weight:600;background:var(--pur-l);color:var(--pur)">' + roleLbl_('LA') + '</span>';
+    return '<span style="font-size:11px;padding:2px 7px;border-radius:6px;font-weight:600;background:var(--tl-l);color:var(--tl-d)">' + roleLbl_('MT') + '</span>';
   }
 
   function renderBalancePage(page) {
@@ -3024,6 +3059,7 @@ var Schedule = (function () {
       '<details class="acc"><summary><i class="ti ti-calendar-event"></i> วันหยุดราชการ — ' + monthLabel() + '</summary><div class="acc-body" id="accHolidays"></div></details>' +
       '<details class="acc"><summary><i class="ti ti-signature"></i> ผู้ลงนามในเอกสาร</summary><div class="acc-body" id="accSign"></div></details>' +
       '<details class="acc"><summary><i class="ti ti-heading"></i> หัวข้อรายงาน (พิมพ์/ส่งออก)</summary><div class="acc-body" id="accRepTitles"></div></details>' +
+      '<details class="acc"><summary><i class="ti ti-notes"></i> คำอธิบายใต้ใบเบิกเงิน (แบบตารางรายวัน)</summary><div class="acc-body" id="accPayNotes"></div></details>' +
       '<details class="acc"><summary><i class="ti ti-flask"></i> Master Data (LAB · หน่วยงาน)</summary><div class="acc-body" id="accMaster"></div></details>' +
       '<details class="acc"><summary><i class="ti ti-bell"></i> การแจ้งเตือน &amp; กำหนดการ</summary><div class="acc-body" id="accNotif"></div></details>' +
       '<details class="acc"><summary><i class="ti ti-shield-lock"></i> สิทธิ์การใช้งาน (รายบุคคล)</summary><div class="acc-body" id="accPerms"></div></details>' +
@@ -3043,6 +3079,7 @@ var Schedule = (function () {
       renderHolidaysSection(bundle.holidays);
       renderSignSection(bundle.settings);
       renderReportTitlesSection(bundle.settings);
+      renderPayNotesSection(bundle.settings);
       renderMasterSection(bundle.settings);
       renderNotifSection(bundle.settings);
       renderPermsSection(bundle.permissions);
@@ -3152,6 +3189,10 @@ var Schedule = (function () {
       '<label>ชื่อโรงพยาบาล<input id="cfHosp" value="' + (s.hosp || '') + '"></label>' +
       '<label>ที่อยู่<input id="cfProv" value="' + (s.prov || '') + '"></label>' +
       '<label>อักษรย่อโลโก้<input id="cfLogo" value="' + (s.logo || '') + '"></label>' +
+      '<label>ชื่อระบบ (แท็บเบราว์เซอร์/หน้าเข้าสู่ระบบ)<input id="cfAppName" placeholder="ว่าง = ใช้ชื่อกลุ่มงาน" value="' + (s.appName || '') + '"></label>' +
+      '<label>ชื่อเรียกบทบาท HT (หัวหน้า)<input id="cfRoleHT" placeholder="HT" value="' + (((s.roleLabels || {}).HT) || '') + '"></label>' +
+      '<label>ชื่อเรียกบทบาท MT (ผู้ปฏิบัติงาน)<input id="cfRoleMT" placeholder="MT" value="' + (((s.roleLabels || {}).MT) || '') + '"></label>' +
+      '<label>ชื่อเรียกบทบาท LA (ผู้ช่วย)<input id="cfRoleLA" placeholder="LA" value="' + (((s.roleLabels || {}).LA) || '') + '"></label>' +
       '<label>ปีสิ้นสุดในตัวเลือกปี (พ.ศ.)<input id="cfYearEnd" type="number" min="2560" max="2700" value="' + (s.schedYearEnd || (new Date().getFullYear() + 543 + 6)) + '"><span style="font-size:10.5px;color:var(--mut);margin-top:2px;">ตัวเลือกปีจะแสดงถึงปีนี้ · เพิ่มเลขปีเพื่อขยายเอง</span></label>' +
       '</div><div style="margin-top:10px;display:flex;align-items:center;gap:10px;">' +
       '<label style="font-size:11.5px;color:var(--mut);">สีหลัก</label><input type="color" id="cfTheme" value="' + (s.themeColor || '#0E6158') + '">' +
@@ -3161,6 +3202,8 @@ var Schedule = (function () {
       saveField(e.target, function () {
         var fields = {
           org: val('cfOrg'), hosp: val('cfHosp'), prov: val('cfProv'), logo: val('cfLogo'),
+          appName: val('cfAppName').trim(),
+          roleLabels: { HT: val('cfRoleHT').trim(), MT: val('cfRoleMT').trim(), LA: val('cfRoleLA').trim() },
           schedYearEnd: val('cfYearEnd'),
           themeColor: val('cfTheme'), themeAcc: val('cfAcc')
         };
@@ -3210,7 +3253,7 @@ var Schedule = (function () {
       /* คำนำหน้าชื่อแบบทางราชการ (นาย/นาง/นางสาว) ใช้ในใบเบิกเงินรวม (แบบตารางรายวัน) — pfx มักเป็นคำนำหน้าวิชาชีพ (ทนพ./ทนพญ.)
          ซึ่งบอกไม่ได้ว่า นาง หรือ นางสาว ว่างไว้ = เดาจาก pfx */
       '<label>คำนำหน้า (ใบเบิกเงิน)<select data-f="civ"><option value="">อัตโนมัติจาก pfx</option><option>นาย</option><option>นาง</option><option>นางสาว</option></select></label>' +
-      '<label>บทบาท<select data-f="role"><option value="HT">HT — หัวหน้า</option><option value="MT">MT — นักเทคนิค</option><option value="LA">LA — ผู้ช่วย</option></select></label>' +
+      '<label>บทบาท<select data-f="role"><option value="HT">' + roleLbl_('HT') + ' — หัวหน้า</option><option value="MT">' + roleLbl_('MT') + ' — ผู้ปฏิบัติงาน</option><option value="LA">' + roleLbl_('LA') + ' — ผู้ช่วย</option></select></label>' +
       '<label style="display:flex;flex-direction:row;align-items:center;gap:6px;">Active<input type="checkbox" data-f="active" ' + (!record || record.active !== false ? 'checked' : '') + '></label>' +
       '</div>' +
       '<div class="card-title" style="margin-top:14px;">วันที่ขึ้นเวร ช/บ/ด (ติ๊กทั้งคู่ = ทุกวันตามปกติ)</div>' +
@@ -3340,7 +3383,15 @@ var Schedule = (function () {
         '<td><span class="tok" style="background:' + s.bg + ';color:' + s.color + '">' + (s.short || '') + '</span></td>' +
         '<td style="text-align:left;white-space:normal;">' + disableCell + '<div style="font-size:9.5px;color:var(--mut);margin-top:3px;">คลิกเดือนเพื่อเปิด/ปิด · สีเด่น = เปิดใช้เดือนนั้น</div></td></tr>';
     }).join('');
-    body.innerHTML = '<p style="font-size:12px;color:var(--mut);margin-bottom:10px;">กำหนดชื่อเต็ม ชื่อย่อ และสีของแต่ละเวร</p>' +
+    /* เปิด/ปิดเวรถาวร — ใช้รายการเวรทั้งหมดของระบบ (SHIFT_DEFS) ไม่ใช่แถวใน MasterData เพราะบางชีตไม่มีแถวครบทุกเวร */
+    var onBox = '<div class="card-title" style="margin-top:0;">เวรที่เปิดใช้งาน</div>' +
+      '<p style="font-size:11.5px;color:var(--mut);margin:-4px 0 8px;">เอาติ๊กออก = หน่วยงานนี้ไม่ใช้เวรนั้นเลย ระบบจะไม่จัดเวรนั้นให้ และไม่แสดงในตารางเวร/คอลัมน์สรุป/การ์ดเวลาตอนพิมพ์ (ต้องการปิดแค่บางเดือนให้ใช้ "ปิดใช้เดือน" ด้านล่าง)</p>' +
+      '<div style="display:flex;flex-wrap:wrap;gap:6px 18px;margin-bottom:16px;">' +
+      ['ch', 'b', 'd', 'b1', 'n', 'n1'].map(function (k) {
+        return '<label style="display:inline-flex;align-items:center;gap:6px;font-size:12.5px;">' +
+          '<input type="checkbox" data-shift-on="' + k + '"' + (shiftOn_(k) ? ' checked' : '') + '>' + tokEl(k) + ' ' + shiftNameT_(k) + '</label>';
+      }).join('') + '</div>';
+    body.innerHTML = onBox + '<div class="card-title">ชื่อ สัญลักษณ์ และสี</div><p style="font-size:12px;color:var(--mut);margin-bottom:10px;">กำหนดชื่อเต็ม ชื่อย่อ และสีของแต่ละเวร</p>' +
       '<div class="tbl-wrap"><table class="tbl"><tr><th>ID</th><th>ชื่อเต็ม</th><th>ชื่อย่อ</th><th>สีตัวอักษร</th><th>สีพื้นหลัง</th><th>ตัวอย่าง</th><th>ปิดใช้เดือน</th></tr>' + rowsHtml + '</table></div>' +
       '<button class="btn btn-primary btn-sm" id="shiftsSaveBtn" style="margin-top:10px;">บันทึกประเภทเวรทั้งหมด</button>';
 
@@ -3363,9 +3414,15 @@ var Schedule = (function () {
         });
         return payload;
       });
+      var shiftOff = Array.prototype.map.call(body.querySelectorAll('[data-shift-on]:not(:checked)'), function (c) { return c.dataset.shiftOn; });
       gsRun('api_updateShifts', Session.token, payloads)
-        .then(function () { return gsRun('api_saveSettings', Session.token, { shiftDisabled: disabledState }); })
-        .then(function () { toast('บันทึกประเภทเวรแล้ว'); });
+        .then(function () { return gsRun('api_saveSettings', Session.token, { shiftDisabled: disabledState, shiftOff: shiftOff }); })
+        .then(function () {
+          Session.settings = Object.assign({}, Session.settings, { shiftOff: shiftOff });
+          renderLegend();
+          invalidateMonthCache();
+          toast('บันทึกประเภทเวรแล้ว');
+        });
     };
   }
 
@@ -3487,7 +3544,9 @@ var Schedule = (function () {
          จึงคงเป็น text ล้วน (ตัด "1"/"2" ออกแทนใส่ <u>) ไม่ใช้ tag ที่นี่ */
       n: shiftNameT_('n'), n1: shiftNameT_('n1'), b1: 'บ ' + shiftNameT_('b1')
     };
-    var ROLE_LABEL_ = { MT: 'MT/HT', LA: 'ผู้ช่วย (LA)' };
+    var ROLE_LABEL_ = { HT: roleLbl_('HT'), MT: roleLbl_('MT'), LA: roleLbl_('LA') };
+    /* HT ยังไม่เคยตั้งอัตราแยก = ใช้อัตราของ MT (เหมือนก่อนแยก) — แสดงค่านั้นไว้ในแถว HT */
+    if (!rates.HT) rates = Object.assign({}, rates, { HT: Object.assign({}, rates.MT || {}) });
     var rateRow = function (role, label) {
       return '<tr><td class="l">' + label + '</td>' + SH.map(function (sh) {
         var v = (rates[role] || {})[sh];
@@ -3498,7 +3557,7 @@ var Schedule = (function () {
     };
     body.innerHTML = '<div class="card-title" style="margin-top:0;">อัตรามาตรฐาน</div>' +
       '<p style="font-size:11px;color:var(--mut);margin:-4px 0 8px;">เวร ด (on call) แยก 2 อัตราตามช่วงเวลา — ใครมี on call หลายเวลาในช่วงเดียวกันของวันเดียวกัน นับเป็น 1 ครั้งของช่วงนั้น · กรอกได้ทศนิยม 2 ตำแหน่ง (เช่น 41.25)</p>' +
-      '<div class="tbl-wrap"><table class="tbl" style="table-layout:fixed;"><tr><th style="width:18%;">กลุ่ม</th><th>ช</th><th>บ</th><th>ด (00.00-04.00)</th><th>ด (04.00-08.00)</th><th>น</th><th><u>น</u></th><th><u>บ</u></th></tr>' + rateRow('MT', 'MT/HT') + rateRow('LA', 'ผู้ช่วย (LA)') + '</table></div>' +
+      '<div class="tbl-wrap"><table class="tbl" style="table-layout:fixed;"><tr><th style="width:18%;">กลุ่ม</th><th>ช</th><th>บ</th><th>ด (00.00-04.00)</th><th>ด (04.00-08.00)</th><th>น</th><th><u>น</u></th><th><u>บ</u></th></tr>' + rateRow('HT', ROLE_LABEL_.HT) + rateRow('MT', ROLE_LABEL_.MT) + rateRow('LA', ROLE_LABEL_.LA) + '</table></div>' +
       '<button class="btn btn-primary btn-sm" id="ratesSaveBtn" style="margin-top:10px;">บันทึกอัตรา</button>' +
       '<div class="card-title" style="margin-top:18px;">อัตราพิเศษ (Override)</div>' +
       '<p style="font-size:11.5px;color:var(--mut);margin-bottom:8px;">เจาะจงมากกว่า = ใช้ก่อน: บุคคล &gt; บทบาท &gt; ช่วงวันที่ &gt; อัตรามาตรฐาน</p>' +
@@ -3506,7 +3565,7 @@ var Schedule = (function () {
       '<div class="tbl-wrap"><table class="tbl" id="rateOvrTbl"></table></div>';
 
     document.getElementById('ratesSaveBtn').onclick = function (e) {
-      var newRates = { MT: {}, LA: {} };
+      var newRates = { HT: {}, MT: {}, LA: {} };
       body.querySelectorAll('[data-rate-role]').forEach(function (inp) { newRates[inp.dataset.rateRole][inp.dataset.rateSh] = Math.round((+inp.value || 0) * 100) / 100; });
       saveField(e.target, function () { return gsRun('api_saveSettings', Session.token, { rates: newRates }); });
     };
@@ -3527,7 +3586,7 @@ var Schedule = (function () {
       f.innerHTML = '<div class="frm-grid">' +
         '<label>เวร<select data-f="shift">' + SH.map(function (s) { return '<option value="' + s + '">' + SH_FULL_LABEL[s] + '</option>'; }).join('') + '</select></label>' +
         '<label>บุคคล (เว้นว่าง=ทุกคน)<select data-f="pid"><option value="">ทุกคน</option>' + people.map(function (p) { return '<option value="' + p.id + '">' + fullN(p) + '</option>'; }).join('') + '</select></label>' +
-        '<label>บทบาท (เว้นว่าง=ทุกบทบาท ใช้ตอนไม่ระบุบุคคล)<select data-f="role"><option value="">ทุกบทบาท</option><option value="MT">' + ROLE_LABEL_.MT + '</option><option value="LA">' + ROLE_LABEL_.LA + '</option></select></label>' +
+        '<label>บทบาท (เว้นว่าง=ทุกบทบาท ใช้ตอนไม่ระบุบุคคล)<select data-f="role"><option value="">ทุกบทบาท</option><option value="HT">' + ROLE_LABEL_.HT + '</option><option value="MT">' + ROLE_LABEL_.MT + '</option><option value="LA">' + ROLE_LABEL_.LA + '</option></select></label>' +
         '<label>วันที่เริ่ม<input data-f="from" type="number"></label><label>ถึงวันที่<input data-f="to" type="number"></label>' +
         '<label>จำนวน (บาท)<input data-f="amount" type="number" step="0.01" min="0" inputmode="decimal"></label></div>';
       showModal('เพิ่มอัตราพิเศษ', f, 'บันทึก', function () {
@@ -3638,6 +3697,47 @@ var Schedule = (function () {
         var patch = {};
         document.querySelectorAll('#accRepTitles [data-rt]').forEach(function (inp) { patch[inp.dataset.rt] = inp.value; });
         return gsRun('api_saveSettings', Session.token, { reportTitles: patch });
+      });
+    };
+  }
+
+  /* คำอธิบายท้ายใบเบิกเงินรวม (แบบตารางรายวัน / On call) — เว้นว่าง = ระบบสร้างให้อัตโนมัติจากเวลาเวรและอัตรา
+     ปุ่ม "ดึงข้อความอัตโนมัติ" ดึงข้อความที่ระบบสร้างของเดือนที่เลือกมาใส่ไว้ให้แก้ต่อ */
+  function renderPayNotesSection(s) {
+    var notes = s.payGridNotes || {};
+    var KINDS = [['payGrid', 'ใบเบิกเงินรวม (แบบตารางรายวัน)'], ['payGridOncall', 'ใบเบิกเงินรวม (แบบตารางรายวัน On call)']];
+    var esc = function (t) { return String(t || '').replace(/&/g, '&amp;').replace(/</g, '&lt;'); };
+    var body = document.getElementById('accPayNotes');
+    body.innerHTML = '<div style="font-size:11.5px;color:var(--mut);margin-bottom:8px;">ข้อความใต้บรรทัด "หมายเหตุ" ของใบเบิกเงิน — <b>เว้นว่าง = ใช้ข้อความอัตโนมัติ</b> (สร้างจากเวลาเวรและอัตราค่าตอบแทน)<br>' +
+      'พิมพ์บรรทัดละ 1 ข้อ · บรรทัดที่ขึ้นต้นด้วยเลขย่อย เช่น <b>1.1</b> จะย่อหน้าเข้า · ใส่ &lt;u&gt;บ&lt;/u&gt; เพื่อขีดเส้นใต้</div>' +
+      KINDS.map(function (k) {
+        return '<div style="margin-bottom:12px;"><div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;"><b style="font-size:12.5px;">' + k[1] + '</b>' +
+          '<button class="btn btn-sm" data-pn-fill="' + k[0] + '" style="margin-left:auto;"><i class="ti ti-wand"></i> ดึงข้อความอัตโนมัติ (' + monthLabel() + ')</button></div>' +
+          '<textarea data-pn="' + k[0] + '" rows="7" style="width:100%;box-sizing:border-box;font-size:12.5px;padding:8px;border:1px solid var(--border);border-radius:8px;background:var(--surface2);color:var(--ink);" placeholder="(ว่าง = ใช้ข้อความอัตโนมัติ)">' + esc(notes[k[0]]) + '</textarea></div>';
+      }).join('') +
+      '<button class="btn btn-primary btn-sm" id="payNotesSaveBtn">บันทึกคำอธิบาย</button>';
+    body.querySelectorAll('[data-pn-fill]').forEach(function (b) {
+      b.onclick = function () {
+        var kind = b.dataset.pnFill, ta = body.querySelector('[data-pn="' + kind + '"]');
+        if (ta.value.trim() && !confirm('แทนที่ข้อความที่พิมพ์ไว้ด้วยข้อความอัตโนมัติ?')) return;
+        /* ล้างข้อความที่ตั้งไว้ชั่วคราวไม่ได้ (รายงานอ่านจากชีต) — จึงดึงรายงานมาแล้วถ้ามีข้อความกำหนดเองอยู่ ก็ได้ข้อความนั้นกลับมา */
+        gsRun('api_getReport', Session.token, kind, current.year, current.month, null).then(function (rep) {
+          var div = document.createElement('div'); div.innerHTML = (rep && rep.html) || '';
+          var box = div.querySelector('.pg-notes');
+          if (!box) { toast('ยังไม่มีข้อความ', 'เดือนนี้ยังไม่มีตารางเวร — เลือกเดือนที่มีตารางเวรแล้วลองใหม่'); return; }
+          var lines = Array.prototype.slice.call(box.children, 1).map(function (el) {
+            var h = el.innerHTML.replace(/<(?!\/?u>)[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/\s+/g, ' ').trim();
+            return h;
+          }).filter(Boolean);
+          ta.value = lines.join('\n');
+        });
+      };
+    });
+    document.getElementById('payNotesSaveBtn').onclick = function (e) {
+      saveField(e.target, function () {
+        var patch = {};
+        body.querySelectorAll('[data-pn]').forEach(function (ta) { patch[ta.dataset.pn] = ta.value.trim(); });
+        return gsRun('api_saveSettings', Session.token, { payGridNotes: patch });
       });
     };
   }
