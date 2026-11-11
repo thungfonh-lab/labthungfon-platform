@@ -2149,6 +2149,8 @@ var Schedule = (function () {
   /* เวร "d" ต่อเนื่องจากเมื่อคืน จบ 08:00 — cellToks() จึงแสดงผลของ assign[day-1].d ไว้ในช่องวันที่ day
      (ดูคอมเมนต์ cellToks ด้านบน) ตอน override ต้องเขียนย้อนกลับไปที่ day-1 ให้ตรงกับสิ่งที่มองเห็นจริง
      ไม่งั้นจะกลายเป็นบั๊ก "ต้องคลิกวันก่อนหน้าถึงจะย้ายเวรที่เห็น" */
+  /* ก้อนเวรแสดงเฉพาะที่ทุกเวรในก้อนเปิดใช้งาน (ตัวเลือก "เลือกทีละเวร" แสดงเสมอ) */
+  function ovrPresetOn_(p) { return p.shifts.every(shiftOn_); }
   function ovrStorageDay_(day, shift) { return shift === 'd' ? day - 1 : day; }
   /** ใครอยู่เวรนี้อยู่แล้ว (รองรับหลายคนต่อ 1 เวร/1 วัน) — เวร 'd' ใช้ offset เดียวกับ ovrStorageDay_
    *  (แสดงคนของ "เมื่อคืน" ให้ตรงกับที่เห็นในตาราง) */
@@ -2167,9 +2169,10 @@ var Schedule = (function () {
       var body = document.createElement('div');
       body.innerHTML = '<div class="alert" style="background:var(--coral-l);border-color:var(--coral);color:var(--coral);"><i class="ti ti-alert-triangle"></i> Override ยกเว้นกฎทั้งหมด · บันทึก Log ทันที · เวรเดียวกันมีได้หลายคนพร้อมกัน</div>' +
         '<div class="oc-form-grid" style="grid-template-columns:1fr 1fr;">' +
-        '<label style="grid-column:1/-1;">ย้ายเป็นก้อน<select id="ovrPreset">' + OVR_BLOCK_PRESETS.map(function (p) { return '<option value="' + p.id + '">' + p.label + '</option>'; }).join('') + '</select></label>' +
+        '<label style="grid-column:1/-1;' + (OVR_BLOCK_PRESETS.filter(ovrPresetOn_).length > 1 ? '' : 'display:none;') + '">ย้ายเป็นก้อน<select id="ovrPreset">' + OVR_BLOCK_PRESETS.filter(ovrPresetOn_).map(function (p) { return '<option value="' + p.id + '">' + p.label + '</option>'; }).join('') + '</select></label>' +
         '<label style="grid-column:1/-1;">ประเภทเวร (เลือกได้หลายเวร)<div id="ovrShiftChips" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px;">' +
-        OVR_SHIFT_OPTS_SORTED_.map(function (o) {
+        /* แสดงเฉพาะเวรที่เปิดใช้งาน (ตั้งค่า > ประเภทเวร) */
+        OVR_SHIFT_OPTS_SORTED_.filter(function (o) { return shiftOn_(OVR_SHIFT_TIME_KEY_[o[0]]); }).map(function (o) {
           var occ = currentOccupants_(cal, day, o[0]).map(function (oid) { return byId[oid] ? fullN(byId[oid]) : oid; });
           var t = shiftTime_(OVR_SHIFT_TIME_KEY_[o[0]]);
           var timeStr = t.s.replace('.00', '') + '-' + t.e.replace('.00', '');
@@ -2459,7 +2462,11 @@ var Schedule = (function () {
       '<div class="oc-form-grid">' +
       '<label>เจ้าหน้าที่<select id="avPid"></select></label>' +
       '<label>วันที่<input id="avDay" type="number" min="1" max="31"></label>' +
-      '<label>ประเภท<select id="avType"><option value="leave">ลาทั้งวัน</option><option value="leaveAM">ลาครึ่งวันเช้า</option><option value="leavePM">ลาครึ่งวันบ่าย</option><option value="noB">ไม่สะดวกเวร บ</option><option value="noD">ไม่สะดวกเวร ด</option><option value="noCh">ไม่สะดวกเวร ช (วันหยุด)</option><option value="noN">ไม่สะดวกเวรคลินิกนอกเวลา 2 (' + shiftTime_('n').s.replace('.00','') + '-' + shiftTime_('n').e.replace('.00','') + ')</option><option value="noB1">ไม่สะดวกเวรเสริมบ่าย (16-20)</option><option value="offAll">ไม่ขึ้นเวรทุกเวร (off)</option></select></label>' +
+      '<label>ประเภท<select id="avType"><option value="leave">ลาทั้งวัน</option><option value="leaveAM">ลาครึ่งวันเช้า</option><option value="leavePM">ลาครึ่งวันบ่าย</option>' + [['b', 'noB', 'ไม่สะดวกเวร บ'], ['d', 'noD', 'ไม่สะดวกเวร ด'], ['ch', 'noCh', 'ไม่สะดวกเวร ช (วันหยุด)'],
+        ['n', 'noN', 'ไม่สะดวกเวรคลินิกนอกเวลา 2 (' + shiftTime_('n').s.replace('.00', '') + '-' + shiftTime_('n').e.replace('.00', '') + ')'],
+        ['b1', 'noB1', 'ไม่สะดวกเวรเสริมบ่าย (' + shiftTime_('b1').s.replace('.00', '') + '-' + shiftTime_('b1').e.replace('.00', '') + ')']]
+        .filter(function (o) { return shiftOn_(o[0]); }) /* เฉพาะเวรที่เปิดใช้งาน */
+        .map(function (o) { return '<option value="' + o[1] + '">' + o[2] + '</option>'; }).join('') + '<option value="offAll">ไม่ขึ้นเวรทุกเวร (off)</option></select></label>' +
       '</div><button class="btn btn-primary" id="avAddBtn"><i class="ti ti-plus"></i> เพิ่มรายการ</button>' +
       '<div class="card" style="margin-top:14px;"><div class="card-title"><i class="ti ti-list"></i>รายการที่แจ้งไว้</div><div class="tbl-wrap"><table class="tbl" id="avTable"></table></div></div>';
 
