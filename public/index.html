@@ -826,6 +826,9 @@ var MODULE_REGISTRY = BUILTIN_MODULES.slice();
 /* getSettings() ฝั่งเซิร์ฟเวอร์แปลง JSON string เป็น array/object ให้แล้ว ค่าที่ได้จึงอาจเป็น
    array อยู่แล้ว — ต้องรองรับทั้ง array และ string กัน JSON.parse ซ้ำแล้ว throw (เคยทำให้
    การเปิด/ปิดโมดูลและโมดูล URL ไม่ถูกโหลด) */
+/* ฟีเจอร์ที่หน่วยงานนี้ซ่อน (ตั้งค่า > เมนู/รายงานที่ใช้งาน) — settings.hiddenFeatures เช่น
+   'sub:balance' (เมนูย่อย), 'setup:notif' (หัวข้อในหน้าตั้งค่า), 'rep:pay' (แท็บรายงาน) — ไม่มี = แสดงทั้งหมด */
+function featureOn_(key) { return asArray_((Session.settings || {}).hiddenFeatures).indexOf(key) === -1; }
 function asArray_(v) {
   if (Array.isArray(v)) return v;
   if (typeof v === 'string') { try { var p = JSON.parse(v); return Array.isArray(p) ? p : []; } catch (e) { return []; } }
@@ -1282,6 +1285,7 @@ function moduleAllowed(mod) {
 /* สิทธิ์รายเมนูย่อยตามบทบาท — เก็บใน ModulePerms ด้วย key = parentId + '.' + subId
    (convention เดียวกับ ModuleLabels) ไม่มี key = ไม่จำกัด · admin เข้าถึงได้เสมอ */
 function subnavAllowed(modId, s) {
+  if (modId === 'schedule' && !featureOn_('sub:' + s.id)) return false;
   var role = Session.user && Session.user.role;
   if (role === 'admin') return true;
   var roles = ModulePerms[modId + '.' + s.id];
@@ -1724,7 +1728,7 @@ var Schedule = (function () {
       '<button class="btn btn-primary btn-sm" id="genBtn"><i class="ti ti-refresh"></i> สร้างตารางเวร</button>' +
       '<button class="btn btn-sm" id="blankBtn"><i class="ti ti-file-plus"></i> สร้างตารางเปล่า</button>' +
       '<button class="btn btn-danger btn-sm" id="clearBtn"><i class="ti ti-eraser"></i> เคลียร์</button>' +
-      '<button class="btn btn-sm" id="balanceBtn" style="background:var(--tl-l);color:var(--tl-d);border-color:var(--tl);"><i class="ti ti-scale"></i> สมดุลเวร</button>' +
+      '<button class="btn btn-sm" id="balanceBtn" style="background:var(--tl-l);color:var(--tl-d);border-color:var(--tl);' + (featureOn_('sub:balance') ? '' : 'display:none;') + '"><i class="ti ti-scale"></i> สมดุลเวร</button>' +
       '<button class="btn btn-sm" id="pubBtn"><i class="ti ti-send"></i> เผยแพร่</button>' +
       '<button class="btn btn-sm" id="printBtn"><i class="ti ti-printer"></i> พิมพ์</button>' +
       '<button class="btn btn-sm" id="printColorBtn"><i class="ti ti-printer"></i> พิมพ์สี</button>' +
@@ -1909,6 +1913,19 @@ var Schedule = (function () {
     return base.replace(/\s*\d{2}[.:]?\d{0,2}\s*-\s*\d{2}[.:]?\d{0,2}$/, '') +
       ' ' + t.s.replace('.00', '') + '-' + t.e.replace('.00', '');
   }
+  /* อัตราเวรดึกจาก ตั้งค่า > อัตราค่าตอบแทน — HT/MT(RT)/LA เท่ากันแสดงตัวเลขเดียว ไม่เท่ากันแยกตามบทบาท
+     (HT ไม่ได้ตั้งแยก = ใช้ของ MT · ข้ามบทบาทที่อัตราเป็น 0) */
+  function dRateText_(sh) {
+    var rates = (Session.settings || {}).rates || {};
+    var mt = rates.MT || {};
+    if (mt.d !== undefined && mt.d0 === undefined) mt = Object.assign({}, mt, { d0: mt.d, d1: mt.d });
+    var val = { HT: +((rates.HT || mt)[sh]) || 0, MT: +(mt[sh]) || 0, LA: +((rates.LA || {})[sh]) || 0 };
+    var used = ['HT', 'MT', 'LA'].filter(function (r) { return val[r] > 0; });
+    if (!used.length) return '0 บาท';
+    var uniq = used.map(function (r) { return val[r]; }).filter(function (v, i, a) { return a.indexOf(v) === i; });
+    if (uniq.length === 1) return uniq[0] + ' บาท';
+    return used.map(function (r) { return roleLbl_(r) + ' ' + val[r]; }).join(' / ') + ' บาท';
+  }
   function renderWorkHoursPrint() {
     var el = document.getElementById('workHoursPrint');
     if (!el) return;
@@ -1918,9 +1935,9 @@ var Schedule = (function () {
       if (k === 'd') {
         /* เวรดึก on call แยกแสดง 2 ช่วงเวลาตามอัตราจริง (325 บาทต่อช่วง) แทนที่จะโชว์รวดเดียว
            00.00-08.00 น. — ให้ตรงกับที่ใบเบิกเงินรวมคิดเงินจริงตามฟีดแบ็ก */
-        var dLabel = SHIFT_DEFS.d.short + ' เวรดึก on call<span class="money-only"> (325 บาท)</span>';
-        rows.push('<div class="whr-row"><span class="whr-lbl">' + dLabel + '</span><span class="whr-time">ตั้งแต่เวลา 00.00 น.-04.00 น.</span></div>');
-        rows.push('<div class="whr-row"><span class="whr-lbl">' + dLabel + '</span><span class="whr-time">ตั้งแต่เวลา 04.01 น.-08.00 น.</span></div>');
+        var dLabel = function (sh) { return SHIFT_DEFS.d.short + ' เวรดึก on call<span class="money-only"> (' + dRateText_(sh) + ')</span>'; };
+        rows.push('<div class="whr-row"><span class="whr-lbl">' + dLabel('d0') + '</span><span class="whr-time">ตั้งแต่เวลา 00.00 น.-04.00 น.</span></div>');
+        rows.push('<div class="whr-row"><span class="whr-lbl">' + dLabel('d1') + '</span><span class="whr-time">ตั้งแต่เวลา 04.01 น.-08.00 น.</span></div>');
         return;
       }
       var s = SHIFT_DEFS[k];
@@ -2951,7 +2968,7 @@ var Schedule = (function () {
     var tabsEl = document.getElementById('repTabs');
     var curKind = 'otsheet';
     function paintTabs() {
-      tabsEl.innerHTML = REPORT_TABS.map(function (t) {
+      tabsEl.innerHTML = REPORT_TABS.filter(function (t) { return featureOn_('rep:' + t.id); }).map(function (t) {
         return '<div class="rtab' + (t.id === curKind ? ' active' : '') + '" data-k="' + t.id + '">' + t.label + '</div>';
       }).join('');
       tabsEl.querySelectorAll('[data-k]').forEach(function (el) {
@@ -3060,8 +3077,9 @@ var Schedule = (function () {
       '<details class="acc"><summary><i class="ti ti-signature"></i> ผู้ลงนามในเอกสาร</summary><div class="acc-body" id="accSign"></div></details>' +
       '<details class="acc"><summary><i class="ti ti-heading"></i> หัวข้อรายงาน (พิมพ์/ส่งออก)</summary><div class="acc-body" id="accRepTitles"></div></details>' +
       '<details class="acc"><summary><i class="ti ti-notes"></i> คำอธิบายใต้ใบเบิกเงิน (แบบตารางรายวัน)</summary><div class="acc-body" id="accPayNotes"></div></details>' +
+      '<details class="acc"><summary><i class="ti ti-eye"></i> เมนู/รายงานที่ใช้งาน</summary><div class="acc-body" id="accFeatures"></div></details>' +
       '<details class="acc"><summary><i class="ti ti-flask"></i> Master Data (LAB · หน่วยงาน)</summary><div class="acc-body" id="accMaster"></div></details>' +
-      '<details class="acc"><summary><i class="ti ti-bell"></i> การแจ้งเตือน &amp; กำหนดการ</summary><div class="acc-body" id="accNotif"></div></details>' +
+      '<details class="acc"' + (featureOn_('setup:notif') ? '' : ' style="display:none"') + '><summary><i class="ti ti-bell"></i> การแจ้งเตือน &amp; กำหนดการ</summary><div class="acc-body" id="accNotif"></div></details>' +
       '<details class="acc"><summary><i class="ti ti-shield-lock"></i> สิทธิ์การใช้งาน (รายบุคคล)</summary><div class="acc-body" id="accPerms"></div></details>' +
       '<details class="acc"><summary><i class="ti ti-database"></i> สำรองข้อมูล &amp; Audit Log</summary><div class="acc-body" id="accBackup"></div></details>';
 
@@ -3080,6 +3098,7 @@ var Schedule = (function () {
       renderSignSection(bundle.settings);
       renderReportTitlesSection(bundle.settings);
       renderPayNotesSection(bundle.settings);
+      renderFeaturesSection();
       renderMasterSection(bundle.settings);
       renderNotifSection(bundle.settings);
       renderPermsSection(bundle.permissions);
@@ -3567,7 +3586,7 @@ var Schedule = (function () {
     document.getElementById('ratesSaveBtn').onclick = function (e) {
       var newRates = { HT: {}, MT: {}, LA: {} };
       body.querySelectorAll('[data-rate-role]').forEach(function (inp) { newRates[inp.dataset.rateRole][inp.dataset.rateSh] = Math.round((+inp.value || 0) * 100) / 100; });
-      saveField(e.target, function () { return gsRun('api_saveSettings', Session.token, { rates: newRates }); });
+      saveField(e.target, function () { return gsRun('api_saveSettings', Session.token, { rates: newRates }).then(function (r) { Session.settings = Object.assign({}, Session.settings, { rates: newRates }); return r; }); });
     };
 
     var byId = {}; people.forEach(function (p) { byId[p.id] = p; });
@@ -3703,6 +3722,33 @@ var Schedule = (function () {
 
   /* คำอธิบายท้ายใบเบิกเงินรวม (แบบตารางรายวัน / On call) — เว้นว่าง = ระบบสร้างให้อัตโนมัติจากเวลาเวรและอัตรา
      ปุ่ม "ดึงข้อความอัตโนมัติ" ดึงข้อความที่ระบบสร้างของเดือนที่เลือกมาใส่ไว้ให้แก้ต่อ */
+  /* เลือกเมนู/รายงานที่หน่วยงานนี้ใช้ — เอาติ๊กออก = ซ่อน (ข้อมูลไม่หาย เปิดกลับได้) */
+  function renderFeaturesSection() {
+    var body = document.getElementById('accFeatures');
+    var groups = [
+      ['เมนูและหัวข้อตั้งค่า', [['sub:balance', 'สมดุลเวร (เมนูย่อย + ปุ่มในตารางเวร)'], ['setup:notif', 'การแจ้งเตือน & กำหนดการ (หน้าตั้งค่า)']]],
+      ['แท็บรายงาน', REPORT_TABS.map(function (t) { return ['rep:' + t.id, t.label]; })]
+    ];
+    body.innerHTML = '<div style="font-size:11.5px;color:var(--mut);margin-bottom:8px;">เอาติ๊กออก = ซ่อนจากหน่วยงานนี้ (ข้อมูลไม่หาย ติ๊กกลับเมื่อไหร่ก็แสดงเหมือนเดิม) · มีผลหลังรีเฟรชหน้า</div>' +
+      groups.map(function (g) {
+        return '<div class="card-title" style="margin-top:6px;">' + g[0] + '</div><div style="display:flex;flex-wrap:wrap;gap:6px 18px;margin-bottom:10px;">' +
+          g[1].map(function (f) {
+            return '<label style="display:inline-flex;align-items:center;gap:6px;font-size:12.5px;"><input type="checkbox" data-feat="' + f[0] + '"' + (featureOn_(f[0]) ? ' checked' : '') + '>' + f[1] + '</label>';
+          }).join('') + '</div>';
+      }).join('') +
+      '<button class="btn btn-primary btn-sm" id="featSaveBtn">บันทึก</button>';
+    document.getElementById('featSaveBtn').onclick = function (e) {
+      var hidden = Array.prototype.map.call(body.querySelectorAll('[data-feat]:not(:checked)'), function (c) { return c.dataset.feat; });
+      saveField(e.target, function () {
+        return gsRun('api_saveSettings', Session.token, { hiddenFeatures: hidden }).then(function (r) {
+          Session.settings = Object.assign({}, Session.settings, { hiddenFeatures: hidden });
+          toast('บันทึกแล้ว', 'รีเฟรชหน้าเพื่อให้เมนูอัปเดต');
+          return r;
+        });
+      });
+    };
+  }
+
   function renderPayNotesSection(s) {
     var notes = s.payGridNotes || {};
     var KINDS = [['payGrid', 'ใบเบิกเงินรวม (แบบตารางรายวัน)'], ['payGridOncall', 'ใบเบิกเงินรวม (แบบตารางรายวัน On call)']];
