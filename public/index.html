@@ -1937,9 +1937,11 @@ var Schedule = (function () {
       if (k === 'd') {
         /* เวรดึก on call แยกแสดง 2 ช่วงเวลาตามอัตราจริง (325 บาทต่อช่วง) แทนที่จะโชว์รวดเดียว
            00.00-08.00 น. — ให้ตรงกับที่ใบเบิกเงินรวมคิดเงินจริงตามฟีดแบ็ก */
-        var dLabel = function (sh) { return SHIFT_DEFS.d.short + ' เวรดึก on call<span class="money-only"> (' + dRateText_(sh) + ')</span>'; };
-        rows.push('<div class="whr-row"><span class="whr-lbl">' + dLabel('d0') + '</span><span class="whr-time">ตั้งแต่เวลา 00.00 น.-04.00 น.</span></div>');
-        rows.push('<div class="whr-row"><span class="whr-lbl">' + dLabel('d1') + '</span><span class="whr-time">ตั้งแต่เวลา 04.01 น.-08.00 น.</span></div>');
+        /* แสดงบรรทัดเดียว 00.00-08.00 น. (ตามฟีดแบ็ก) — อัตรายังคิดแยก 2 ช่วงในใบเบิกเงิน
+           ถ้าอัตรา 2 ช่วงเท่ากันแสดงอัตราเดียว (ต่อช่วง) ไม่เท่ากันแสดงทั้งสองช่วง */
+        var r0 = dRateText_('d0'), r1 = dRateText_('d1');
+        var rTxt = r0 === r1 ? r0 : ('00-04 ' + r0 + ' · 04-08 ' + r1);
+        rows.push('<div class="whr-row"><span class="whr-lbl">' + SHIFT_DEFS.d.short + ' เวรดึก on call<span class="money-only"> (' + rTxt + ')</span></span><span class="whr-time">ตั้งแต่เวลา 00.00 น.-08.00 น.</span></div>');
         return;
       }
       var s = SHIFT_DEFS[k];
