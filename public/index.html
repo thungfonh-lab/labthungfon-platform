@@ -2301,7 +2301,7 @@ var Schedule = (function () {
           { k: 'b1', label: 'เวรเสริมบ่าย (บ1)', color: '#6845AA' },
           { k: 'n', label: 'คลินิก (น)', color: '#B8862E' },
           { k: 'd', label: 'เวรดึก (ด)', color: '#C0432B' }
-        ];
+        ].filter(function (s) { return shiftOn_(s.k); }); /* เฉพาะเวรที่เปิดใช้งาน (ตั้งค่า > ประเภทเวร) */
         function noData(id) { document.getElementById(id + 'Wrap').innerHTML = '<div style="color:var(--mut);font-size:12.5px;padding:16px 0">ยังไม่มีข้อมูล on call เดือนนี้</div>'; }
 
         /* ── on-call ของเดือนนี้ (cal.oncall = OnCallRecords เต็ม มี date/time/hn/labs/unit อยู่แล้ว) ── */
@@ -2357,7 +2357,7 @@ var Schedule = (function () {
         /* ── 3. แท่งซ้อนภาระงานรายบุคคล (ยุบแถบ+การ์ดบทบาท+การ์ดรายบุคคลเดิม) ── */
         var oncallByPid = {};
         ocList.forEach(function (o) { oncallByPid[o.pid] = (oncallByPid[o.pid] || 0) + 1; });
-        var pplLabels = workload.people.map(function (p) { return fullN(p) + ' (' + (p.role || 'MT') + ')'; });
+        var pplLabels = workload.people.map(function (p) { return fullN(p) + ' (' + roleLbl_(p.role || 'MT') + ')'; });
         _mkChart('dashPeople', {
           type: 'bar',
           data: {
